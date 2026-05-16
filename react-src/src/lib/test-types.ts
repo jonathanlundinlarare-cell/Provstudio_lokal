@@ -475,8 +475,8 @@ export type DesignSettings = {
   numColor?: "ink" | "accent";
   /** Visa poäng vid varje fråga */
   showPoints?: boolean;
-  /** Stil på poängvisning: italic | pill | box | blank */
-  pointsStyle?: "italic" | "pill" | "box" | "blank";
+  /** Stil på poängvisning: italic | pill | box | stamp */
+  pointsStyle?: "italic" | "pill" | "box" | "stamp";
   /** Markör för flervalsfrågor: square | circle | letter */
   mcMarker?: "square" | "circle" | "letter";
   /** Visa sidnummer */
@@ -498,14 +498,14 @@ export type DesignSettings = {
   headingFont?: string;
   /** Typsnitt för brödtext (font-family-sträng eller id från FONT_OPTIONS) */
   bodyFont?: string;
-  /** Rubrikfontens vikt */
-  titleWeight?: "400" | "500" | "600" | "700" | "800";
+  /** Rubrikfontens vikt (number) */
+  titleWeight?: number;
   /** Rubrik i kursiv */
   titleItalic?: boolean;
   /** Rubrik text-transform */
-  titleTransform?: "none" | "uppercase" | "capitalize";
-  /** Rubrik letter-spacing */
-  titleTracking?: string;
+  titleTransform?: "none" | "uppercase" | "smallcaps";
+  /** Rubrik letter-spacing i thousandths of an em */
+  titleTracking?: number;
   /** Rubrikfärg: ink = svart, accent = accentfärg */
   titleColor?: "ink" | "accent";
   /** Sektionsrubrik kursiv */
@@ -520,25 +520,37 @@ export type DesignSettings = {
   cardStyle?: "flat" | "framed" | "banded" | "gutter" | "indented" | "stamped";
   /** Pappersyta: white | cream | warm | linen | dot | grid | ruled | graph */
   paperStyle?: "white" | "cream" | "warm" | "linen" | "dot" | "grid" | "ruled" | "graph";
-  /** Sidram: none | thin | thick | double | shadow */
-  pageFrame?: "none" | "thin" | "thick" | "double" | "shadow";
+  /** Sidram: none | thin | double | thick-accent | corners */
+  pageFrame?: "none" | "thin" | "double" | "thick-accent" | "corners";
   /** Vattenstämpeltext */
   watermark?: string;
-  /** Dropplock på öppen fråga: none | first | all */
-  dropCap?: "none" | "first" | "all";
-  /** Ornament i provhuvud */
-  headerOrnament?: "none" | "rule" | "dots" | "diamond" | "wave";
-  /** Avdelare mellan sektioner */
-  sectionDivider?: "none" | "thin" | "thick" | "ornament" | "space";
+  /** Dropplock på öppen fråga: off | filled | outline | box */
+  dropCap?: "off" | "filled" | "outline" | "box";
+  /** Ornament i provhuvud: none | rule | double-rule | ornament | diamond */
+  headerOrnament?: "none" | "rule" | "double-rule" | "ornament" | "diamond";
+  /** Avdelare mellan sektioner: none | rule | dotted | ornament | hairline */
+  sectionDivider?: "none" | "rule" | "dotted" | "ornament" | "hairline";
   /** Densitet (avstånd): comfortable | compact | spacious */
   density?: "comfortable" | "compact" | "spacious";
-  /** Sidfotsstil: plain | fancy | centered | minimal */
-  footerStyle?: "plain" | "fancy" | "centered" | "minimal";
+  /** Sidfotsstil: none | minimal | info | hairline | branded */
+  footerStyle?: "none" | "minimal" | "info" | "hairline" | "branded";
+  /** Marginal i mm */
+  margin?: number;
+  /** Brödtextstorlek i px */
+  bodySize?: number;
+  /** Radhöjd i px */
+  lineHeight?: number;
+  /** Inkludera försättsblad */
+  includeCover?: boolean;
+  /** Innehållsförteckning */
+  showToc?: boolean;
+  /** Instruktionstext */
+  showInstructions?: boolean;
   /** Försättsbildsinställningar */
   coverImage?: {
     enabled: boolean;
     /** Typ av inbyggd illustration */
-    kind: "painting" | "landscape" | "city" | "industrial" | "manuscript" | "abstract";
+    kind: string;
     /** Bildhöjd i mm */
     height: number;
     /** Y-toningspunkt (% av höjden) */
@@ -548,7 +560,7 @@ export type DesignSettings = {
     /** Opacitet 0–1 */
     opacity: number;
     /** Anpassad bild-URL (overridar kind om satt) */
-    src?: string;
+    src: string | null;
   };
 };
 
@@ -589,34 +601,40 @@ export const DEFAULT_DESIGN: DesignSettings = {
   aids: "",
   subtitle: "",
   // v3 defaults
-  headingFont: "Newsreader, serif",
-  bodyFont: "Inter, sans-serif",
-  titleWeight: "700",
+  headingFont: "newsreader",
+  bodyFont: "newsreader",
+  titleWeight: 700,
   titleItalic: false,
-  titleTransform: "none",
-  titleTracking: "-0.02em",
+  titleTransform: "uppercase",
+  titleTracking: 0,
   titleColor: "ink",
   sectionItalic: false,
-  highlightColor: "none",
+  highlightColor: "",
   numStyle: "plain",
   showMeta: false,
   cardStyle: "flat",
   paperStyle: "white",
   pageFrame: "none",
   watermark: "",
-  dropCap: "none",
+  dropCap: "off",
   headerOrnament: "none",
   sectionDivider: "none",
   density: "comfortable",
-  footerStyle: "plain",
+  footerStyle: "info",
+  margin: 22,
+  bodySize: 11.5,
+  lineHeight: 22,
+  includeCover: true,
+  showToc: false,
+  showInstructions: true,
   coverImage: {
     enabled: false,
     kind: "painting",
-    height: 60,
-    fadeY: 40,
-    fadeX: 0,
-    opacity: 0.6,
-    src: "",
+    height: 130,
+    fadeY: 22,
+    fadeX: 12,
+    opacity: 0.95,
+    src: null,
   },
 };
 

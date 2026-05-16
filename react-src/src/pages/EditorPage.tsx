@@ -78,78 +78,70 @@ const LAYOUT_NAMES: Record<string, string> = {
 };
 
 /* ── Design presets ──────────────────────────────────────────────────────── */
-const DESIGN_PRESETS: Array<{ id: string; name: string; accent: string; design: Partial<import("@/lib/test-types").DesignSettings> }> = [
+const DESIGN_PRESETS: Array<{ id: string; name: string; desc: string; accent: string; design: Partial<import("@/lib/test-types").DesignSettings> }> = [
   {
-    id: "skolverket",
-    name: "Skolverket",
-    accent: "#1E5F5C",
-    design: { headingFont: "Arial, sans-serif", bodyFont: "Arial, sans-serif", titleWeight: "700", titleTransform: "none", cardStyle: "flat", paperStyle: "white", numStyle: "plain", layout: "classic" },
-  },
-  {
-    id: "editorial",
-    name: "Editorial",
-    accent: "#1C1B18",
-    design: { headingFont: "Newsreader, serif", bodyFont: "Inter, sans-serif", titleWeight: "700", titleTransform: "none", cardStyle: "framed", paperStyle: "cream", numStyle: "display", layout: "editorial" },
-  },
-  {
-    id: "akademiskt",
-    name: "Akademiskt",
+    id: "skolverket", name: "Skolverket", desc: "Officiell, neutral",
     accent: "#1E3A5F",
-    design: { headingFont: "Lora, serif", bodyFont: "Lora, serif", titleWeight: "600", titleTransform: "none", cardStyle: "flat", paperStyle: "white", numStyle: "plain", layout: "exam" },
+    design: { layout: "exam", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 24, mcMarker: "square", pointsStyle: "italic", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "modern",
-    name: "Modern",
-    accent: "#4F46E5",
-    design: { headingFont: "DM Sans, sans-serif", bodyFont: "DM Sans, sans-serif", titleWeight: "700", titleTransform: "uppercase", cardStyle: "banded", paperStyle: "white", numStyle: "chip", layout: "minimal" },
+    id: "editorial", name: "Editorial", desc: "Som en tidskrift",
+    accent: "#7A1F2B",
+    design: { layout: "editorial", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "cream", cardStyle: "gutter", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "circle", pointsStyle: "italic", margin: 24, bodySize: 11.5, dropCap: "filled", watermark: "", density: "spacious", sectionDivider: "ornament", showMeta: true, headerOrnament: "rule", footerStyle: "hairline", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "matte",
-    name: "Mattehäfte",
+    id: "academic", name: "Akademiskt", desc: "Klassiskt prov",
     accent: "#1E5F5C",
-    design: { headingFont: "Inter, sans-serif", bodyFont: "Inter, sans-serif", titleWeight: "600", titleTransform: "none", cardStyle: "gutter", paperStyle: "grid", numStyle: "plain", layout: "classic" },
+    design: { layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "framed", pageFrame: "thin", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "box", margin: 22, bodySize: 11, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "vintage",
-    name: "Vintage",
-    accent: "#7A3B1E",
-    design: { headingFont: "Playfair Display, serif", bodyFont: "Source Serif 4, serif", titleWeight: "700", titleItalic: true, titleTransform: "none", cardStyle: "indented", paperStyle: "warm", numStyle: "plain", numbering: "roman", layout: "editorial" },
+    id: "modern", name: "Modern", desc: "Ren, geometrisk",
+    accent: "#2C2C2C",
+    design: { layout: "minimal", headingFont: "geist", bodyFont: "dm-sans", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "pill", margin: 20, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "hairline", showMeta: false, headerOrnament: "none", footerStyle: "minimal", titleWeight: 500, titleTransform: "none", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+  },
+  {
+    id: "math", name: "Mattehäfte", desc: "Rutat papper",
+    accent: "#1E3A5F",
+    design: { layout: "minimal", headingFont: "geist", bodyFont: "geist", paperStyle: "graph", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 24, mcMarker: "square", pointsStyle: "box", margin: 18, bodySize: 11.5, dropCap: "off", watermark: "", density: "spacious", sectionDivider: "hairline", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+  },
+  {
+    id: "vintage", name: "Vintage", desc: "Ornament & dropcap",
+    accent: "#5C2A5C",
+    design: { layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "linen", cardStyle: "stamped", pageFrame: "corners", numbering: "roman", numStyle: "plain", numColor: "accent", lineStyle: "dotted", lineHeight: 22, mcMarker: "letter", pointsStyle: "italic", margin: 26, bodySize: 11.5, dropCap: "outline", watermark: "PROV", density: "spacious", sectionDivider: "ornament", showMeta: false, headerOrnament: "ornament", footerStyle: "hairline", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
 ];
 
 /* ── Font options ────────────────────────────────────────────────────────── */
 const FONT_OPTIONS = [
-  // Serifer
-  { id: "Newsreader, serif",          name: "Newsreader",         category: "serif" },
-  { id: "Lora, serif",                name: "Lora",               category: "serif" },
-  { id: "Playfair Display, serif",    name: "Playfair Display",   category: "serif" },
-  { id: "Source Serif 4, serif",      name: "Source Serif 4",     category: "serif" },
-  { id: "Libre Baskerville, serif",   name: "Libre Baskerville",  category: "serif" },
-  { id: "EB Garamond, serif",         name: "EB Garamond",        category: "serif" },
-  { id: "Crimson Pro, serif",         name: "Crimson Pro",        category: "serif" },
-  { id: "Spectral, serif",            name: "Spectral",           category: "serif" },
-  { id: "Merriweather, serif",        name: "Merriweather",       category: "serif" },
-  // Sans-serifer
-  { id: "Inter, sans-serif",          name: "Inter",              category: "sans" },
-  { id: "DM Sans, sans-serif",        name: "DM Sans",            category: "sans" },
-  { id: "Nunito, sans-serif",         name: "Nunito",             category: "sans" },
-  { id: "Arial, sans-serif",          name: "Arial",              category: "sans" },
+  { id: "newsreader",   name: "Newsreader",      category: "Serif · varm" },
+  { id: "instrument",  name: "Instrument Serif", category: "Serif · display" },
+  { id: "fraunces",    name: "Fraunces",         category: "Serif · uttrycksfull" },
+  { id: "eb-garamond", name: "EB Garamond",      category: "Serif · klassisk" },
+  { id: "lora",        name: "Lora",             category: "Serif · läsbar" },
+  { id: "crimson",     name: "Crimson Pro",      category: "Serif · akademisk" },
+  { id: "source-serif",name: "Source Serif",     category: "Serif · neutral" },
+  { id: "plex-serif",  name: "IBM Plex Serif",   category: "Serif · teknisk" },
+  { id: "cormorant",   name: "Cormorant",        category: "Serif · elegant" },
+  { id: "geist",       name: "Geist",            category: "Sans · geometrisk" },
+  { id: "dm-sans",     name: "DM Sans",          category: "Sans · humanist" },
+  { id: "plex-sans",   name: "IBM Plex Sans",    category: "Sans · teknisk" },
+  { id: "system",      name: "System",           category: "Sans · system" },
 ];
 
 /* ── Extended accent palette ─────────────────────────────────────────────── */
 const ACCENT_PALETTE_FULL = [
   { name: "Skog",       color: "#1E5F5C" },
+  { name: "Mossa",      color: "#3D6B3D" },
   { name: "Bordeaux",   color: "#7A1F2B" },
+  { name: "Tegel",      color: "#B2402A" },
   { name: "Marin",      color: "#1E3A5F" },
+  { name: "Stålblå",    color: "#2B5BA8" },
   { name: "Senap",      color: "#A87F1A" },
+  { name: "Bärnsten",   color: "#C8961A" },
   { name: "Plommon",    color: "#5C2A5C" },
+  { name: "Aubergine",  color: "#3D2A4E" },
   { name: "Grafit",     color: "#2C2C2C" },
-  { name: "Indigo",     color: "#4F46E5" },
-  { name: "Terrakotta", color: "#C05621" },
-  { name: "Olivgrön",   color: "#4A5E1E" },
-  { name: "Stålblå",    color: "#2563A8" },
-  { name: "Rosenträ",   color: "#7A3B3B" },
-  { name: "Ceder",      color: "#2D5F4A" },
+  { name: "Koppar",     color: "#9E5A3A" },
 ];
 
 /* ── Highlight palette ───────────────────────────────────────────────────── */
@@ -180,18 +172,18 @@ const CARD_STYLE_NAMES: Record<string, string> = {
   flat:      "Platt",
   framed:    "Ram",
   banded:    "Band",
-  gutter:    "Marginal",
-  indented:  "Indragning",
+  gutter:    "Linje",
+  indented:  "Indrag",
   stamped:   "Stämpel",
 };
 
 /* ── Page frame names ────────────────────────────────────────────────────── */
 const PAGE_FRAME_NAMES: Record<string, string> = {
-  none:    "Ingen",
-  thin:    "Tunn",
-  thick:   "Tjock",
-  double:  "Dubbel",
-  shadow:  "Skugga",
+  none:         "Ingen",
+  thin:         "Tunn",
+  double:       "Dubbel",
+  "thick-accent": "Accent",
+  corners:      "Hörn",
 };
 
 /* ── Cover illustration kinds ────────────────────────────────────────────── */
@@ -1443,11 +1435,13 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
       .every(k => p.design[k] === undefined || p.design[k] === (design as Record<string,unknown>)[k]);
   };
 
+  const coverImageDefault = { enabled: false, kind: "painting", height: 130, fadeY: 22, fadeX: 12, opacity: 0.95, src: null };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-      {/* Presets */}
-      <PsGroup title="Designmall">
+      {/* 1. Förinställning */}
+      <PsGroup title="Förinställning">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
           {DESIGN_PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p)} style={{
@@ -1457,7 +1451,8 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
               cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 11, textAlign: "center",
             }}>
               <div style={{ width: 18, height: 18, borderRadius: "50%", background: p.accent, margin: "0 auto 4px" }} />
-              <span style={{ fontWeight: isPresetActive(p) ? 600 : 400, color: "var(--ps-ink-2)" }}>{p.name}</span>
+              <span style={{ fontWeight: isPresetActive(p) ? 600 : 400, color: "var(--ps-ink-2)", display: "block" }}>{p.name}</span>
+              <span style={{ fontSize: 9, color: "var(--ps-ink-4)", display: "block" }}>{p.desc}</span>
             </button>
           ))}
           {tones.map(t => (
@@ -1469,11 +1464,8 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
             }}>
               <div style={{ width: 18, height: 18, borderRadius: "50%", background: t.accent, margin: "0 auto 4px" }} />
               <span style={{ fontWeight: isPresetActive(t) ? 600 : 400, color: "var(--ps-ink-2)" }}>{t.name}</span>
-              <span
-                onClick={e => { e.stopPropagation(); saveTones(tones.filter(x => x.id !== t.id)); }}
-                style={{ position: "absolute", top: 2, right: 4, fontSize: 10, color: "var(--ps-ink-4)", cursor: "pointer" }}
-                title="Ta bort ton"
-              >×</span>
+              <span onClick={e => { e.stopPropagation(); saveTones(tones.filter(x => x.id !== t.id)); }}
+                style={{ position: "absolute", top: 2, right: 4, fontSize: 10, color: "var(--ps-ink-4)", cursor: "pointer" }} title="Ta bort ton">×</span>
             </button>
           ))}
         </div>
@@ -1483,171 +1475,64 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
           onClick={() => {
             const name = prompt("Namn på ny designton:");
             if (!name) return;
-            const newTone = {
-              id: crypto.randomUUID(),
-              name,
-              accent,
-              design: {
-                headingFont: design.headingFont, bodyFont: design.bodyFont,
-                titleWeight: design.titleWeight, titleItalic: design.titleItalic,
-                titleTransform: design.titleTransform, titleTracking: design.titleTracking,
-                titleColor: design.titleColor, cardStyle: design.cardStyle,
-                paperStyle: design.paperStyle, numStyle: design.numStyle,
-                layout: design.layout,
-              },
-            };
-            saveTones([...tones, newTone]);
+            saveTones([...tones, {
+              id: crypto.randomUUID(), name, accent,
+              design: { headingFont: design.headingFont, bodyFont: design.bodyFont, titleWeight: design.titleWeight,
+                titleItalic: design.titleItalic, titleTransform: design.titleTransform, titleTracking: design.titleTracking,
+                titleColor: design.titleColor, cardStyle: design.cardStyle, paperStyle: design.paperStyle,
+                numStyle: design.numStyle, layout: design.layout },
+            }]);
           }}
         >
-          + Spara som ton
+          + Spara nuvarande som ton
         </button>
       </PsGroup>
 
-      {/* Layout style */}
+      {/* 2. Layout-stil */}
       <PsGroup title="Layout-stil">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <select
+          value={design.layout ?? "classic"}
+          onChange={e => setD({ layout: e.target.value as DesignSettings["layout"] })}
+          className="ps-input"
+          style={{ fontSize: 12.5 }}
+        >
           {Object.entries(LAYOUT_NAMES).map(([k, name]) => (
-            <button key={k} onClick={() => setD({ layout: k as DesignSettings["layout"] })} style={{
-              padding: "8px 8px 10px", borderRadius: 7,
-              border: "1px solid", borderColor: design.layout === k ? "var(--ps-ink)" : "var(--ps-rule-2)",
-              background: design.layout === k ? "var(--ps-paper)" : "transparent",
-              cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5, textAlign: "left",
-              display: "flex", flexDirection: "column", gap: 6,
-            }}>
-              <LayoutThumb variant={k} accent={accent} />
-              <span style={{ fontWeight: design.layout === k ? 500 : 400 }}>{name}</span>
-            </button>
+            <option key={k} value={k}>{name}</option>
           ))}
-        </div>
+        </select>
       </PsGroup>
 
-      {/* Accent color */}
+      {/* 3. Accentfärg */}
       <PsGroup title="Accentfärg">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 5 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5 }}>
           {ACCENT_PALETTE_FULL.map(p => (
             <button key={p.color} title={p.name} onClick={() => setD({ primaryColor: p.color })} style={{
-              aspectRatio: "1", borderRadius: 6, background: p.color, cursor: "pointer",
+              height: 28, borderRadius: 6, background: p.color, cursor: "pointer",
               border: accent === p.color ? "2px solid var(--ps-ink)" : "1px solid var(--ps-rule-2)",
               outline: accent === p.color ? "2px solid var(--ps-paper)" : "none",
-              outlineOffset: -4,
-            }} />
-          ))}
-        </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ps-ink-3)", marginTop: 2 }}>
-          Anpassad
-          <input type="color" value={accent} onChange={e => setD({ primaryColor: e.target.value })}
-            style={{ width: 28, height: 22, borderRadius: 4, border: "1px solid var(--ps-rule)", padding: 2, cursor: "pointer" }} />
-        </label>
-      </PsGroup>
-
-      {/* Heading font */}
-      <PsGroup title="Rubrikstypsnitt">
-        <select
-          value={design.headingFont ?? "Newsreader, serif"}
-          onChange={e => setD({ headingFont: e.target.value })}
-          className="ps-input"
-          style={{ fontSize: 12.5 }}
-        >
-          <optgroup label="Serif">
-            {FONT_OPTIONS.filter(f => f.category === "serif").map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Sans-serif">
-            {FONT_OPTIONS.filter(f => f.category === "sans").map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-        </select>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Vikt</span>
-            <select value={design.titleWeight ?? "700"} onChange={e => setD({ titleWeight: e.target.value as DesignSettings["titleWeight"] })} className="ps-input" style={{ fontSize: 12 }}>
-              {[["400","Normal"],["500","Medium"],["600","Halvfet"],["700","Fet"],["800","Extra fet"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Transform</span>
-            <select value={design.titleTransform ?? "none"} onChange={e => setD({ titleTransform: e.target.value as DesignSettings["titleTransform"] })} className="ps-input" style={{ fontSize: 12 }}>
-              <option value="none">Normal</option>
-              <option value="uppercase">VERSALER</option>
-              <option value="capitalize">Inled.Versal</option>
-            </select>
-          </label>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <PsToggle label="Kursiv" on={design.titleItalic ?? false} onChange={v => setD({ titleItalic: v })} />
-        </div>
-        <Segmented value={design.titleColor ?? "ink"} onChange={v => setD({ titleColor: v as "ink"|"accent" })}
-          options={[{ v: "ink", label: "Svart" }, { v: "accent", label: "Accentfärg" }]} />
-      </PsGroup>
-
-      {/* Body font */}
-      <PsGroup title="Brödtexttypsnitt">
-        <select
-          value={design.bodyFont ?? "Inter, sans-serif"}
-          onChange={e => setD({ bodyFont: e.target.value })}
-          className="ps-input"
-          style={{ fontSize: 12.5 }}
-        >
-          <optgroup label="Serif">
-            {FONT_OPTIONS.filter(f => f.category === "serif").map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Sans-serif">
-            {FONT_OPTIONS.filter(f => f.category === "sans").map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-        </select>
-      </PsGroup>
-
-      {/* Highlight color */}
-      <PsGroup title="Markeringsfärg">
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {HIGHLIGHT_PALETTE.map(h => (
-            <button key={h.color} title={h.name} onClick={() => setD({ highlightColor: h.color })} style={{
-              width: 22, height: 22, borderRadius: 5,
-              background: h.color === "none" ? "white" : h.color,
-              border: `${(design.highlightColor ?? "none") === h.color ? "2px" : "1px"} solid ${(design.highlightColor ?? "none") === h.color ? "var(--ps-ink)" : "var(--ps-rule-2)"}`,
-              cursor: "pointer",
-              ...(h.color === "none" ? { backgroundImage: "linear-gradient(135deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)", backgroundSize: "8px 8px" } : {}),
-            }} />
-          ))}
-        </div>
-      </PsGroup>
-
-      {/* Numbering style */}
-      <PsGroup title="Numreringsstil">
-        <Segmented value={design.numStyle ?? "plain"} onChange={v => setD({ numStyle: v as DesignSettings["numStyle"] })}
-          options={[{ v: "plain", label: "1." }, { v: "fraga", label: "Fråga" }, { v: "display", label: "Stor" }, { v: "chip", label: "⬤" }]} />
-        <Segmented value={design.numbering ?? "number"} onChange={v => setD({ numbering: v as DesignSettings["numbering"] })}
-          options={[{ v: "number", label: "1" }, { v: "letter", label: "A" }, { v: "roman", label: "i" }, { v: "paren", label: "(1)" }]} />
-        <Segmented value={design.numColor ?? "ink"} onChange={v => setD({ numColor: v as DesignSettings["numColor"] })}
-          options={[{ v: "ink", label: "Svart" }, { v: "accent", label: "Accent" }]} />
-      </PsGroup>
-
-      {/* Card style */}
-      <PsGroup title="Frågekort">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
-          {Object.entries(CARD_STYLE_NAMES).map(([k, name]) => (
-            <button key={k} onClick={() => setD({ cardStyle: k as DesignSettings["cardStyle"] })} style={{
-              padding: "6px 4px", borderRadius: 6, fontSize: 11, fontFamily: "var(--ps-ui)",
-              border: "1px solid", borderColor: (design.cardStyle ?? "flat") === k ? "var(--ps-ink)" : "var(--ps-rule-2)",
-              background: (design.cardStyle ?? "flat") === k ? "var(--ps-paper)" : "transparent",
-              cursor: "pointer", fontWeight: (design.cardStyle ?? "flat") === k ? 500 : 400,
-              color: "var(--ps-ink-2)",
+              outlineOffset: -3,
+              fontSize: 9, color: "white", textShadow: "0 0 2px rgba(0,0,0,0.5)",
+              fontFamily: "var(--ps-ui)",
             }}>
-              {name}
+              {accent === p.color ? "✓" : ""}
             </button>
           ))}
         </div>
-        <Segmented value={design.density ?? "comfortable"} onChange={v => setD({ density: v as DesignSettings["density"] })}
-          options={[{ v: "compact", label: "Kompakt" }, { v: "comfortable", label: "Bekväm" }, { v: "spacious", label: "Luftig" }]} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ps-ink-3)" }}>
+          <span>Anpassad</span>
+          <input type="color" value={accent} onChange={e => setD({ primaryColor: e.target.value })}
+            style={{ width: 28, height: 22, borderRadius: 4, border: "1px solid var(--ps-rule)", padding: 2, cursor: "pointer" }} />
+          <input
+            value={accent}
+            onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) setD({ primaryColor: e.target.value }); }}
+            className="ps-input"
+            style={{ flex: 1, fontSize: 11, fontFamily: "monospace" }}
+            maxLength={7}
+          />
+        </div>
       </PsGroup>
 
-      {/* Paper surface */}
+      {/* 4. Pappersyta */}
       <PsGroup title="Pappersyta">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5 }}>
           {Object.entries(PAPER_STYLE_NAMES).map(([k, name]) => (
@@ -1655,8 +1540,7 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
               padding: "5px 3px", borderRadius: 6, fontSize: 10.5, fontFamily: "var(--ps-ui)",
               border: "1px solid", borderColor: (design.paperStyle ?? "white") === k ? "var(--ps-ink)" : "var(--ps-rule-2)",
               background: (design.paperStyle ?? "white") === k ? "var(--ps-paper)" : "transparent",
-              cursor: "pointer", fontWeight: (design.paperStyle ?? "white") === k ? 500 : 400,
-              color: "var(--ps-ink-2)",
+              cursor: "pointer", fontWeight: (design.paperStyle ?? "white") === k ? 500 : 400, color: "var(--ps-ink-2)",
             }}>
               {name}
             </button>
@@ -1664,112 +1548,219 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
         </div>
       </PsGroup>
 
-      {/* Page frame */}
+      {/* 5. Kort-stil */}
+      <PsGroup title="Kort-stil">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
+          {Object.entries(CARD_STYLE_NAMES).map(([k, name]) => (
+            <button key={k} onClick={() => setD({ cardStyle: k as DesignSettings["cardStyle"] })} style={{
+              padding: "6px 4px", borderRadius: 6, fontSize: 11, fontFamily: "var(--ps-ui)",
+              border: "1px solid", borderColor: (design.cardStyle ?? "flat") === k ? "var(--ps-ink)" : "var(--ps-rule-2)",
+              background: (design.cardStyle ?? "flat") === k ? "var(--ps-paper)" : "transparent",
+              cursor: "pointer", fontWeight: (design.cardStyle ?? "flat") === k ? 500 : 400, color: "var(--ps-ink-2)",
+            }}>
+              {name}
+            </button>
+          ))}
+        </div>
+      </PsGroup>
+
+      {/* 6. Sidram */}
       <PsGroup title="Sidram">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 5 }}>
-          {Object.entries(PAGE_FRAME_NAMES).map(([k, name]) => (
-            <button key={k} onClick={() => setD({ pageFrame: k as DesignSettings["pageFrame"] })} style={{
-              padding: "5px 3px", borderRadius: 6, fontSize: 10.5, fontFamily: "var(--ps-ui)",
-              border: "1px solid", borderColor: (design.pageFrame ?? "none") === k ? "var(--ps-ink)" : "var(--ps-rule-2)",
-              background: (design.pageFrame ?? "none") === k ? "var(--ps-paper)" : "transparent",
-              cursor: "pointer", fontWeight: (design.pageFrame ?? "none") === k ? 500 : 400,
-              color: "var(--ps-ink-2)",
-            }}>
-              {name}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          value={design.pageFrame ?? "none"}
+          onChange={v => setD({ pageFrame: v as DesignSettings["pageFrame"] })}
+          options={Object.entries(PAGE_FRAME_NAMES).map(([v, label]) => ({ v, label }))}
+        />
       </PsGroup>
 
-      {/* Watermark */}
+      {/* 7. Vattenstämpel */}
       <PsGroup title="Vattenstämpel">
+        <Segmented
+          value={["", "UTKAST", "PROV", "ÖVNING"].includes(design.watermark ?? "") ? (design.watermark ?? "") : "__custom__"}
+          onChange={v => { if (v !== "__custom__") setD({ watermark: v }); }}
+          options={[{ v: "", label: "Av" }, { v: "UTKAST", label: "Utkast" }, { v: "PROV", label: "Prov" }, { v: "ÖVNING", label: "Övning" }]}
+        />
         <input
           value={design.watermark ?? ""}
           onChange={e => setD({ watermark: e.target.value })}
-          placeholder="t.ex. PROVEXEMPLAR"
+          placeholder="Egen text…"
           className="ps-input"
           style={{ fontSize: 12.5 }}
         />
       </PsGroup>
 
-      {/* Cover image */}
-      <PsGroup title="Försättsbild">
-        <PsToggle
-          label="Aktivera försättsbild"
-          on={design.coverImage?.enabled ?? false}
-          onChange={v => setD({ coverImage: { ...(design.coverImage ?? { kind: "painting", height: 60, fadeY: 40, fadeX: 0, opacity: 0.6, src: "" }), enabled: v } })}
+      {/* 8. Typografi */}
+      <PsGroup title="Typografi">
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Rubrikfont</span>
+          <select value={design.headingFont ?? "newsreader"} onChange={e => setD({ headingFont: e.target.value })} className="ps-input" style={{ fontSize: 12.5 }}>
+            {FONT_OPTIONS.map(f => <option key={f.id} value={f.id}>{f.name} — {f.category}</option>)}
+          </select>
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Brödtextfont</span>
+          <select value={design.bodyFont ?? "newsreader"} onChange={e => setD({ bodyFont: e.target.value })} className="ps-input" style={{ fontSize: 12.5 }}>
+            {FONT_OPTIONS.map(f => <option key={f.id} value={f.id}>{f.name} — {f.category}</option>)}
+          </select>
+        </label>
+      </PsGroup>
+
+      {/* 9. Rubrikstil */}
+      <PsGroup title="Rubrikstil">
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Vikt</span>
+          <Segmented
+            value={String(design.titleWeight ?? 700)}
+            onChange={v => setD({ titleWeight: parseInt(v, 10) })}
+            options={[{ v: "400", label: "Reg" }, { v: "500", label: "Med" }, { v: "600", label: "SB" }, { v: "700", label: "Bold" }]}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Versaler</span>
+          <Segmented
+            value={design.titleTransform ?? "uppercase"}
+            onChange={v => setD({ titleTransform: v as DesignSettings["titleTransform"] })}
+            options={[{ v: "uppercase", label: "VERSALER" }, { v: "smallcaps", label: "Kapitäler" }, { v: "none", label: "Normal" }]}
+          />
+        </label>
+        <PsSlider
+          label="Spaltning"
+          value={typeof design.titleTracking === "number" ? design.titleTracking : 0}
+          min={-30} max={120} step={1} suffix=" ‰"
+          onChange={v => setD({ titleTracking: v })}
         />
-        {(design.coverImage?.enabled) && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
-              {COVER_KINDS.map(k => (
-                <button key={k.id} onClick={() => setD({ coverImage: { ...design.coverImage!, kind: k.id as NonNullable<DesignSettings["coverImage"]>["kind"] } })} style={{
-                  padding: "5px 3px", borderRadius: 6, fontSize: 10.5, fontFamily: "var(--ps-ui)",
-                  border: "1px solid", borderColor: (design.coverImage?.kind ?? "painting") === k.id ? "var(--ps-ink)" : "var(--ps-rule-2)",
-                  background: (design.coverImage?.kind ?? "painting") === k.id ? "var(--ps-paper)" : "transparent",
-                  cursor: "pointer", color: "var(--ps-ink-2)",
-                  fontWeight: (design.coverImage?.kind ?? "painting") === k.id ? 500 : 400,
-                }}>
-                  {k.name}
-                </button>
-              ))}
-            </div>
-            <PsSlider label="Höjd" value={design.coverImage?.height ?? 60} min={20} max={120} suffix="mm"
-              onChange={v => setD({ coverImage: { ...design.coverImage!, height: v } })} />
-            <PsSlider label="Toningspunkt" value={design.coverImage?.fadeY ?? 40} min={0} max={100} suffix="%"
-              onChange={v => setD({ coverImage: { ...design.coverImage!, fadeY: v } })} />
-            <PsSlider label="Opacitet" value={Math.round((design.coverImage?.opacity ?? 0.6) * 100)} min={10} max={100} suffix="%"
-              onChange={v => setD({ coverImage: { ...design.coverImage!, opacity: v / 100 } })} />
-            <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Egen bild-URL (overridar illustration)</span>
-              <input value={design.coverImage?.src ?? ""} onChange={e => setD({ coverImage: { ...design.coverImage!, src: e.target.value } })} className="ps-input" style={{ fontSize: 12 }} placeholder="https://…" />
-            </label>
-          </>
-        )}
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Färg</span>
+          <Segmented
+            value={design.titleColor ?? "ink"}
+            onChange={v => setD({ titleColor: v as "ink" | "accent" })}
+            options={[{ v: "ink", label: "Bläck" }, { v: "accent", label: "Accent" }]}
+          />
+        </label>
+        <PsToggle label="Kursiv rubrik" on={design.titleItalic ?? false} onChange={v => setD({ titleItalic: v })} />
+        <PsToggle label="Kursiva sektioner" on={design.sectionItalic ?? false} onChange={v => setD({ sectionItalic: v })} />
       </PsGroup>
 
-      {/* Drop cap, header ornament, section divider */}
-      <PsGroup title="Typografiska detaljer">
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Dropplock</span>
-          <Segmented value={design.dropCap ?? "none"} onChange={v => setD({ dropCap: v as DesignSettings["dropCap"] })}
-            options={[{ v: "none", label: "Inga" }, { v: "first", label: "Första" }, { v: "all", label: "Alla" }]} />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Avdelare</span>
-          <Segmented value={design.sectionDivider ?? "none"} onChange={v => setD({ sectionDivider: v as DesignSettings["sectionDivider"] })}
-            options={[{ v: "none", label: "Ingen" }, { v: "thin", label: "Tunn" }, { v: "thick", label: "Tjock" }, { v: "ornament", label: "Ornament" }]} />
-        </label>
+      {/* 10. Numrering */}
+      <PsGroup title="Numrering">
+        <Segmented
+          value={design.numbering ?? "number"}
+          onChange={v => setD({ numbering: v as DesignSettings["numbering"] })}
+          options={[{ v: "number", label: "1." }, { v: "letter", label: "a)" }, { v: "roman", label: "i." }, { v: "paren", label: "(1)" }]}
+        />
+        <Segmented
+          value={design.numStyle ?? "plain"}
+          onChange={v => setD({ numStyle: v as DesignSettings["numStyle"] })}
+          options={[{ v: "plain", label: "Klassisk" }, { v: "fraga", label: "Fråga" }, { v: "display", label: "Stor" }, { v: "chip", label: "Chip" }]}
+        />
+        <PsToggle
+          label="Färgade siffror"
+          on={(design.numColor ?? "ink") === "accent"}
+          onChange={v => setD({ numColor: v ? "accent" : "ink" })}
+        />
       </PsGroup>
 
-      {/* Write lines */}
+      {/* 11. Skrivlinjer */}
       <PsGroup title="Skrivlinjer">
-        <Segmented value={design.lineStyle ?? "solid"} onChange={v => setD({ lineStyle: v as DesignSettings["lineStyle"] })}
-          options={[{ v: "solid", label: "Heldraget" }, { v: "dashed", label: "Streckat" }, { v: "dotted", label: "Punktat" }]} />
-        <PsSlider label="Radhöjd" value={design.lineSpacing ?? 12} min={8} max={20} suffix="mm" onChange={v => setD({ lineSpacing: v })} />
+        <Segmented
+          value={design.lineStyle ?? "solid"}
+          onChange={v => setD({ lineStyle: v as DesignSettings["lineStyle"] })}
+          options={[{ v: "solid", label: "Heldraget" }, { v: "dashed", label: "Streckat" }, { v: "dotted", label: "Punktat" }]}
+        />
+        <PsSlider
+          label="Radhöjd"
+          value={design.lineHeight ?? design.lineSpacing ?? 22}
+          min={16} max={32} step={1} suffix="px"
+          onChange={v => setD({ lineHeight: v })}
+        />
       </PsGroup>
 
-      {/* Multiple choice marker */}
+      {/* 12. Flerval */}
       <PsGroup title="Flerval">
-        <Segmented value={design.mcMarker ?? "square"} onChange={v => setD({ mcMarker: v as DesignSettings["mcMarker"] })}
-          options={[{ v: "square", label: "☐" }, { v: "circle", label: "○" }, { v: "letter", label: "A" }]} />
+        <Segmented
+          value={design.mcMarker ?? "square"}
+          onChange={v => setD({ mcMarker: v as DesignSettings["mcMarker"] })}
+          options={[{ v: "square", label: "☐" }, { v: "circle", label: "○" }, { v: "letter", label: "A" }]}
+        />
       </PsGroup>
 
-      {/* Points */}
-      <PsGroup title="Poäng">
-        <Segmented value={design.pointsStyle ?? "italic"} onChange={v => setD({ pointsStyle: v as DesignSettings["pointsStyle"] })}
-          options={[{ v: "italic", label: "kursivt" }, { v: "pill", label: "pill" }, { v: "box", label: "ruta" }, { v: "blank", label: "___/p" }]} />
+      {/* 13. Poäng-stil */}
+      <PsGroup title="Poäng-stil">
+        <Segmented
+          value={design.pointsStyle ?? "italic"}
+          onChange={v => setD({ pointsStyle: v as DesignSettings["pointsStyle"] })}
+          options={[{ v: "italic", label: "Kursivt" }, { v: "pill", label: "Pill" }, { v: "box", label: "Ruta" }, { v: "stamp", label: "Stämpel" }]}
+        />
         <PsToggle label="Visa poäng vid fråga" on={design.showPoints !== false} onChange={v => setD({ showPoints: v })} />
       </PsGroup>
 
-      {/* Page settings */}
-      <PsGroup title="Sida">
-        <PsSlider label="Marginal" value={design.marginLeft ?? 20} min={10} max={35} suffix="mm"
-          onChange={v => setD({ marginLeft: v, marginRight: v, marginTop: v, marginBottom: v })} />
-        <PsToggle label="Försättsblad" on={design.showCover !== false} onChange={v => setD({ showCover: v })} />
-        <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
-        <PsToggle label="Fråge-metadata (Bloom m.m.)" on={design.showMeta ?? false} onChange={v => setD({ showMeta: v })} />
+      {/* 14. Dekoration */}
+      <PsGroup title="Dekoration">
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Anfang</span>
+          <Segmented
+            value={design.dropCap ?? "off"}
+            onChange={v => setD({ dropCap: v as DesignSettings["dropCap"] })}
+            options={[{ v: "off", label: "Av" }, { v: "filled", label: "Fylld" }, { v: "outline", label: "Outline" }, { v: "box", label: "Ruta" }]}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Ornament i sidhuvud</span>
+          <Segmented
+            value={design.headerOrnament ?? "none"}
+            onChange={v => setD({ headerOrnament: v as DesignSettings["headerOrnament"] })}
+            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "double-rule", label: "═" }, { v: "ornament", label: "✦" }, { v: "diamond", label: "◆" }]}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Sektionsavskiljare</span>
+          <Segmented
+            value={design.sectionDivider ?? "none"}
+            onChange={v => setD({ sectionDivider: v as DesignSettings["sectionDivider"] })}
+            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "dotted", label: "···" }, { v: "ornament", label: "✦" }, { v: "hairline", label: "╌" }]}
+          />
+        </label>
       </PsGroup>
+
+      {/* 15. Rytm & täthet */}
+      <PsGroup title="Rytm & täthet">
+        <Segmented
+          value={design.density ?? "comfortable"}
+          onChange={v => setD({ density: v as DesignSettings["density"] })}
+          options={[{ v: "compact", label: "Kompakt" }, { v: "comfortable", label: "Normal" }, { v: "spacious", label: "Luftig" }]}
+        />
+        <PsSlider
+          label="Marginal"
+          value={design.margin ?? design.marginLeft ?? 22}
+          min={14} max={30} step={1} suffix="mm"
+          onChange={v => setD({ margin: v, marginLeft: v, marginRight: v, marginTop: v, marginBottom: v })}
+        />
+        <PsSlider
+          label="Brödtext"
+          value={design.bodySize ?? design.fontSizeBody ?? 11.5}
+          min={9.5} max={14} step={0.5} suffix="px"
+          onChange={v => setD({ bodySize: v })}
+        />
+      </PsGroup>
+
+      {/* 16. Sidfot */}
+      <PsGroup title="Sidfot">
+        <Segmented
+          value={design.footerStyle ?? "info"}
+          onChange={v => setD({ footerStyle: v as DesignSettings["footerStyle"] })}
+          options={[{ v: "none", label: "Av" }, { v: "minimal", label: "Min." }, { v: "info", label: "Info" }, { v: "hairline", label: "Linje" }, { v: "branded", label: "Brand" }]}
+        />
+      </PsGroup>
+
+      {/* 17. Försättsblad */}
+      <PsGroup title="Försättsblad">
+        <PsToggle label="Inkludera försättsblad" on={design.showCover !== false} onChange={v => setD({ showCover: v })} />
+        <PsToggle label="Innehållsförteckning" on={design.showToc ?? false} onChange={v => setD({ showToc: v })} />
+        <PsToggle label="Instruktionstext" on={design.showInstructions !== false} onChange={v => setD({ showInstructions: v })} />
+        <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
+        <PsToggle label="Meta-info vid fråga" on={design.showMeta ?? false} onChange={v => setD({ showMeta: v })} />
+      </PsGroup>
+
     </div>
   );
 }
