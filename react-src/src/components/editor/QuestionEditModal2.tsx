@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { Trash2, X, Minus } from "lucide-react";
-import type { Question, QuestionType } from "@/lib/test-types";
+import type { Question, QuestionType, MatchingPair } from "@/lib/test-types";
 import { RichTextEditor } from "./RichTextEditor";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -452,7 +452,7 @@ function TypeSpecificFields({
 
     case "multiple_choice": {
       const options = (c.options as string[]) ?? [];
-      const allowMultiple = (c.allowMultiple as boolean) ?? false;
+      const allowMultiple = (c.multi as boolean) ?? false;
       const correctIndex = (c.correctIndex as number | number[] | null) ?? null;
       const isCorrect = (i: number) => {
         if (allowMultiple) return Array.isArray(correctIndex) && correctIndex.includes(i);
@@ -529,29 +529,12 @@ function TypeSpecificFields({
               <AddRowBtn onClick={() => patchContent({ options: [...options, ""] })}>
                 Lägg till alternativ
               </AddRowBtn>
-              <button
-                disabled
-                style={{
-                  height: 32,
-                  padding: "0 12px",
-                  borderRadius: 6,
-                  border: "1px solid var(--ps-rule-2)",
-                  background: "transparent",
-                  cursor: "not-allowed",
-                  fontFamily: "var(--ps-ui)",
-                  fontSize: 12.5,
-                  color: "var(--ps-ink-4)",
-                  opacity: 0.5,
-                }}
-              >
-                ✦ AI-förslag
-              </button>
             </div>
           </div>
           <Toggle2
             label="Tillåt flera rätta svar"
             on={allowMultiple}
-            onChange={(v) => patchContent({ allowMultiple: v })}
+            onChange={(v) => patchContent({ multi: v })}
           />
           <Toggle2
             label="Blanda alternativ"
@@ -563,16 +546,16 @@ function TypeSpecificFields({
     }
 
     case "true_false": {
-      const correct = c.correct as boolean | undefined;
+      const correct = c.correct as number | null | undefined;
       return (
         <Collapser title="Rätt svar">
           <div style={{ display: "flex", gap: 10 }}>
             {[
-              { label: "Sant", value: true },
-              { label: "Falskt", value: false },
+              { label: "Sant", value: 0 as const },
+              { label: "Falskt", value: 1 as const },
             ].map(({ label, value }) => (
               <button
-                key={String(value)}
+                key={value}
                 onClick={() => patchContent({ correct: value })}
                 style={{
                   flex: 1,
@@ -651,7 +634,7 @@ function TypeSpecificFields({
     }
 
     case "matching": {
-      const pairs = (c.pairs as [string, string][]) ?? [];
+      const pairs = (c.pairs as MatchingPair[]) ?? [];
       return (
         <Collapser title="Par att matcha">
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -677,10 +660,10 @@ function TypeSpecificFields({
                   {i + 1}
                 </span>
                 <input
-                  value={pair[0]}
+                  value={pair.left}
                   onChange={(e) => {
-                    const next = [...pairs] as [string, string][];
-                    next[i] = [e.target.value, pair[1]];
+                    const next = [...pairs];
+                    next[i] = { ...pair, left: e.target.value };
                     patchContent({ pairs: next });
                   }}
                   placeholder="Vänster"
@@ -688,10 +671,10 @@ function TypeSpecificFields({
                 />
                 <span style={{ textAlign: "center", color: "var(--ps-ink-3)", fontSize: 14 }}>→</span>
                 <input
-                  value={pair[1]}
+                  value={pair.right}
                   onChange={(e) => {
-                    const next = [...pairs] as [string, string][];
-                    next[i] = [pair[0], e.target.value];
+                    const next = [...pairs];
+                    next[i] = { ...pair, right: e.target.value };
                     patchContent({ pairs: next });
                   }}
                   placeholder="Höger"
@@ -705,7 +688,7 @@ function TypeSpecificFields({
                 </button>
               </div>
             ))}
-            <AddRowBtn onClick={() => patchContent({ pairs: [...pairs, ["", ""] as [string, string]] })}>
+            <AddRowBtn onClick={() => patchContent({ pairs: [...pairs, { left: "", right: "" }] })}>
               Lägg till par
             </AddRowBtn>
           </div>
@@ -939,69 +922,18 @@ function TypeSpecificFields({
     }
 
     case "group": {
-      type Sub = { text: string; lines: number; points: number };
-      const subs = (c.subs as Sub[]) ?? [];
-      const totalSubPts = subs.reduce((s, sub) => s + (sub.points ?? 0), 0);
       return (
         <Collapser title="Delfrågor">
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {subs.map((sub, i) => (
-              <RowBox key={i}>
-                <ModalField label={`Delfråga ${i + 1}`}>
-                  <input
-                    value={sub.text}
-                    onChange={(e) => {
-                      const next = [...subs];
-                      next[i] = { ...sub, text: e.target.value };
-                      patchContent({ subs: next });
-                    }}
-                    style={psInput}
-                  />
-                </ModalField>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <ModalField label="Linjer">
-                    <input
-                      type="number"
-                      value={sub.lines ?? 3}
-                      min={1}
-                      onChange={(e) => {
-                        const next = [...subs];
-                        next[i] = { ...sub, lines: parseInt(e.target.value) || 3 };
-                        patchContent({ subs: next });
-                      }}
-                      style={{ ...psInput, width: 60 }}
-                    />
-                  </ModalField>
-                  <ModalField label="Poäng">
-                    <input
-                      type="number"
-                      value={sub.points ?? 1}
-                      min={0}
-                      onChange={(e) => {
-                        const next = [...subs];
-                        next[i] = { ...sub, points: parseFloat(e.target.value) || 0 };
-                        const newTotal = next.reduce((s, x) => s + (x.points ?? 0), 0);
-                        patchContent({ subs: next });
-                        patchQ({ points: String(newTotal) });
-                      }}
-                      style={{ ...psInput, width: 60 }}
-                    />
-                  </ModalField>
-                </div>
-              </RowBox>
-            ))}
-            <AddRowBtn
-              onClick={() => {
-                const next = [...subs, { text: "", lines: 3, points: 1 }];
-                patchContent({ subs: next });
-                patchQ({ points: String(next.reduce((s, x) => s + (x.points ?? 0), 0)) });
-              }}
-            >
-              Lägg till delfråga
-            </AddRowBtn>
-          </div>
-          <div style={{ fontSize: 12, color: "var(--ps-ink-3)" }}>
-            Summa: <strong>{totalSubPts} p</strong>
+          <div style={{
+            padding: "10px 12px",
+            background: "var(--ps-bg-soft)",
+            borderRadius: 6,
+            fontSize: 12,
+            color: "var(--ps-ink-3)",
+            lineHeight: 1.55,
+          }}>
+            Delfrågor hanteras som separata frågor i dokumentordningen. Markera varje delfråga med{" "}
+            <strong>Tillhör grupp</strong> i sidopanelen för att koppla den till den här frågan.
           </div>
         </Collapser>
       );
@@ -1075,7 +1007,7 @@ function TypeSpecificFields({
       );
 
     case "table": {
-      const cols = (c.columns as string[]) ?? ["", ""];
+      const cols = (c.headers as string[]) ?? ["", ""];
       const rows = (c.rows as string[][]) ?? [["", ""]];
       return (
         <Collapser title="Tabellstruktur">
@@ -1088,13 +1020,13 @@ function TypeSpecificFields({
                   onChange={(e) => {
                     const next = [...cols];
                     next[i] = e.target.value;
-                    patchContent({ columns: next });
+                    patchContent({ headers: next });
                   }}
                   placeholder={`Kolumn ${i + 1}`}
                   style={{ ...psInput, flex: 1 }}
                 />
               ))}
-              <AddRowBtn onClick={() => patchContent({ columns: [...cols, ""], rows: rows.map((r) => [...r, ""]) })}>
+              <AddRowBtn onClick={() => patchContent({ headers: [...cols, ""], rows: rows.map((r) => [...r, ""]) })}>
                 Kol
               </AddRowBtn>
             </div>
@@ -1363,6 +1295,12 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
         padding: 20,
       }}
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <div
         onClick={(e) => e.stopPropagation()}

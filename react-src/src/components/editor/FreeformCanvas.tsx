@@ -7,6 +7,7 @@
  * • Varje block kan dragas och ändras i storlek via FreeformBlockWrapper
  */
 import { useRef } from "react";
+import { getQuestionText } from "@/lib/question-utils";
 import { Grid } from "lucide-react";
 import { FreeformBlockWrapper } from "@/components/editor/FreeformBlockWrapper";
 import {
@@ -157,7 +158,7 @@ function MarginGuides({ margin }: { margin: number }) {
 
 export function FreeformItemLabel({ item, q }: { item: QuestionOrderItem; q: Question | null }) {
   if (isQuestionRef(item) && q) {
-    const text = (q.content as { text?: string })?.text ?? "";
+    const text = getQuestionText(q);
     return (
       <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--ps-ink)" }}>
         <span style={{ fontSize: 9.5, background: "var(--ps-accent)14", color: "var(--ps-accent)", borderRadius: 3, padding: "1px 4px", fontWeight: 500, marginRight: 5 }}>

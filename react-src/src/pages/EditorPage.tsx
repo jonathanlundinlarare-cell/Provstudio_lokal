@@ -31,9 +31,7 @@ import {
   Download,
   Eye,
   Flag,
-  Grid,
   GripVertical,
-  Layers,
   Plus,
   Printer,
   Trash2,
@@ -61,8 +59,7 @@ import {
   type TestQuestionRef,
 } from "@/lib/test-types";
 import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
-import { QuestionEditorModal } from "@/components/editor/QuestionEditorModal";
-import { FreeformCanvas, FreeformItemLabel } from "@/components/editor/FreeformCanvas";
+import { useAutosave } from "@/hooks/useAutosave";
 import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
 import { BankPickerModal } from "@/components/BankPickerModal";
 
@@ -241,18 +238,12 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [order, setOrder]         = useState<QuestionOrderItem[]>([]);
   const [bank, setBank]           = useState<Question[]>([]);
   const [docType, setDocType]     = useState<DocumentType>("test");
-  const [saveState, setSaveState] = useState<"idle"|"saving"|"saved">("idle");
   const [loading, setLoading]     = useState(true);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
-  const [rightTab, setRightTab]       = useState<"layout"|"sections"|"doc">("layout");
+  const [rightTab, setRightTab]       = useState<"layout"|"sections"|"doc"|"versions">("layout");
   const [centerMode, setCenterMode]   = useState<"preview"|"answer">("preview");
-  const [creatingType, setCreatingType] = useState<QuestionType | null>(null);
-  const [insertAfterIdx, setInsertAfterIdx] = useState<number | null>(null);
   const [editingQ, setEditingQ]       = useState<Question | null>(null);
-  const [editingBlockIdx, setEditingBlockIdx] = useState<number | null>(null);
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
-  const [isFreeform, setIsFreeform]   = useState(false);
-  const [showGrid, setShowGrid]       = useState(true);
   const [newQOpen, setNewQOpen]       = useState(false);
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
 
@@ -271,20 +262,14 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   }, [documentId]);
 
   /* ── Autosave ── */
-  const lastSaved = useRef("");
-  useEffect(() => {
-    if (loading) return;
-    const payload = JSON.stringify({ title, design, order, docType });
-    if (payload === lastSaved.current) return;
-    setSaveState("saving");
-    const h = setTimeout(() => {
+  const saveState = useAutosave(
+    JSON.stringify({ title, design, order, docType }),
+    () => {
       documents.update(documentId, { title, design_settings: design, question_order: order, doc_type: docType });
       scheduleSave();
-      lastSaved.current = payload;
-      setSaveState("saved");
-    }, 1500);
-    return () => clearTimeout(h);
-  }, [title, design, order, docType, loading, documentId]);
+    },
+    loading,
+  );
 
   /* ── Derived ── */
   const bankMap = useMemo(() => new Map(bank.map(q => [q.id, q])), [bank]);
@@ -363,39 +348,6 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
       if (isContentBlockRef(it) && it.block_id === itemId) return { ...it, layout: next };
       return it;
     }));
-  };
-
-  /** Toggle freeform mode. When entering, assign default positions to items without layout. */
-  const toggleFreeform = () => {
-    if (!isFreeform) {
-      // Assign auto-positions to items that don't have layout yet
-      let autoY = 15;
-      setOrder(o => o.map((item, idx) => {
-        if (isQuestionRef(item) && item.question_id !== "__section__" && !item.layout) {
-          const l: BlockLayout = { x: 15, y: autoY, w: 180, h: 40 };
-          autoY += 44;
-          return { ...item, layout: l };
-        }
-        if (isContentBlockRef(item) && !item.layout) {
-          const h = (item.block_type === "pageBreak" || item.block_type === "divider") ? 8 : 40;
-          const l: BlockLayout = { x: 15, y: autoY, w: 180, h };
-          autoY += h + 4;
-          return { ...item, layout: l };
-        }
-        return item;
-      }));
-    }
-    setIsFreeform(f => !f);
-  };
-
-  /** Remove all layout data (revert to linear mode). */
-  const clearLayouts = () => {
-    setOrder(o => o.map(it => {
-      if (isQuestionRef(it)) { const { layout: _l, ...rest } = it; return rest as TestQuestionRef; }
-      if (isContentBlockRef(it)) { const { layout: _l, ...rest } = it; return rest as ContentBlockRef; }
-      return it;
-    }));
-    setIsFreeform(false);
   };
 
   const refreshBank = useCallback(() => {
@@ -518,6 +470,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
                 subtitle={design.subtitle ?? ""}
                 design={design}
                 items={printItems}
+                showAnswers={centerMode === "answer"}
               />
             </div>
           </div>
@@ -551,6 +504,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
             { id: "layout"   as const, label: "Layout" },
             { id: "sections" as const, label: "Sektioner" },
             { id: "doc"      as const, label: "Dokument" },
+            { id: "versions" as const, label: "Versioner" },
           ]).map(t => (
             <button key={t.id} onClick={() => setRightTab(t.id)} style={{
               flex: 1, height: 30, padding: "0 6px", borderRadius: 6,
@@ -577,6 +531,9 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
             />
           )}
           {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} />}
+          {rightTab === "versions" && (
+            <VersionsPanel documentId={documentId} />
+          )}
         </div>
       </aside>
 
@@ -611,18 +568,6 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           onClose={() => setBankPickerOpen(false)}
         />
       )}
-      {editingBlockIdx !== null && (
-        <ContentBlockEditorModal
-          blockRef={order[editingBlockIdx] as ContentBlockRef}
-          onClose={() => setEditingBlockIdx(null)}
-          onSave={(content) => {
-            const ref = order[editingBlockIdx] as ContentBlockRef;
-            updateBlockContent(ref.block_id, content);
-            setEditingBlockIdx(null);
-          }}
-        />
-      )}
-
       <style>{`
         .del-btn { opacity: 0 !important; }
         div:hover > .del-btn { opacity: 1 !important; }
@@ -1874,6 +1819,126 @@ function DocPanel({ design, setD, title, setTitle }: { design: DesignSettings; s
         <DocField label="Hjälpmedel" value={design.aids ?? ""} onChange={v => setD({ aids: v })} placeholder="t.ex. Inga" />
       </div>
       <DocField label="Sidfot" value={design.footerText ?? ""} onChange={v => setD({ footerText: v })} />
+    </div>
+  );
+}
+
+/* ─── Versions panel ─────────────────────────────────────────────────────── */
+
+const VERSION_COLORS = ["#1E5F5C", "#1E3A5F", "#7A1F2B", "#A87F1A", "#5C2A5C", "#2D5A3D", "#6B6459"];
+
+function VersionsPanel({ documentId }: { documentId: string }) {
+  const doc = documents.get(documentId);
+  const [versions, setVersions] = useState<import("@/lib/test-types").DocumentVersion[]>(doc?.versions ?? []);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(VERSION_COLORS[0]);
+
+  function saveVersions(next: import("@/lib/test-types").DocumentVersion[]) {
+    setVersions(next);
+    documents.update(documentId, { versions: next } as never);
+  }
+
+  function addVersion() {
+    const name = newName.trim();
+    if (!name) return;
+    const v: import("@/lib/test-types").DocumentVersion = {
+      id: crypto.randomUUID(),
+      document_id: documentId,
+      name,
+      color: newColor,
+      is_default: versions.length === 0,
+      rules: [],
+      changes: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const next = [...versions, v];
+    saveVersions(next);
+    setNewName("");
+  }
+
+  function removeVersion(id: string) {
+    saveVersions(versions.filter(v => v.id !== id));
+  }
+
+  function setDefault(id: string) {
+    saveVersions(versions.map(v => ({ ...v, is_default: v.id === id })));
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <div style={{ fontSize: 11, color: "var(--ps-ink-3)", lineHeight: 1.55, marginBottom: 10 }}>
+          Versioner låter dig skapa anpassade varianter av provet för elever med olika behov (t.ex. extra stöd, förenklat språk eller fördjupning).
+        </div>
+        {versions.length === 0 ? (
+          <div style={{ fontSize: 12, color: "var(--ps-ink-4)", textAlign: "center", padding: "16px 0" }}>
+            Inga versioner än. Lägg till nedan.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {versions.map(v => (
+              <div key={v.id} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                borderRadius: 8, border: "1px solid var(--ps-rule)",
+                background: v.is_default ? v.color + "0a" : "var(--ps-paper)",
+              }}>
+                <span style={{ width: 10, height: 10, borderRadius: 99, background: v.color, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 12.5, fontWeight: v.is_default ? 600 : 400 }}>{v.name}</span>
+                {v.is_default && (
+                  <span style={{ fontSize: 9.5, color: v.color, fontWeight: 600, letterSpacing: "0.06em" }}>Standard</span>
+                )}
+                {!v.is_default && (
+                  <button
+                    title="Gör till standard"
+                    onClick={() => setDefault(v.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "var(--ps-ink-3)", padding: "2px 5px", borderRadius: 4 }}
+                  >
+                    Standard
+                  </button>
+                )}
+                <button
+                  onClick={() => removeVersion(v.id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-4)", padding: 2 }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--ps-rule)", paddingTop: 12 }}>
+        <div style={{ fontSize: 11, color: "var(--ps-ink-3)", marginBottom: 8 }}>Ny version</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") addVersion(); }}
+            placeholder="t.ex. Stödversion"
+            className="ps-input"
+            style={{ flex: 1, fontSize: 12.5 }}
+          />
+          <select
+            value={newColor}
+            onChange={e => setNewColor(e.target.value)}
+            style={{ height: 34, border: "1px solid var(--ps-rule-2)", borderRadius: 6, padding: "0 4px", background: "var(--ps-paper)", cursor: "pointer" }}
+          >
+            {VERSION_COLORS.map(c => (
+              <option key={c} value={c} style={{ background: c, color: "#fff" }}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={addVersion}
+          disabled={!newName.trim()}
+          className="ps-btn ps-btn-accent"
+          style={{ width: "100%", marginTop: 8, justifyContent: "center" }}
+        >
+          <Plus size={13} /> Lägg till version
+        </button>
+      </div>
     </div>
   );
 }

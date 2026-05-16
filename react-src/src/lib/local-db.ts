@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Question, QuestionOrderItem, DesignSettings, DocumentType } from './test-types';
+import type { Question, QuestionOrderItem, DesignSettings, DocumentType, DocumentVersion } from './test-types';
 import { DEFAULT_DESIGN } from './test-types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -11,6 +11,7 @@ export type LocalDocument = {
   doc_type: DocumentType;
   design_settings: DesignSettings;
   question_order: QuestionOrderItem[];
+  versions?: DocumentVersion[];
   created_at: string;
   updated_at: string;
 };
@@ -71,8 +72,53 @@ export async function initStore(): Promise<void> {
     if (saved) raw = JSON.parse(saved);
   }
 
-  if (raw && typeof raw === 'object' && 'schemaVersion' in raw) {
-    store = raw as LocalStore;
+  if (
+    raw &&
+    typeof raw === "object" &&
+    "schemaVersion" in raw &&
+    (raw as Record<string, unknown>).schemaVersion === 1
+  ) {
+    const r = raw as Record<string, unknown>;
+
+    // Filter out malformed questions (must have id + type)
+    const rawQuestions = Array.isArray(r.questions) ? r.questions : [];
+    const validQuestions = rawQuestions.filter(
+      (q): q is Question =>
+        q !== null &&
+        typeof q === "object" &&
+        typeof (q as Record<string, unknown>).id === "string" &&
+        typeof (q as Record<string, unknown>).type === "string"
+    );
+    if (validQuestions.length !== rawQuestions.length) {
+      console.warn(
+        `[local-db] Dropped ${rawQuestions.length - validQuestions.length} malformed question(s)`
+      );
+    }
+
+    // Filter out malformed documents (must have id + title)
+    const rawDocuments = Array.isArray(r.documents) ? r.documents : [];
+    const validDocuments = rawDocuments.filter(
+      (d): d is LocalDocument =>
+        d !== null &&
+        typeof d === "object" &&
+        typeof (d as Record<string, unknown>).id === "string" &&
+        typeof (d as Record<string, unknown>).title === "string"
+    );
+    if (validDocuments.length !== rawDocuments.length) {
+      console.warn(
+        `[local-db] Dropped ${rawDocuments.length - validDocuments.length} malformed document(s)`
+      );
+    }
+
+    store = {
+      schemaVersion: 1,
+      questions: validQuestions,
+      documents: validDocuments,
+      customTaxonomy: r.customTaxonomy as Record<string, string[]> ?? undefined,
+    } as LocalStore;
+  } else {
+    // schema mismatch or missing — start fresh but log it
+    console.warn("[local-db] Unrecognised schema, starting fresh", raw);
   }
 }
 

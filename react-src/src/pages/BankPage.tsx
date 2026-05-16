@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { questionBank, taxonomy } from "../lib/local-db";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { documents, questionBank, taxonomy } from "../lib/local-db";
+import { isQuestionRef } from "@/lib/test-types";
 import type { Question, QuestionType, Difficulty, OpenContent, MultipleChoiceContent, MatchingContent, ImageContent, TableContent, RankingContent, DrawingContent, QuestionStatus } from "@/lib/test-types";
 import {
   Plus, Upload, Edit2, List, CheckSquare, Type,
@@ -292,12 +293,13 @@ function TreeNavNode({ node, depth, activeId, onSelect, openSet, toggleOpen }: {
 
 // ── QuestionCard ──────────────────────────────────────────────────────────────
 
-function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc }: {
+function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc, usedIn }: {
   q: Question; expanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onAddToDoc?: (q: Question) => void;
+  usedIn?: number;
 }) {
   const statusKey = (q.status ?? "draft") as QuestionStatus;
   const status = STATUS[statusKey] || STATUS.draft;
@@ -314,6 +316,15 @@ function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc }: {
           <div style={{ fontSize: 11.5, color: "var(--ps-amber)", fontWeight: 500, letterSpacing: "0.01em" }}>{q.subject || "Övrigt"}{q.cat ? `: ${q.cat}` : ""}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {usedIn !== undefined && usedIn > 0 && (
+            <span title={`Används i ${usedIn} dokument`} style={{
+              fontSize: 10, padding: "1px 6px", borderRadius: 10,
+              background: "var(--ps-accent)14", color: "var(--ps-accent)",
+              fontWeight: 500, fontFamily: "var(--ps-ui)",
+            }}>
+              {usedIn} dok
+            </span>
+          )}
           <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)", fontFamily: "monospace" }}>ID: {q.id.slice(0, 6)}</span>
           <span title={status.label} style={{
             width: 22, height: 22, borderRadius: 99,
@@ -464,6 +475,21 @@ export default function BankPage({ onBack, onAddQuestion }: {
   function reloadTax() { setCustomTax({ ...taxonomy.get() }); }
   useEffect(() => { load(); }, []);
 
+  // Compute how many documents each question appears in
+  const usedInMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const doc of documents.list()) {
+      const seen = new Set<string>();
+      for (const ref of doc.question_order ?? []) {
+        if (isQuestionRef(ref) && ref.question_id && !seen.has(ref.question_id)) {
+          seen.add(ref.question_id);
+          map.set(ref.question_id, (map.get(ref.question_id) ?? 0) + 1);
+        }
+      }
+    }
+    return map;
+  }, [questions]); // questions as proxy for "data changed"
+
   const tree = buildTree(questions, customTax);
 
   const toggleOpen = (id: string) => setOpenSet(s => {
@@ -583,7 +609,7 @@ export default function BankPage({ onBack, onAddQuestion }: {
           <div className="ps-card" style={{ padding: "18px 22px", display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontFamily: "var(--ps-ui)", fontSize: 22, margin: 0, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--ps-ink)" }}>
-                {parentNode ? parentNode.label.split("::")[-1] ?? parentNode.label : (activeNode?.label ?? "Alla ämnen")}
+                {parentNode ? (() => { const parts = parentNode.label.split("::"); return parts[parts.length - 1] ?? parentNode.label; })() : (activeNode?.label ?? "Alla ämnen")}
                 {parentNode && activeNode && (
                   <span style={{ color: "var(--ps-ink-3)", fontWeight: 400 }}> · {activeNode.label}</span>
                 )}
@@ -639,6 +665,7 @@ export default function BankPage({ onBack, onAddQuestion }: {
                     onEdit={() => setEditingQ(q)}
                     onDelete={() => deleteQ(q.id)}
                     onAddToDoc={onAddQuestion}
+                    usedIn={usedInMap.get(q.id) ?? 0}
                   />
                 ))}
               </div>

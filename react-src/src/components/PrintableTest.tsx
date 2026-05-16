@@ -51,6 +51,8 @@ type Props = {
   blocksPerPage?: number;
   /** Accent color override (separate from design.primaryColor for new design panel) */
   accent?: string;
+  /** When true, renders correct answers inline (facit/answer key mode) */
+  showAnswers?: boolean;
 };
 
 const SUB_LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
@@ -847,7 +849,7 @@ function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettin
     const c = q.content as MultipleChoiceContent;
     return (
       <ul className={`mc-options mc-marker-${mcMarker}`}>
-        {c.options.map((opt, i) => (
+        {(c.options ?? []).map((opt, i) => (
           <li key={i}>
             {mcMarker === "letter"
               ? <span className="mc-box mc-letter">{String.fromCharCode(65 + i)}</span>
@@ -877,7 +879,7 @@ function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettin
     return (
       <table className="match-table">
         <tbody>
-          {c.pairs.map((p, i) => (
+          {(c.pairs ?? []).map((p, i) => (
             <tr key={i}>
               <td className="match-left">{p.left}</td>
               <td className="match-blank"><span className="match-line" /></td>
@@ -915,11 +917,11 @@ function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettin
     const c = q.content as TableContent;
     return (
       <table className="q-table">
-        {c.headers.length > 0 && (
-          <thead><tr>{c.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+        {(c.headers ?? []).length > 0 && (
+          <thead><tr>{(c.headers ?? []).map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
         )}
         <tbody>
-          {c.rows.map((row, i) => (
+          {(c.rows ?? []).map((row, i) => (
             <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
           ))}
         </tbody>
@@ -1015,6 +1017,26 @@ function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettin
 
   if (q.type === "definition") {
     const c = q.content as DefinitionContent;
+    // Multi-term format (from modal editor)
+    if (c.terms && c.terms.length > 0) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4mm" }}>
+          {c.terms.map((t, idx) => (
+            <div key={idx}>
+              <div style={{ fontSize: "10pt", fontWeight: 600, color: accent, marginBottom: "1.5mm" }}>
+                {t.term || `Begrepp ${idx + 1}`}
+              </div>
+              <div className="write-lines">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    // Single-term fallback
     const lines = Math.max(1, c.lines || 3);
     return (
       <div>
@@ -1219,14 +1241,99 @@ function ContentBlockPrint({ item, accent }: { item: PrintableBlockItem; accent:
   }
 }
 
+/* ─── Answer key box ─────────────────────────────────────────────────── */
+
+function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
+  const c = q.content as Record<string, unknown>;
+
+  let answerNode: React.ReactNode = null;
+
+  if (q.type === "multiple_choice") {
+    const mc = q.content as MultipleChoiceContent;
+    const correct = mc.correctIndex;
+    if (correct === null || correct === undefined) return null;
+    const indices = Array.isArray(correct) ? correct : [correct];
+    const opts = mc.options ?? [];
+    answerNode = (
+      <span>
+        {indices.map(i => opts[i] ?? `alternativ ${i + 1}`).join(", ")}
+      </span>
+    );
+  } else if (q.type === "true_false") {
+    const val = c.correct as number | null | undefined;
+    if (val === null || val === undefined) return null;
+    answerNode = <span>{val === 0 ? "Sant" : "Falskt"}</span>;
+  } else if (q.type === "matching") {
+    const mc = q.content as MatchingContent;
+    const pairs = mc.pairs ?? [];
+    if (pairs.length === 0) return null;
+    answerNode = (
+      <span>
+        {pairs.map((p, i) => `${p.left} → ${p.right}`).join(" · ")}
+      </span>
+    );
+  } else if (q.type === "definition") {
+    const dc = q.content as DefinitionContent;
+    if (dc.terms && dc.terms.length > 0) {
+      const hasDefs = dc.terms.some(t => t.def);
+      if (!hasDefs) return null;
+      answerNode = (
+        <span>
+          {dc.terms.filter(t => t.def).map(t => `${t.term}: ${t.def}`).join(" · ")}
+        </span>
+      );
+    } else {
+      return null;
+    }
+  } else if (q.type === "short_answer" || q.type === "numeric") {
+    const answer = (c.answer as string | undefined) ?? (c.model as string | undefined);
+    if (!answer) return null;
+    answerNode = <span>{answer}</span>;
+  } else if (q.type === "cloze") {
+    // Extract blanks from the cloze text (___+)
+    const text = (c.text as string) ?? "";
+    const blanks = text.match(/_{3,}/g);
+    const answers = (c.answers as string[] | undefined) ?? (c.model as string[] | undefined);
+    if (!answers || answers.length === 0) {
+      if (!blanks) return null;
+      answerNode = <span>{blanks.length} luckor</span>;
+    } else {
+      answerNode = <span>{answers.join(", ")}</span>;
+    }
+  } else {
+    return null;
+  }
+
+  if (!answerNode) return null;
+
+  return (
+    <div style={{
+      marginTop: "3mm",
+      padding: "2mm 4mm",
+      background: accent + "12",
+      borderLeft: `2px solid ${accent}`,
+      borderRadius: "0 3px 3px 0",
+      fontSize: 9.5,
+      color: "#333",
+      lineHeight: 1.4,
+    }}>
+      <span style={{ fontWeight: 700, color: accent, marginRight: "4px", letterSpacing: "0.05em" }}>
+        SVAR:
+      </span>
+      {answerNode}
+    </div>
+  );
+}
+
 /* ─── QBlock render ──────────────────────────────────────────────────── */
 
-function QBlockRender({ block, number, design, accent, sectionIndex }: {
+function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers }: {
   block: QuestionBlock;
   number: number;
   design: DesignSettings;
   accent: string;
   sectionIndex: number;
+  showAnswers?: boolean;
 }) {
   const layout       = design.layout ?? "classic";
   const numStyle     = design.numStyle ?? "plain";
@@ -1296,6 +1403,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex }: {
                 <QuestionText q={q} />
               </div>
               <QuestionBody q={q} design={design} accent={accent} />
+              {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
             </div>
           );
         })}
@@ -1340,6 +1448,7 @@ export function PrintableTest({
   items,
   blocksPerPage = 3,
   accent: accentProp,
+  showAnswers = false,
 }: Props) {
   const accent       = accentProp ?? design.primaryColor ?? "#1E5F5C";
   const showCover    = design.showCover !== false && design.includeCover !== false;
@@ -1562,6 +1671,7 @@ export function PrintableTest({
               design={design}
               accent={accent}
               sectionIndex={globalSectionIndex}
+              showAnswers={showAnswers}
             />
           );
         });

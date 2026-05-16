@@ -37,7 +37,8 @@ export type OpenContent = {
 export type MultipleChoiceContent = {
   text: string;
   options: string[];
-  multi: boolean;
+  /** Whether multiple answers are allowed. Defaults to false. */
+  multi?: boolean;
   /**
    * Index of the correct option(s). Used for auto-grading.
    * For multi=false: a single number. For multi=true: an array of numbers.
@@ -142,6 +143,8 @@ export type GroupContent = {
 export type DefinitionContent = {
   term: string;
   lines: number;
+  /** Multiple terms with optional model answers (used by the modal editor). */
+  terms?: Array<{ term: string; def: string }>;
 };
 
 /** v3: Bilddiagram med märkningspunkter */
@@ -552,6 +555,12 @@ export type DesignSettings = {
   showToc?: boolean;
   /** Instruktionstext */
   showInstructions?: boolean;
+  /** Häfte: tillgängligt som digital läxa */
+  distDigital?: boolean;
+  /** Häfte: periodiserat (släpper en sida i veckan) */
+  distPeriodic?: boolean;
+  /** Häfte: innehåller lärarversion */
+  distTeacherVersion?: boolean;
   /** Försättsbildsinställningar */
   coverImage?: {
     enabled: boolean;

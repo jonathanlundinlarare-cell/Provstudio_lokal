@@ -2,7 +2,8 @@
  * WorkbookPage — editor for workbook (häfte) documents
  * Uses a two-page spread layout.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useAutosave } from "@/hooks/useAutosave";
 import { v4 as uuidv4 } from "uuid";
 import {
   BookOpen, FileText, Files, Sparkles, Library, Check, Download,
@@ -20,6 +21,7 @@ import {
   type Question,
 } from "@/lib/test-types";
 import { BankPickerModal } from "@/components/BankPickerModal";
+import { getQuestionText } from "@/lib/question-utils";
 
 /* ── Block library ─────────────────────────────────────────────────────────── */
 const WORKBOOK_BLOCKS: Array<{ type: ContentBlockType; icon: LucideIcon; label: string; color: string }> = [
@@ -275,13 +277,13 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     accent: string; font: string; showMarginNotes: boolean; twoColumn: boolean;
     course: string; weekRange: string; chapter: string;
     primaryColor?: string; fontFamily?: string; subtitle?: string;
+    distDigital?: boolean; distPeriodic?: boolean; distTeacherVersion?: boolean;
   }>({ accent: "#1E5F5C", font: "serif", showMarginNotes: true, twoColumn: true, course: "", weekRange: "", chapter: "" });
   const [blocks, setBlocks]     = useState<ContentBlockRef[]>([]);
   const [teacherView, setTeacherView] = useState(false);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [rightTab, setRightTab]       = useState<"block" | "design" | "doc">("block");
   const [loading, setLoading]         = useState(true);
-  const [saveState, setSaveState]     = useState<"idle" | "saving" | "saved">("idle");
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [bank, setBank]               = useState<Question[]>([]);
   const [subtitle, setSubtitle]       = useState("");
@@ -321,13 +323,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   }, [documentId]);
 
   /* ── Autosave ── */
-  const lastSaved = useRef("");
-  useEffect(() => {
-    if (loading) return;
-    const payload = JSON.stringify({ title, design, blocks, subtitle, docType });
-    if (payload === lastSaved.current) return;
-    setSaveState("saving");
-    const h = setTimeout(() => {
+  const saveState = useAutosave(
+    JSON.stringify({ title, design, blocks, subtitle, docType }),
+    () => {
       documents.update(documentId, {
         title,
         doc_type: docType,
@@ -342,11 +340,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
         } as unknown as DesignSettings,
       });
       scheduleSave();
-      lastSaved.current = payload;
-      setSaveState("saved");
-    }, 1500);
-    return () => clearTimeout(h);
-  }, [title, design, blocks, subtitle, docType, loading, documentId]);
+    },
+    loading,
+  );
 
   /* ── Block operations ── */
   const addBlock = useCallback((blockType: ContentBlockType) => {
@@ -1011,12 +1007,17 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
               <div style={{ marginTop: 12, borderTop: "1px solid var(--ps-rule)", paddingTop: 12 }}>
                 <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Distribution</div>
                 {[
-                  { label: "Tillgängligt som digital läxa" },
-                  { label: "Periodiserat (släpper en sida i veckan)" },
-                  { label: "Innehåller lärarversion", defaultOn: true },
+                  { label: "Tillgängligt som digital läxa",           checked: design.distDigital ?? false,        onChange: (v: boolean) => setD({ distDigital: v }) },
+                  { label: "Periodiserat (släpper en sida i veckan)", checked: design.distPeriodic ?? false,       onChange: (v: boolean) => setD({ distPeriodic: v }) },
+                  { label: "Innehåller lärarversion",                 checked: design.distTeacherVersion ?? true,  onChange: (v: boolean) => setD({ distTeacherVersion: v }) },
                 ].map((t, i) => (
                   <label key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
-                    <input type="checkbox" defaultChecked={t.defaultOn} style={{ accentColor: "var(--ps-accent)", width: 14, height: 14 }} />
+                    <input
+                      type="checkbox"
+                      checked={t.checked}
+                      onChange={e => t.onChange(e.target.checked)}
+                      style={{ accentColor: "var(--ps-accent)", width: 14, height: 14 }}
+                    />
                     <span style={{ fontSize: 11.5, color: "var(--ps-ink-2)" }}>{t.label}</span>
                   </label>
                 ))}
@@ -1034,13 +1035,13 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           onAdd={(qId) => {
             const q = bank.find(x => x.id === qId);
             if (!q) return;
-            const text = ((q.content as { text?: string })?.text ?? "").replace(/<[^>]+>/g, "");
+            const text = getQuestionText(q);
             const id = uuidv4();
             setBlocks(b => [...b, {
               block_id: id,
               block_type: "exercise" as ContentBlockType,
               content: {
-                text: text,
+                text,
                 lines: 4,
                 marginNote: "",
                 n: b.filter(r => r.block_type === "exercise").length + 1,
@@ -1048,7 +1049,14 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
             }]);
             setBankPickerOpen(false);
           }}
-          onRemove={() => { /* not used */ }}
+          onRemove={(qId) => {
+            const q = bank.find(x => x.id === qId);
+            if (!q) return;
+            const srcText = getQuestionText(q);
+            setBlocks(b => b.filter(block =>
+              !(block.block_type === "exercise" && ((block.content as { text?: string })?.text ?? "") === srcText)
+            ));
+          }}
           onClose={() => setBankPickerOpen(false)}
         />
       )}

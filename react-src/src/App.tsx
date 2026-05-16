@@ -45,6 +45,8 @@ export default function App() {
             silentCheck();
           }
         }, 4000);
+        // Periodic silent check every 30 minutes
+        setInterval(() => silentCheck(), 30 * 60 * 1000);
       }
     });
   }, []);
@@ -90,8 +92,15 @@ export default function App() {
     if (update.phase !== 'available' || !window.localAPI) return;
     const html = update.html;
     setInstalling(true);
-    await window.localAPI.saveIndexHtml(html);
-    // Electron relaunches automatically
+    try {
+      await window.localAPI.saveIndexHtml(html);
+      // Electron relaunches automatically — if it doesn't, reset state after 10 s
+      setTimeout(() => setInstalling(false), 10_000);
+    } catch {
+      setInstalling(false);
+      setUpdate({ phase: 'error', message: 'Kunde inte installera uppdateringen.' });
+      setTimeout(() => setUpdate({ phase: 'idle' }), 6000);
+    }
   }
 
   function openEditor(docId: string) {

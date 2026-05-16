@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 
 /* ─── Toolbar button ─────────────────────────────────────────────────────── */
 
@@ -139,9 +140,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
 
         <Sep />
 
-        <ToolBtn title="Vänsterjustera"  onClick={() => exec("justifyLeft")}>  ≡ </ToolBtn>
-        <ToolBtn title="Centrera"        onClick={() => exec("justifyCenter")}> ≡ </ToolBtn>
-        <ToolBtn title="Högerjustera"    onClick={() => exec("justifyRight")}>  ≡ </ToolBtn>
+        <ToolBtn title="Vänsterjustera"  onClick={() => exec("justifyLeft")}>  <AlignLeft  size={13} /> </ToolBtn>
+        <ToolBtn title="Centrera"        onClick={() => exec("justifyCenter")}> <AlignCenter size={13} /> </ToolBtn>
+        <ToolBtn title="Högerjustera"    onClick={() => exec("justifyRight")}>  <AlignRight size={13} /> </ToolBtn>
 
         <Sep />
 
