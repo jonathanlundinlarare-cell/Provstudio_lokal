@@ -3,6 +3,7 @@ import { initStore, documents } from './lib/local-db';
 import HomePage from './pages/HomePage';
 import BankPage from './pages/BankPage';
 import EditorPage from './pages/EditorPage';
+import WorkbookPage from './pages/WorkbookPage';
 
 const MANIFEST_URL =
   'https://raw.githubusercontent.com/jonathanlundinlarare-cell/Provstudio_lokal/main/releases/latest.json';
@@ -12,7 +13,8 @@ const HTML_URL =
 type Page =
   | { name: 'home' }
   | { name: 'bank' }
-  | { name: 'editor'; documentId: string };
+  | { name: 'editor'; documentId: string }
+  | { name: 'workbook'; documentId: string };
 
 type UpdateState =
   | { phase: 'idle' }
@@ -93,7 +95,12 @@ export default function App() {
   }
 
   function openEditor(docId: string) {
-    setPage({ name: 'editor', documentId: docId });
+    const doc = documents.get(docId);
+    if (doc?.doc_type === 'workbook') {
+      setPage({ name: 'workbook', documentId: docId });
+    } else {
+      setPage({ name: 'editor', documentId: docId });
+    }
   }
 
   function newDocument(type: 'test' | 'workbook' | 'homework') {
@@ -224,6 +231,12 @@ export default function App() {
         )}
         {page.name === 'editor' && (
           <EditorPage
+            documentId={page.documentId}
+            onBack={() => setPage({ name: 'home' })}
+          />
+        )}
+        {page.name === 'workbook' && (
+          <WorkbookPage
             documentId={page.documentId}
             onBack={() => setPage({ name: 'home' })}
           />

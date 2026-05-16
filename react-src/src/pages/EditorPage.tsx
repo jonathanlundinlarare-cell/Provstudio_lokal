@@ -64,6 +64,7 @@ import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import { QuestionEditorModal } from "@/components/editor/QuestionEditorModal";
 import { FreeformCanvas, FreeformItemLabel } from "@/components/editor/FreeformCanvas";
 import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
+import { BankPickerModal } from "@/components/BankPickerModal";
 
 /* ─── Route ────────────────────────────────────────────────────────────── */
 
@@ -253,6 +254,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [isFreeform, setIsFreeform]   = useState(false);
   const [showGrid, setShowGrid]       = useState(true);
   const [newQOpen, setNewQOpen]       = useState(false);
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
 
   const setD = (patch: Partial<DesignSettings>) => setDesign(d => ({ ...d, ...patch }));
 
@@ -471,6 +473,12 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           <span style={{ fontSize: 11, color: "var(--ps-ink-3)", minWidth: 56 }}>
             {saveState === "saving" ? "Sparar…" : saveState === "saved" ? "✓ Sparat" : ""}
           </span>
+          <button
+            className="ps-btn ps-btn-outline ps-btn-sm"
+            onClick={() => setBankPickerOpen(true)}
+          >
+            Frågebank
+          </button>
           <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={() => window.print()}>
             <Printer size={12} /> Skriv ut
           </button>
@@ -549,6 +557,12 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           {rightTab === "layout" && <LayoutPanel design={design} setD={setD} />}
           {rightTab === "sections" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                onClick={() => setBankPickerOpen(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center", height: 34, borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent", cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5, color: "var(--ps-ink-3)", marginBottom: 10 }}
+              >
+                + Hämta från banken
+              </button>
               {order.filter(isQuestionRef).map((ref, idx) => {
                 const q = bankMap.get(ref.question_id);
                 if (!q) return null;
@@ -595,6 +609,19 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         />
       )}
       {newQOpen && <NewQuestionModal onClose={() => setNewQOpen(false)} onPick={addQuestion} />}
+      {bankPickerOpen && (
+        <BankPickerModal
+          bank={bank}
+          inDocument={new Set(order.filter(isQuestionRef).map(r => r.question_id))}
+          onAdd={(qId) => {
+            setOrder(o => [...o, { question_id: qId } as TestQuestionRef]);
+          }}
+          onRemove={(qId) => {
+            setOrder(o => o.filter(r => !isQuestionRef(r) || r.question_id !== qId));
+          }}
+          onClose={() => setBankPickerOpen(false)}
+        />
+      )}
       {editingBlockIdx !== null && (
         <ContentBlockEditorModal
           blockRef={order[editingBlockIdx] as ContentBlockRef}

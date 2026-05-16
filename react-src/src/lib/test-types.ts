@@ -262,7 +262,8 @@ export type ContentBlockType =
   | "marginNote"    // Lärarnotering i marginalen (dold i elevversion)
   | "pageBreak"     // Tvingad sidbrytning
   | "divider"       // Horisontell separator
-  | "heading";      // Kapitelrubrik + underrubrik
+  | "heading"       // Kapitelrubrik + underrubrik
+  | "exercise";     // Numrerad övningsuppgift med skrivlinjer (häften)
 
 export type ContentBlock = {
   id: string;
@@ -315,6 +316,7 @@ export const CONTENT_BLOCK_TYPE_LABELS: Record<ContentBlockType, string> = {
   pageBreak:   "Sidbrytning",
   divider:     "Avdelare",
   heading:     "Rubrik",
+  exercise:    "Övning",
 };
 
 // ---------------------------------------------------------------------------

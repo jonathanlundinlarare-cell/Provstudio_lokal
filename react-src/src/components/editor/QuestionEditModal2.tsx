@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { Trash2, X, Minus } from "lucide-react";
 import type { Question, QuestionType } from "@/lib/test-types";
+import { RichTextEditor } from "./RichTextEditor";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1339,8 +1340,6 @@ function RattningsreglerFields({
 /* ── Main component ─────────────────────────────────────────────────────── */
 
 export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
-  const [highlight, setHighlight] = useState("");
-
   const text = (q.content as { text?: string })?.text ?? "";
 
   const patchContent = (fields: Record<string, unknown>) => {
@@ -1432,199 +1431,12 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
           </button>
         </div>
 
-        {/* Toolbar row 1 */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            padding: "4px 12px",
-            borderBottom: "1px solid var(--ps-rule)",
-            flexShrink: 0,
-            flexWrap: "wrap",
-          }}
-        >
-          <TBTN title="Fet"><strong>B</strong></TBTN>
-          <TBTN title="Kursiv"><em>I</em></TBTN>
-          <TBTN title="Understruken"><span style={{ textDecoration: "underline" }}>U</span></TBTN>
-          <TBTN title="Nedsänkt">X<sub style={{ fontSize: 8 }}>2</sub></TBTN>
-          <TBTN title="Upphöjt">X<sup style={{ fontSize: 8 }}>2</sup></TBTN>
-          <TBTN title="Genomstruken"><span style={{ textDecoration: "line-through" }}>S</span></TBTN>
-          <TSEP />
-          {/* Highlight button */}
-          <button
-            title="Markörfärg"
-            style={{
-              width: 30,
-              height: 30,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              border: "none",
-              borderRadius: 5,
-              cursor: "pointer",
-              position: "relative",
-              gap: 2,
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--ps-ink-2)" }}>A</span>
-            <div
-              style={{
-                width: 14,
-                height: 4,
-                borderRadius: 2,
-                background: highlight || "#F5E6A3",
-                border: "1px solid var(--ps-rule-2)",
-              }}
-            />
-          </button>
-          {/* Text color */}
-          <button
-            title="Textfärg"
-            style={{
-              width: 30,
-              height: 30,
-              display: "inline-flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              border: "none",
-              borderRadius: 5,
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ps-ink-2)", lineHeight: 1 }}>A</span>
-            <div style={{ width: 14, height: 3, borderRadius: 1, background: "#E74C3C", marginTop: 1 }} />
-          </button>
-          <TBTN title="Formel">√x</TBTN>
-          <TBTN title="Bild">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-              <circle cx="4.5" cy="4.5" r="1.2" fill="currentColor"/>
-              <path d="M1 10l3.5-3.5 2.5 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </TBTN>
-          <TBTN title="Tabell">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-              <line x1="1" y1="5" x2="13" y2="5" stroke="currentColor" strokeWidth="1"/>
-              <line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1"/>
-            </svg>
-          </TBTN>
-          <TBTN title="Matematik">$</TBTN>
-          <TBTN title="Kod">&lt;/&gt;</TBTN>
-          <TSEP />
-          <TBTN title="Justering">≡</TBTN>
-          <TBTN title="Numrerad lista">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <line x1="5" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="5" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="5" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              <text x="1" y="4" style={{ fontSize: 4, fontFamily: "sans-serif" }} fill="currentColor">1</text>
-              <text x="1" y="8" style={{ fontSize: 4, fontFamily: "sans-serif" }} fill="currentColor">2</text>
-              <text x="1" y="12" style={{ fontSize: 4, fontFamily: "sans-serif" }} fill="currentColor">3</text>
-            </svg>
-          </TBTN>
-          <TBTN title="Punktlista">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="2.5" cy="3" r="1" fill="currentColor"/>
-              <circle cx="2.5" cy="7" r="1" fill="currentColor"/>
-              <circle cx="2.5" cy="11" r="1" fill="currentColor"/>
-              <line x1="5" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="5" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="5" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
-          </TBTN>
-        </div>
-
-        {/* Toolbar row 2 */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            padding: "4px 12px",
-            borderBottom: "1px solid var(--ps-rule)",
-            flexShrink: 0,
-          }}
-        >
-          <TBTN title="Stycke">¶</TBTN>
-          <TBTN title="Radhöjd">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.2"/>
-              <line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5"/>
-              <line x1="1" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5"/>
-            </svg>
-          </TBTN>
-          <TBTN title="Ångra">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 5h5a4 4 0 0 1 0 8H4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              <path d="M2 5L5 2M2 5L5 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-          </TBTN>
-          <TBTN title="Gör om">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M12 5H7a4 4 0 0 0 0 8h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              <path d="M12 5L9 2M12 5L9 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-          </TBTN>
-          <TBTN title="Helskärm">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 4V1h3M10 1h3v3M13 10v3h-3M4 13H1v-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </TBTN>
-        </div>
-
-        {/* Highlight palette */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 16px",
-            borderBottom: "1px solid var(--ps-rule)",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", marginRight: 4 }}>Markering:</span>
-          {HIGHLIGHTS.map((h) => (
-            <button
-              key={h || "none"}
-              onClick={() => setHighlight(h)}
-              title={h || "Ingen"}
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 4,
-                background: h || "white",
-                border: highlight === h ? "2px solid var(--ps-ink)" : "1px solid var(--ps-rule-2)",
-                cursor: "pointer",
-                outline: h === "" ? "1px dashed var(--ps-rule-2)" : "none",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Textarea */}
-        <textarea
+        {/* Rich text editor — fully functional toolbar + contentEditable */}
+        <RichTextEditor
           value={text}
-          onChange={(e) => patchContent({ text: e.target.value })}
+          onChange={(html) => patchContent({ text: html })}
           placeholder="Skriv din uppgift här …"
-          style={{
-            width: "100%",
-            minHeight: 140,
-            padding: "14px 16px",
-            border: "none",
-            outline: "none",
-            resize: "vertical",
-            fontFamily: "var(--ps-ui)",
-            fontSize: 13.5,
-            lineHeight: 1.55,
-            color: "var(--ps-ink)",
-            boxSizing: "border-box",
-          }}
+          minHeight={140}
         />
 
         {/* Type-specific fields + Rättningsregler */}
