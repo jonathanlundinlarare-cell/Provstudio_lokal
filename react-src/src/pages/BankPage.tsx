@@ -43,6 +43,35 @@ const STATUS: Record<QuestionStatus, { label: string; short: string; color: stri
 
 const DIFFICULTY_LABELS: Record<string, string> = { easy: "Lätt", medium: "Medel", hard: "Svår" };
 
+// ── SO Taxonomy ───────────────────────────────────────────────────────────────
+
+const SO_TAXONOMY: Record<string, string[]> = {
+  "Historia": [
+    "Forntiden och antiken", "Medeltiden", "Nya tidens Europa",
+    "Industrialiseringen", "Demokratins framväxt", "Första världskriget",
+    "Andra världskriget", "Kalla kriget", "Sverige under 1900-talet",
+    "Historisk källkritik och metod",
+  ],
+  "Geografi": [
+    "Endogena och exogena krafter", "Klimat och klimatzoner",
+    "Befolkning och migration", "Hållbar utveckling",
+    "Naturresurser och energi", "Kartor och rumslig orientering",
+    "Stadsgeografi", "Geopolitik och världsdelar",
+  ],
+  "Samhällskunskap": [
+    "Demokrati och mänskliga rättigheter", "Sveriges politiska system",
+    "EU och internationella organisationer", "Rättsväsendet och lagar",
+    "Ekonomi och arbetsmarknad", "Media och källkritik",
+    "Konsumentkunskap", "Identitet och normer",
+  ],
+  "Religion": [
+    "Kristendomen", "Islam", "Judendomen", "Hinduismen", "Buddhismen",
+    "Livsåskådningar och sekulära rörelser", "Etik och moral", "Riter och högtider",
+  ],
+};
+
+const SO_SUBJECTS = Object.keys(SO_TAXONOMY);
+
 // ── Tree helpers ──────────────────────────────────────────────────────────────
 
 type TreeNode = {
@@ -53,24 +82,44 @@ type TreeNode = {
 };
 
 function buildTree(questions: Question[]): TreeNode[] {
-  const subjectMap = new Map<string, Map<string, number>>();
+  const counts = new Map<string, number>();
   for (const q of questions) {
-    const subj = q.subject || "Övrigt";
-    const cat  = q.cat   || "";
-    if (!subjectMap.has(subj)) subjectMap.set(subj, new Map());
-    const cats = subjectMap.get(subj)!;
-    cats.set(cat, (cats.get(cat) ?? 0) + 1);
+    const key = `${q.subject ?? "Övrigt"}::${q.cat ?? ""}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
   }
+
   const nodes: TreeNode[] = [];
-  for (const [subj, cats] of subjectMap) {
-    const totalCount = Array.from(cats.values()).reduce((a, b) => a + b, 0);
-    const children: TreeNode[] = [];
-    for (const [cat, count] of cats) {
-      if (cat) children.push({ id: `${subj}::${cat}`, label: cat, count });
-    }
-    nodes.push({ id: `subj::${subj}`, label: subj, count: totalCount, children: children.length ? children : undefined });
+
+  // SO subjects — always visible with predefined categories
+  for (const [subj, cats] of Object.entries(SO_TAXONOMY)) {
+    const children: TreeNode[] = cats.map(cat => ({
+      id: `${subj}::${cat}`,
+      label: cat,
+      count: counts.get(`${subj}::${cat}`) ?? 0,
+    }));
+    // Also pick up any uncategorised questions in this subject
+    const total = children.reduce((s, c) => s + c.count, 0) + (counts.get(`${subj}::`) ?? 0);
+    nodes.push({ id: `subj::${subj}`, label: subj, count: total, children });
   }
-  return nodes.sort((a, b) => a.label.localeCompare(b.label, "sv"));
+
+  // Extra subjects from actual questions (non-SO)
+  const soSet = new Set(SO_SUBJECTS);
+  const extra = new Map<string, Map<string, number>>();
+  for (const q of questions) {
+    const subj = q.subject ?? "Övrigt";
+    if (soSet.has(subj)) continue;
+    if (!extra.has(subj)) extra.set(subj, new Map());
+    const cat = q.cat ?? "";
+    extra.get(subj)!.set(cat, (extra.get(subj)!.get(cat) ?? 0) + 1);
+  }
+  for (const [subj, cats] of extra) {
+    const children: TreeNode[] = [];
+    for (const [cat, count] of cats) if (cat) children.push({ id: `${subj}::${cat}`, label: cat, count });
+    const total = Array.from(cats.values()).reduce((a, b) => a + b, 0);
+    nodes.push({ id: `subj::${subj}`, label: subj, count: total, children: children.length ? children : undefined });
+  }
+
+  return nodes;
 }
 
 // ── BankCircle ────────────────────────────────────────────────────────────────
@@ -506,16 +555,12 @@ export default function BankPage({ onBack, onAddQuestion }: {
             <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)", fontFamily: "monospace" }}>{questions.length}</span>
           </button>
 
-          {tree.length > 0 && (
-            <>
-              <div style={{ height: 1, background: "var(--ps-rule)", margin: "8px 0" }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                {tree.map(node => (
-                  <TreeNavNode key={node.id} node={node} depth={0} activeId={activeId} onSelect={setActiveId} openSet={openSet} toggleOpen={toggleOpen} />
-                ))}
-              </div>
-            </>
-          )}
+          <div style={{ height: 1, background: "var(--ps-rule)", margin: "8px 0" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {tree.map(node => (
+              <TreeNavNode key={node.id} node={node} depth={0} activeId={activeId} onSelect={setActiveId} openSet={openSet} toggleOpen={toggleOpen} />
+            ))}
+          </div>
         </aside>
 
         {/* Main content */}
@@ -592,9 +637,16 @@ export default function BankPage({ onBack, onAddQuestion }: {
       </div>
 
       {/* Modals */}
-      {creatingType && (
-        <QuestionModal mode="create" type={creatingType} onClose={() => setCreatingType(null)} onSaved={() => { setCreatingType(null); load(); }} />
-      )}
+      {creatingType && (() => {
+        // Derive defaults from active tree node
+        let defSubj = "";
+        let defCat = "";
+        if (activeId.startsWith("subj::")) defSubj = activeId.slice(6);
+        else if (activeId.includes("::")) { const [s, c] = activeId.split("::"); defSubj = s; defCat = c; }
+        return (
+          <QuestionModal mode="create" type={creatingType} defaultSubject={defSubj} defaultCat={defCat} onClose={() => setCreatingType(null)} onSaved={() => { setCreatingType(null); load(); }} />
+        );
+      })()}
       {editingQ && (
         <QuestionModal mode="edit" question={editingQ} onClose={() => setEditingQ(null)} onSaved={() => { setEditingQ(null); load(); }} />
       )}
@@ -726,10 +778,12 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
 
 // ── Question Modal ────────────────────────────────────────────────────────────
 
-function QuestionModal({ mode, type, question, onClose, onSaved }: {
+function QuestionModal({ mode, type, question, defaultSubject, defaultCat, onClose, onSaved }: {
   mode: "create" | "edit";
   type?: QuestionType;
   question?: Question;
+  defaultSubject?: string;
+  defaultCat?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -754,8 +808,10 @@ function QuestionModal({ mode, type, question, onClose, onSaved }: {
   const [rankItems, setRankItems]   = useState((c?.items as string[]) || ["", ""]);
   const [drawHeight, setDrawHeight] = useState((c?.heightMm as number) || 60);
   const [points, setPoints]   = useState(question?.points || "");
-  const [subject, setSubject] = useState(question?.subject || "");
-  const [cat, setCat]         = useState(question?.cat || "");
+  const [subject, setSubject] = useState(question?.subject || defaultSubject || "");
+  const [cat, setCat]         = useState(question?.cat || defaultCat || "");
+  const [customSubject, setCustomSubject] = useState(!SO_SUBJECTS.includes(question?.subject || defaultSubject || ""));
+  const [customCat, setCustomCat] = useState(false);
   const [difficulty, setDiff] = useState<Difficulty | "">(question?.difficulty as Difficulty || "");
   const [status, setStatus]   = useState<QuestionStatus>(question?.status || "draft");
   const [rubricE, setRubricE] = useState(question?.rubric?.E || "");
@@ -971,11 +1027,40 @@ function QuestionModal({ mode, type, question, onClose, onSaved }: {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Ämne</label>
-                <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="t.ex. Historia" className="ps-input" style={{ width: "100%", marginTop: 4 }} />
+                {customSubject ? (
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                    <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Eget ämne" className="ps-input" style={{ flex: 1 }} />
+                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomSubject(false); setSubject(""); setCat(""); setCustomCat(false); }} title="Välj fördefinierat">↩</button>
+                  </div>
+                ) : (
+                  <select value={subject} onChange={e => {
+                    if (e.target.value === "__custom__") { setCustomSubject(true); setSubject(""); setCat(""); setCustomCat(false); }
+                    else { setSubject(e.target.value); setCat(""); setCustomCat(false); }
+                  }} className="ps-input" style={{ width: "100%", marginTop: 4 }}>
+                    <option value="">— Välj ämne —</option>
+                    {SO_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="Övrigt">Övrigt</option>
+                    <option value="__custom__">— Eget ämne —</option>
+                  </select>
+                )}
               </div>
               <div>
                 <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Kategori / Avsnitt</label>
-                <input value={cat} onChange={e => setCat(e.target.value)} placeholder="t.ex. Industrialiseringen" className="ps-input" style={{ width: "100%", marginTop: 4 }} />
+                {customSubject || customCat || !SO_SUBJECTS.includes(subject) ? (
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                    <input value={cat} onChange={e => setCat(e.target.value)} placeholder="t.ex. Industrialiseringen" className="ps-input" style={{ flex: 1 }} />
+                    {SO_SUBJECTS.includes(subject) && <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomCat(false); setCat(""); }} title="Välj fördefinierad">↩</button>}
+                  </div>
+                ) : (
+                  <select value={cat} onChange={e => {
+                    if (e.target.value === "__custom__") { setCustomCat(true); setCat(""); }
+                    else setCat(e.target.value);
+                  }} className="ps-input" style={{ width: "100%", marginTop: 4 }} disabled={!subject || !SO_SUBJECTS.includes(subject)}>
+                    <option value="">— Välj kategori —</option>
+                    {(SO_TAXONOMY[subject] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="__custom__">— Eget avsnitt —</option>
+                  </select>
+                )}
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>

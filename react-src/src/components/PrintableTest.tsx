@@ -544,17 +544,33 @@ function QuestionBody({ q, design }: { q: Question; design: DesignSettings }) {
 
 /* ─── Question text ──────────────────────────────────────────────────── */
 
+const HTML_RE = /<[a-z][\s\S]*?>/i;
+
+function RichText({ raw }: { raw: string }) {
+  if (HTML_RE.test(raw)) {
+    return <span dangerouslySetInnerHTML={{ __html: raw }} />;
+  }
+  return <>{raw}</>;
+}
+
 function QuestionText({ q }: { q: Question }) {
   if (q.type === "cloze") {
-    return <ClozeText text={(q.content as ClozeContent).text || ""} />;
+    const raw = (q.content as ClozeContent).text || "";
+    if (HTML_RE.test(raw)) {
+      // Strip HTML tags for cloze blank detection, fall back to plain rendering
+      const plain = raw.replace(/<[^>]+>/g, "");
+      return <ClozeText text={plain} />;
+    }
+    return <ClozeText text={raw} />;
   }
   if (q.type === "group") {
-    return <>{(q.content as { title?: string }).title || "(Grupp)"}</>;
+    return <RichText raw={(q.content as { title?: string }).title || "(Grupp)"} />;
   }
   if (q.type === "definition") {
-    return <>{(q.content as { term?: string; text?: string }).text || (q.content as { term?: string }).term || "(Definition)"}</>;
+    const raw = (q.content as { term?: string; text?: string }).text || (q.content as { term?: string }).term || "(Definition)";
+    return <RichText raw={raw} />;
   }
-  return <>{(q.content as { text?: string }).text || "(Tom fråga)"}</>;
+  return <RichText raw={(q.content as { text?: string }).text || "(Tom fråga)"} />;
 }
 
 /* ─── Points display ─────────────────────────────────────────────────── */
@@ -1086,10 +1102,10 @@ function QBlockRender({ block, number, design }: { block: QuestionBlock; number:
               : layout === "exam"      ? <BlockExam      block={block} number={number} design={design} />
               :                          <BlockClassic   block={block} number={number} design={design} />;
   return (
-    <>
+    <div data-qid={block.lead.id}>
       {block.sectionStart && <SectionHeader label={block.sectionStart} design={design} />}
       {cardStyleWrap(design.cardStyle, accent, inner)}
-    </>
+    </div>
   );
 }
 

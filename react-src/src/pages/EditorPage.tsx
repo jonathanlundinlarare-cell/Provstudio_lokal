@@ -253,6 +253,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [rightTab, setRightTab]       = useState<"layout"|"block"|"doc">("layout");
   const [centerMode, setCenterMode]   = useState<"edit"|"preview"|"answer">("edit");
   const [creatingType, setCreatingType] = useState<QuestionType | null>(null);
+  const [insertAfterIdx, setInsertAfterIdx] = useState<number | null>(null);
   const [editingQ, setEditingQ]       = useState<Question | null>(null);
   const [editingBlockIdx, setEditingBlockIdx] = useState<number | null>(null);
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
@@ -615,17 +616,33 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
                 onSelect={(id) => { setSelectedId(id); setRightTab("block"); }}
                 onEdit={(q) => setEditingQ(q)}
                 onDelete={(idx) => removeItem(idx)}
+                onInsertAfter={(afterIdx, type) => {
+                  setInsertAfterIdx(afterIdx);
+                  setCreatingType(type);
+                }}
               />
             )}
 
             {/* ── Preview / Facit mode ── */}
             {(centerMode === "preview" || centerMode === "answer") && (
-              <PrintableTest
-                title={title}
-                subtitle={design.subtitle ?? ""}
-                design={design}
-                items={printItems}
-              />
+              <div
+                onClick={e => {
+                  const el = (e.target as HTMLElement).closest("[data-qid]") as HTMLElement | null;
+                  if (el) {
+                    const q = bankMap.get(el.dataset.qid!);
+                    if (q) setEditingQ(q);
+                  }
+                }}
+                style={{ cursor: "default" }}
+                title="Klicka på en fråga för att redigera"
+              >
+                <PrintableTest
+                  title={title}
+                  subtitle={design.subtitle ?? ""}
+                  design={design}
+                  items={printItems}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -672,11 +689,22 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           mode="create"
           type={creatingType}
           defaultLines={design.defaultLines ?? 4}
-          onClose={() => setCreatingType(null)}
+          onClose={() => { setCreatingType(null); setInsertAfterIdx(null); }}
           onSaved={async (newId) => {
             await refreshBank();
-            if (newId) setOrder(o => [...o, { question_id: newId } as TestQuestionRef]);
+            if (newId) {
+              if (insertAfterIdx !== null) {
+                setOrder(o => {
+                  const next = [...o];
+                  next.splice(insertAfterIdx + 1, 0, { question_id: newId } as TestQuestionRef);
+                  return next;
+                });
+              } else {
+                setOrder(o => [...o, { question_id: newId } as TestQuestionRef]);
+              }
+            }
             setCreatingType(null);
+            setInsertAfterIdx(null);
           }}
         />
       )}
@@ -872,7 +900,108 @@ function SortableOutlineItem({
 
 /* ─── InlineQuestionCanvas (edit mode) ───────────────────────────────────── */
 
-function InlineQuestionCanvas({ order, bankMap, design, selectedId, onSelect, onEdit, onDelete }: {
+/* ─── InlineAddRow ────────────────────────────────────────────────────────── */
+
+const INLINE_QUICK_TYPES: { type: QuestionType; label: string; icon: string; auto?: boolean }[] = [
+  { type: "open",            label: "Fritext",   icon: "≡" },
+  { type: "multiple_choice", label: "Flerval",   icon: "☑",  auto: true },
+  { type: "short_answer",    label: "Kortsvar",  icon: "—" },
+  { type: "cloze",           label: "Fyll luckor", icon: "[ ]", auto: true },
+  { type: "matching",        label: "Matcha",    icon: "⇌",  auto: true },
+  { type: "ranking",         label: "Rangordna", icon: "⊞" },
+  { type: "essay",           label: "Resonerande", icon: "¶" },
+  { type: "image",           label: "Bildfråga", icon: "🖼" },
+];
+
+function InlineAddRow({ afterIdx, onPick }: { afterIdx: number; onPick: (idx: number, type: QuestionType) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", margin: "2px 0" }}>
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: 6, height: 22,
+          opacity: open ? 1 : 0, transition: "opacity 0.15s",
+          cursor: "pointer",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+        onMouseLeave={e => { if (!open) (e.currentTarget as HTMLElement).style.opacity = "0"; }}
+      >
+        <div style={{ flex: 1, height: 1, background: "var(--ps-rule-2)" }} />
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "2px 10px", borderRadius: 12,
+            border: "1px solid var(--ps-rule-2)",
+            background: open ? "var(--ps-accent)" : "var(--ps-paper)",
+            color: open ? "#fff" : "var(--ps-ink-3)",
+            fontSize: 11, fontFamily: "var(--ps-ui)", cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          ＋ Ny fråga
+        </button>
+        <div style={{ flex: 1, height: 1, background: "var(--ps-rule-2)" }} />
+      </div>
+
+      {open && (
+        <div style={{
+          position: "absolute", left: "50%", transform: "translateX(-50%)",
+          zIndex: 20, top: 26,
+          background: "var(--ps-paper)",
+          border: "1px solid var(--ps-rule)",
+          borderRadius: 10, padding: "10px 12px",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+          width: 300,
+        }}>
+          <div style={{ fontSize: 10.5, color: "var(--ps-ink-4)", marginBottom: 8, fontFamily: "var(--ps-ui)" }}>
+            <span style={{ background: "var(--ps-ink)", color: "var(--ps-paper)", borderRadius: 3, padding: "1px 5px", fontWeight: 700, marginRight: 4, fontSize: 10 }}>A</span>
+            = Automaträttande
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5 }}>
+            {INLINE_QUICK_TYPES.map(t => (
+              <button
+                key={t.type}
+                onClick={() => { setOpen(false); onPick(afterIdx, t.type); }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 4, padding: "8px 4px", borderRadius: 7,
+                  border: "1px solid var(--ps-rule-2)",
+                  background: "var(--ps-bg-soft)", cursor: "pointer",
+                  fontFamily: "var(--ps-ui)", position: "relative",
+                }}
+              >
+                {t.auto && (
+                  <span style={{
+                    position: "absolute", top: 2, right: 3,
+                    fontSize: 7, fontWeight: 800,
+                    background: "var(--ps-ink)", color: "var(--ps-paper)",
+                    borderRadius: 3, padding: "0 2px",
+                  }}>A</span>
+                )}
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
+                <span style={{ fontSize: 9.5, color: "var(--ps-ink-2)", textAlign: "center", lineHeight: 1.2 }}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineQuestionCanvas({ order, bankMap, design, selectedId, onSelect, onEdit, onDelete, onInsertAfter }: {
   order: QuestionOrderItem[];
   bankMap: Map<string, Question>;
   design: DesignSettings;
@@ -880,77 +1009,91 @@ function InlineQuestionCanvas({ order, bankMap, design, selectedId, onSelect, on
   onSelect: (id: string) => void;
   onEdit: (q: Question) => void;
   onDelete: (idx: number) => void;
+  onInsertAfter: (afterIdx: number, type: QuestionType) => void;
 }) {
   let qNum = 0;
-  return (
-    <div style={{ fontFamily: "var(--ps-ui)" }}>
-      {order.map((item, idx) => {
-        if (isQuestionRef(item)) {
-          if (item.question_id === "__section__") {
-            return (
-              <div key={idx} style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "12px 0 4px", borderBottom: "1px solid var(--ps-rule)", marginBottom: 8 }}>
-                <Flag size={10} style={{ color: "var(--ps-accent)", display: "inline", marginRight: 4 }} />
-                {item.section_label}
-              </div>
-            );
-          }
-          if (!item.group) qNum++;
-          const q = bankMap.get(item.question_id);
-          if (!q) return null;
-          const eff = applyOverrides(q, item);
-          const isSelected = selectedId === item.question_id;
-          const text = (eff.content as { text?: string })?.text ?? "";
-          return (
-            <div
-              key={idx}
-              onClick={() => onSelect(item.question_id)}
-              style={{
-                marginBottom: 8, borderRadius: 8, padding: "12px 14px",
-                border: "2px solid", borderColor: isSelected ? "var(--ps-accent)" : "var(--ps-rule)",
-                background: "var(--ps-paper)", cursor: "pointer",
-                transition: "border-color 0.1s",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: isSelected ? "var(--ps-accent)" : "var(--ps-ink-3)", minWidth: 20, textAlign: "right", flexShrink: 0 }}>
-                  {item.group ? `${String.fromCharCode(96 + qNum)})` : `${qNum}.`}
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ps-ink)" }}>
-                    {text || <span style={{ color: "var(--ps-ink-4)" }}>(Ingen frågetext)</span>}
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 5, alignItems: "center" }}>
-                    <span style={{ fontSize: 10, background: "var(--ps-accent)14", color: "var(--ps-accent)", borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>{QUESTION_TYPE_LABELS[eff.type]}</span>
-                    {eff.points && <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)" }}>{eff.points} p</span>}
-                    {isSelected && (
-                      <button className="ps-btn ps-btn-outline ps-btn-sm" style={{ marginLeft: "auto" }} onClick={e => { e.stopPropagation(); onEdit(eff); }}>
-                        Redigera
-                      </button>
-                    )}
-                  </div>
+  const items = order.map((item, idx) => {
+    if (isQuestionRef(item)) {
+      if (item.question_id === "__section__") {
+        return (
+          <div key={idx} style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "12px 0 4px", borderBottom: "1px solid var(--ps-rule)", marginBottom: 8 }}>
+            <Flag size={10} style={{ color: "var(--ps-accent)", display: "inline", marginRight: 4 }} />
+            {item.section_label}
+          </div>
+        );
+      }
+      if (!item.group) qNum++;
+      const q = bankMap.get(item.question_id);
+      if (!q) return null;
+      const eff = applyOverrides(q, item);
+      const isSelected = selectedId === item.question_id;
+      const rawText = (eff.content as { text?: string })?.text ?? "";
+      const displayText = rawText.replace(/<[^>]+>/g, "");
+      return (
+        <div key={idx}>
+          <div
+            onClick={() => onEdit(eff)}
+            style={{
+              marginBottom: 2, borderRadius: 8, padding: "10px 14px",
+              border: "2px solid", borderColor: isSelected ? "var(--ps-accent)" : "var(--ps-rule)",
+              background: "var(--ps-paper)", cursor: "pointer",
+              transition: "border-color 0.1s",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isSelected ? "var(--ps-accent)" : "var(--ps-ink-3)", minWidth: 20, textAlign: "right", flexShrink: 0 }}>
+                {item.group ? `${String.fromCharCode(96 + qNum)})` : `${qNum}.`}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ps-ink)" }}>
+                  {displayText || <span style={{ color: "var(--ps-ink-4)" }}>(Ingen frågetext)</span>}
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center" }}>
+                  <span style={{ fontSize: 10, background: "var(--ps-accent)14", color: "var(--ps-accent)", borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>{QUESTION_TYPE_LABELS[eff.type]}</span>
+                  {eff.points && <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)" }}>{eff.points} p</span>}
+                  <button
+                    className="del-btn ps-btn ps-btn-ghost ps-btn-icon ps-btn-sm"
+                    style={{ marginLeft: "auto" }}
+                    onClick={e => { e.stopPropagation(); onDelete(idx); }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
             </div>
-          );
-        }
+          </div>
+          <InlineAddRow afterIdx={idx} onPick={onInsertAfter} />
+        </div>
+      );
+    }
 
-        if (isContentBlockRef(item)) {
-          const isSelected = selectedId === item.block_id;
-          return (
-            <ContentBlockCard
-              key={idx}
-              blockRef={item}
-              isSelected={isSelected}
-              onClick={() => onSelect(item.block_id)}
-            />
-          );
-        }
-        return null;
-      })}
-      {order.length === 0 && (
+    if (isContentBlockRef(item)) {
+      const isSelected = selectedId === item.block_id;
+      return (
+        <div key={idx}>
+          <ContentBlockCard
+            blockRef={item}
+            isSelected={isSelected}
+            onClick={() => onSelect(item.block_id)}
+          />
+          <InlineAddRow afterIdx={idx} onPick={onInsertAfter} />
+        </div>
+      );
+    }
+    return null;
+  });
+
+  return (
+    <div style={{ fontFamily: "var(--ps-ui)" }}>
+      {order.length === 0 ? (
         <div style={{ textAlign: "center", color: "var(--ps-ink-4)", fontSize: 13, padding: "60px 0" }}>
           Inga element ännu — lägg till frågor eller block i vänster panel.
         </div>
+      ) : (
+        <>
+          <InlineAddRow afterIdx={-1} onPick={onInsertAfter} />
+          {items}
+        </>
       )}
     </div>
   );

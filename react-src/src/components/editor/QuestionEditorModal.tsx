@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { questionBank } from "@/lib/local-db";
 import { toast } from "sonner";
 import { Plus, Trash2, Upload } from "lucide-react";
+import { RichTextEditor } from "./RichTextEditor";
 import {
   QUESTION_TYPE_LABELS,
   type Difficulty,
@@ -171,13 +172,16 @@ export function QuestionEditorModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* Question text */}
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>
               Frågetext{qType === "cloze" ? " — använd ___ för luckor" : ""}
             </span>
-            <textarea value={text} onChange={e => setText(e.target.value)} rows={3}
-              className="ps-input" style={{ width: "100%", resize: "vertical" }} />
-          </label>
+            <RichTextEditor
+              value={text}
+              onChange={setText}
+              placeholder={qType === "cloze" ? "Skriv meningen med ___ som luckor …" : "Skriv din frågetext här …"}
+            />
+          </div>
 
           {/* Open */}
           {qType === "open" && (
