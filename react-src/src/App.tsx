@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { initStore, documents } from './lib/local-db';
 import HomePage from './pages/HomePage';
 import BankPage from './pages/BankPage';
@@ -14,46 +14,82 @@ type Page =
   | { name: 'bank' }
   | { name: 'editor'; documentId: string };
 
+type UpdateState =
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'upToDate' }
+  | { phase: 'available'; remoteVersion: string; html: string }
+  | { phase: 'error'; message: string };
+
 export default function App() {
   const [page, setPage] = useState<Page>({ name: 'home' });
   const [ready, setReady] = useState(false);
-  const [updateDialog, setUpdateDialog] = useState<{
-    show: boolean;
-    version?: string;
-    html?: string;
-  }>({ show: false });
-  const [updateStatus, setUpdateStatus] = useState('');
+  const [currentVersion, setCurrentVersion] = useState<string>('');
+  const [update, setUpdate] = useState<UpdateState>({ phase: 'idle' });
+  const [installing, setInstalling] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const autoChecked = useRef(false);
 
   useEffect(() => {
-    initStore().then(() => setReady(true));
+    initStore().then(async () => {
+      setReady(true);
+      if (window.localAPI) {
+        const v = await window.localAPI.getVersion();
+        setCurrentVersion(v);
+        // Auto-check once, 4 s after startup so the UI has settled
+        setTimeout(() => {
+          if (!autoChecked.current) {
+            autoChecked.current = true;
+            silentCheck();
+          }
+        }, 4000);
+      }
+    });
   }, []);
 
-  async function checkUpdate() {
-    if (!window.localAPI) {
-      setUpdateStatus('Uppdatering stöds bara i Electron-appen.');
-      return;
-    }
+  async function silentCheck() {
+    if (!window.localAPI) return;
     try {
-      setUpdateStatus('Söker...');
+      const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL);
+      const manifest = JSON.parse(manifestText) as { version: string };
+      const current = await window.localAPI.getVersion();
+      if (manifest.version !== current) {
+        const html = await window.localAPI.fetchUpdate(HTML_URL);
+        setUpdate({ phase: 'available', remoteVersion: manifest.version, html });
+        // Show the banner — dialog only opens on user action
+      }
+    } catch {
+      // Silent fail — auto-check should never annoy the user with errors
+    }
+  }
+
+  async function checkUpdate() {
+    if (!window.localAPI) return;
+    setUpdate({ phase: 'checking' });
+    try {
       const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL);
       const manifest = JSON.parse(manifestText) as { version: string };
       const current = await window.localAPI.getVersion();
       if (manifest.version === current) {
-        setUpdateStatus(`Du har redan senaste versionen (${current}).`);
+        setUpdate({ phase: 'upToDate' });
+        setTimeout(() => setUpdate({ phase: 'idle' }), 4000);
         return;
       }
       const html = await window.localAPI.fetchUpdate(HTML_URL);
-      setUpdateStatus('');
-      setUpdateDialog({ show: true, version: manifest.version, html });
+      setUpdate({ phase: 'available', remoteVersion: manifest.version, html });
+      setShowUpdateDialog(true);
     } catch {
-      setUpdateStatus('Kunde inte kontrollera uppdatering.');
+      setUpdate({ phase: 'error', message: 'Kunde inte nå GitHub. Kontrollera din internetanslutning.' });
+      setTimeout(() => setUpdate({ phase: 'idle' }), 6000);
     }
   }
 
   async function installUpdate() {
-    if (!window.localAPI || !updateDialog.html) return;
-    await window.localAPI.saveIndexHtml(updateDialog.html);
-    // app relaunches automatically
+    if (update.phase !== 'available' || !window.localAPI) return;
+    const html = update.html;
+    setInstalling(true);
+    await window.localAPI.saveIndexHtml(html);
+    // Electron relaunches automatically
   }
 
   function openEditor(docId: string) {
@@ -73,44 +109,104 @@ export default function App() {
     );
   }
 
+  const hasUpdate = update.phase === 'available';
+
   return (
     <div className="ps-body h-screen overflow-hidden flex flex-col">
-      {/* Update dialog */}
-      {updateDialog.show && (
+
+      {/* ── Update confirm dialog ── */}
+      {showUpdateDialog && hasUpdate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="ps-card p-6 w-96 flex flex-col gap-4">
-            <h2 className="font-semibold text-[var(--ps-ink)]">
-              Uppdatering tillgänglig — v{updateDialog.version}
-            </h2>
-            <p className="text-sm text-[var(--ps-ink-3)]">
-              Vill du installera den nya versionen? Appen startas om automatiskt.
+          <div className="ps-card p-6 w-[420px] flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <span style={{ fontSize: 22 }}>🚀</span>
+              <h2 className="font-semibold text-[var(--ps-ink)] text-base">
+                Ny version tillgänglig — v{(update as { phase: 'available'; remoteVersion: string }).remoteVersion}
+              </h2>
+            </div>
+            <p className="text-sm text-[var(--ps-ink-3)] leading-relaxed">
+              En ny version av Provstudio har hämtats. Appen startar om automatiskt när uppdateringen är installerad.
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 className="ps-btn ps-btn-outline ps-btn-sm"
-                onClick={() => setUpdateDialog({ show: false })}
+                onClick={() => setShowUpdateDialog(false)}
               >
-                Avbryt
+                Senare
               </button>
-              <button className="ps-btn ps-btn-accent ps-btn-sm" onClick={installUpdate}>
-                Installera
+              <button
+                className="ps-btn ps-btn-accent ps-btn-sm"
+                onClick={installUpdate}
+                disabled={installing}
+              >
+                {installing ? 'Installerar…' : 'Installera nu'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Top bar */}
+      {/* ── Top bar ── */}
       <header
-        className="flex items-center gap-3 px-4 py-2 border-b shrink-0"
-        style={{ borderColor: 'var(--ps-rule)', background: 'var(--ps-paper)' }}
+        className="flex items-center gap-2 px-4 shrink-0"
+        style={{
+          height: 40,
+          borderBottom: '1px solid var(--ps-rule)',
+          background: 'var(--ps-paper)',
+        }}
       >
-        <span className="ps-display font-semibold text-[var(--ps-ink)] text-lg">Provstudio</span>
-        <div className="flex-1" />
-        {updateStatus && (
-          <span className="text-xs text-[var(--ps-ink-3)]">{updateStatus}</span>
+        <span className="ps-display font-semibold text-[var(--ps-ink)]" style={{ fontSize: 15 }}>
+          Provstudio
+        </span>
+        {currentVersion && (
+          <span style={{
+            fontSize: 10.5,
+            color: 'var(--ps-ink-4)',
+            background: 'var(--ps-bg-soft)',
+            border: '1px solid var(--ps-rule-2)',
+            borderRadius: 4,
+            padding: '1px 6px',
+            letterSpacing: '0.02em',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            v{currentVersion}
+          </span>
         )}
-        <button className="ps-btn ps-btn-ghost ps-btn-sm text-xs" onClick={checkUpdate}>
+
+        <div className="flex-1" />
+
+        {/* Update status / banner */}
+        {update.phase === 'checking' && (
+          <span style={{ fontSize: 11, color: 'var(--ps-ink-3)' }}>Söker uppdatering…</span>
+        )}
+        {update.phase === 'upToDate' && (
+          <span style={{ fontSize: 11, color: 'var(--ps-ink-3)' }}>✓ Senaste versionen</span>
+        )}
+        {update.phase === 'error' && (
+          <span style={{ fontSize: 11, color: '#b45309' }}>{(update as { phase: 'error'; message: string }).message}</span>
+        )}
+        {hasUpdate && !showUpdateDialog && (
+          <button
+            onClick={() => setShowUpdateDialog(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 11, fontWeight: 500,
+              background: 'var(--ps-accent)', color: '#fff',
+              border: 'none', borderRadius: 5,
+              padding: '3px 10px', cursor: 'pointer',
+            }}
+          >
+            <span>⬆</span>
+            Uppdatering tillgänglig — v{(update as { phase: 'available'; remoteVersion: string }).remoteVersion}
+          </button>
+        )}
+
+        <button
+          className="ps-btn ps-btn-ghost ps-btn-sm"
+          style={{ fontSize: 11 }}
+          onClick={checkUpdate}
+          disabled={update.phase === 'checking' || installing}
+        >
           Sök uppdatering
         </button>
       </header>
