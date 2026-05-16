@@ -292,6 +292,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   /* Build PrintableTest items — questions + content blocks in order */
   const printItems = useMemo<PrintableItem[]>(() => {
     let lastSection: string | undefined;
+    let lastSectionId: string | undefined;
     const result: PrintableItem[] = [];
     for (const ref of order) {
       if (isContentBlockRef(ref)) {
@@ -302,14 +303,24 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         if (ref.question_id === "__section__") continue;
         const q = bankMap.get(ref.question_id);
         if (!q) continue;
-        const sectionStart = !ref.group && ref.section_label && ref.section_label !== lastSection
-          ? ref.section_label : undefined;
-        if (sectionStart) lastSection = sectionStart;
+
+        let sectionStart: string | undefined;
+        if (!ref.group) {
+          if (ref.sectionId && ref.sectionId !== lastSectionId) {
+            const sec = (design.sections ?? []).find(s => s.id === ref.sectionId);
+            sectionStart = sec?.name;
+            lastSectionId = ref.sectionId;
+          } else if (!ref.sectionId && ref.section_label && ref.section_label !== lastSection) {
+            // backward compat
+            sectionStart = ref.section_label;
+            lastSection = ref.section_label;
+          }
+        }
         result.push({ kind: "question", question: applyOverrides(q, ref), group: ref.group, sectionStart });
       }
     }
     return result;
-  }, [order, bankMap]);
+  }, [order, bankMap, design.sections]);
 
   const totalPts = printItems.reduce((s, it) => {
     if ("kind" in it && it.kind === "block") return s;
@@ -556,36 +567,14 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         <div style={{ flex: 1, overflow: "auto", padding: "14px 14px 32px" }}>
           {rightTab === "layout" && <LayoutPanel design={design} setD={setD} />}
           {rightTab === "sections" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                onClick={() => setBankPickerOpen(true)}
-                style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center", height: 34, borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent", cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5, color: "var(--ps-ink-3)", marginBottom: 10 }}
-              >
-                + Hämta från banken
-              </button>
-              {order.filter(isQuestionRef).map((ref, idx) => {
-                const q = bankMap.get(ref.question_id);
-                if (!q) return null;
-                const text = ((q.content as { text?: string })?.text ?? "").replace(/<[^>]+>/g, "").slice(0, 60);
-                return (
-                  <div key={ref.question_id + idx} onClick={() => setEditingQ(q)} style={{
-                    padding: "8px 10px", borderRadius: 8, border: "1px solid var(--ps-rule-2)",
-                    background: "var(--ps-paper)", cursor: "pointer", fontSize: 12.5,
-                    color: "var(--ps-ink)", lineHeight: 1.4,
-                  }}>
-                    <div style={{ fontSize: 10, color: "var(--ps-ink-3)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      {QUESTION_TYPE_LABELS[q.type]}
-                    </div>
-                    {text || "(Tom fråga)"}
-                  </div>
-                );
-              })}
-              {order.filter(isQuestionRef).length === 0 && (
-                <div style={{ color: "var(--ps-ink-4)", fontSize: 12, padding: "32px 0", textAlign: "center" }}>
-                  Inga frågor ännu. Klicka "Ny fråga" för att börja.
-                </div>
-              )}
-            </div>
+            <SektionerPanel
+              sections={design.sections ?? []}
+              order={order}
+              bankMap={bankMap}
+              onChange={secs => setD({ sections: secs })}
+              onOrderChange={setOrder}
+              onBankPick={() => setBankPickerOpen(true)}
+            />
           )}
           {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} />}
         </div>
@@ -1324,6 +1313,164 @@ function ContentBlockEditorModal({ blockRef, onClose, onSave }: {
   );
 }
 
+/* ─── SektionerPanel ─────────────────────────────────────────────────────── */
+
+function SektionerPanel({ sections, order, bankMap, onChange, onOrderChange, onBankPick }: {
+  sections: Array<{ id: string; name: string; color: string }>;
+  order: QuestionOrderItem[];
+  bankMap: Map<string, Question>;
+  onChange: (sections: Array<{ id: string; name: string; color: string }>) => void;
+  onOrderChange: (order: QuestionOrderItem[]) => void;
+  onBankPick: () => void;
+}) {
+  const SECTION_ACCENT_PALETTE = [
+    "#FFFFFF", "#1E5F5C", "#7A1F2B", "#1E3A5F", "#A87F1A", "#5C2A5C", "#2C2C2C",
+  ];
+
+  // Compute question count + points per section
+  const sectionStats = sections.map(sec => {
+    const qs = order
+      .filter(isQuestionRef)
+      .filter(r => r.sectionId === sec.id)
+      .map(r => bankMap.get(r.question_id))
+      .filter(Boolean) as Question[];
+    const pts = qs.reduce((s, q) => s + (parseFloat(q.points ?? "0") || 0), 0);
+    return { count: qs.length, pts };
+  });
+
+  // Unassigned questions
+  const unassigned = order.filter(isQuestionRef).filter(r => !r.sectionId && r.question_id !== "__section__");
+
+  const addSection = () => {
+    const newSec = { id: crypto.randomUUID(), name: "Ny sektion", color: "#1E3A5F" };
+    onChange([...sections, newSec]);
+  };
+
+  const updateSection = (id: string, patch: Partial<{ name: string; color: string }>) => {
+    onChange(sections.map(s => s.id === id ? { ...s, ...patch } : s));
+  };
+
+  const deleteSection = (id: string) => {
+    // Unassign questions from deleted section
+    onOrderChange(order.map(item => {
+      if (isQuestionRef(item) && item.sectionId === id) {
+        const { sectionId: _sid, ...rest } = item;
+        return rest as TestQuestionRef;
+      }
+      return item;
+    }));
+    onChange(sections.filter(s => s.id !== id));
+  };
+
+  const assignQuestion = (questionId: string, sectionId: string | undefined) => {
+    onOrderChange(order.map(item => {
+      if (isQuestionRef(item) && item.question_id === questionId) {
+        if (sectionId) return { ...item, sectionId };
+        const { sectionId: _sid, ...rest } = item;
+        return rest as TestQuestionRef;
+      }
+      return item;
+    }));
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <p style={{ fontSize: 11, color: "var(--ps-ink-3)", margin: "0 0 4px", lineHeight: 1.5 }}>
+        Egen accentfärg per sektion ger visuell variation
+      </p>
+
+      {sections.map((sec, idx) => {
+        const stats = sectionStats[idx];
+        return (
+          <div key={sec.id} style={{ border: "1px solid var(--ps-rule-2)", borderRadius: 10, padding: "12px 12px", background: "var(--ps-paper)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ps-ink-3)", minWidth: 22 }}>
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+              <input
+                value={sec.name}
+                onChange={e => updateSection(sec.id, { name: e.target.value })}
+                className="ps-input"
+                style={{ flex: 1, fontSize: 13, fontWeight: 500 }}
+              />
+              <button
+                onClick={() => deleteSection(sec.id)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-4)", padding: 4, display: "flex" }}
+                title="Ta bort sektion"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            {/* Color swatches */}
+            <div style={{ fontSize: 10.5, color: "var(--ps-ink-3)", marginBottom: 5 }}>Accentfärg</div>
+            <div style={{ display: "flex", gap: 5, marginBottom: 10 }}>
+              {SECTION_ACCENT_PALETTE.map(c => (
+                <button key={c} onClick={() => updateSection(sec.id, { color: c })} style={{
+                  width: 20, height: 20, borderRadius: 4, cursor: "pointer",
+                  background: c === "#FFFFFF" ? "var(--ps-bg-soft)" : c,
+                  border: sec.color === c ? "2px solid var(--ps-ink)" : "1px solid var(--ps-rule-2)",
+                  outline: sec.color === c ? "2px solid var(--ps-paper)" : "none",
+                  outlineOffset: -3,
+                  fontSize: 8, color: c === "#FFFFFF" ? "var(--ps-ink-3)" : "white",
+                }}>
+                  {sec.color === c ? "✓" : ""}
+                </button>
+              ))}
+            </div>
+            {/* Stats */}
+            <div style={{ fontSize: 11, color: "var(--ps-ink-3)", display: "flex", justifyContent: "space-between" }}>
+              <span>{stats.count} frågor</span>
+              <span>{stats.pts} p</span>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Unassigned questions */}
+      {sections.length > 0 && unassigned.length > 0 && (
+        <div style={{ padding: "8px 10px", borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent" }}>
+          <div style={{ fontSize: 10.5, color: "var(--ps-ink-3)", marginBottom: 6 }}>
+            {unassigned.length} ej tilldelade frågor
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {(unassigned as TestQuestionRef[]).slice(0, 5).map(ref => {
+              const q = bankMap.get(ref.question_id);
+              const text = ((q?.content as { text?: string })?.text ?? "").replace(/<[^>]+>/g, "").slice(0, 40);
+              return (
+                <div key={ref.question_id} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, flex: 1, color: "var(--ps-ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text || "(Tom)"}</span>
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) assignQuestion(ref.question_id, e.target.value); }}
+                    style={{ fontSize: 10, border: "1px solid var(--ps-rule-2)", borderRadius: 4, padding: "2px 4px", background: "var(--ps-bg-soft)", color: "var(--ps-ink-2)", cursor: "pointer" }}
+                  >
+                    <option value="">Tilldela…</option>
+                    {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={addSection}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", height: 36, borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent", cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5, color: "var(--ps-ink-3)", marginTop: 4 }}
+      >
+        + Ny sektion
+      </button>
+
+      <button
+        onClick={onBankPick}
+        style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center", height: 34, borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent", cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5, color: "var(--ps-ink-3)" }}
+      >
+        + Hämta från banken
+      </button>
+    </div>
+  );
+}
+
 /* ─── LayoutPanel ────────────────────────────────────────────────────────── */
 
 function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Partial<DesignSettings>) => void }) {
@@ -1352,6 +1499,41 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+      {/* 0. Rytm & täthet */}
+      <PsGroup title="Rytm &amp; täthet">
+        {/* Density presets */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
+          {([
+            { id: "compact",     label: "Kompakt",  margin: 16, bodySize: 11,   lineHeight: 20 },
+            { id: "comfortable", label: "Normal",   margin: 22, bodySize: 12,   lineHeight: 22 },
+            { id: "spacious",    label: "Luftig",   margin: 28, bodySize: 13,   lineHeight: 26 },
+          ] as const).map(p => (
+            <button key={p.id} onClick={() => setD({ density: p.id, margin: p.margin, bodySize: p.bodySize, lineHeight: p.lineHeight })} style={{
+              padding: "7px 5px 8px", borderRadius: 7,
+              border: "1.5px solid",
+              borderColor: (design.density ?? "comfortable") === p.id ? "var(--ps-ink)" : "var(--ps-rule-2)",
+              background: (design.density ?? "comfortable") === p.id ? "var(--ps-paper)" : "transparent",
+              cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 11.5, fontWeight: (design.density ?? "comfortable") === p.id ? 600 : 400,
+              color: "var(--ps-ink-2)",
+            }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <PsSlider
+          label="Marginal"
+          value={design.margin ?? 22}
+          min={10} max={36} step={1} suffix="mm"
+          onChange={v => setD({ margin: v })}
+        />
+        <PsSlider
+          label="Brödtext"
+          value={design.bodySize ?? 12}
+          min={9} max={16} step={0.5} suffix="px"
+          onChange={v => setD({ bodySize: v })}
+        />
+      </PsGroup>
 
       {/* 1. Förinställning */}
       <PsGroup title="Förinställning">

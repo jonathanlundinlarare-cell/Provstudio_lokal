@@ -152,6 +152,55 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
 
         <ToolBtn title="Ångra (Ctrl+Z)"  onClick={() => exec("undo")}>  ↩ </ToolBtn>
         <ToolBtn title="Gör om (Ctrl+Y)" onClick={() => exec("redo")}>  ↪ </ToolBtn>
+
+        <Sep />
+
+        {/* Paragraph style */}
+        <select
+          title="Styckeformat"
+          onMouseDown={e => e.preventDefault()}
+          onChange={e => { exec("formatBlock", e.target.value); e.target.value = ""; }}
+          defaultValue=""
+          style={{ height: 28, border: "1px solid var(--ps-rule-2)", borderRadius: 5, background: "var(--ps-bg-soft)", color: "var(--ps-ink-2)", fontSize: 11, fontFamily: "var(--ps-ui)", cursor: "pointer", padding: "0 4px" }}
+        >
+          <option value="" disabled>¶</option>
+          <option value="p">Normal</option>
+          <option value="h2">Rubrik 1</option>
+          <option value="h3">Rubrik 2</option>
+          <option value="h4">Rubrik 3</option>
+          <option value="pre">Kod</option>
+        </select>
+
+        <Sep />
+
+        <ToolBtn title="Minska indrag" onClick={() => exec("outdent")}> ← </ToolBtn>
+        <ToolBtn title="Öka indrag"    onClick={() => exec("indent")}>  → </ToolBtn>
+
+        <Sep />
+
+        <ToolBtn title="Länk" onClick={() => {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+            const url = prompt("Ange URL:");
+            if (url) exec("createLink", url);
+          } else {
+            exec("unlink");
+          }
+        }}>
+          🔗
+        </ToolBtn>
+
+        <ToolBtn title="Infoga tabell (2×2)" onClick={() => {
+          exec("insertHTML",
+            '<table style="border-collapse:collapse;width:100%;margin:8px 0">' +
+            '<tr><td style="border:1px solid #ccc;padding:4px 8px;min-width:60px">&nbsp;</td>' +
+            '<td style="border:1px solid #ccc;padding:4px 8px;min-width:60px">&nbsp;</td></tr>' +
+            '<tr><td style="border:1px solid #ccc;padding:4px 8px">&nbsp;</td>' +
+            '<td style="border:1px solid #ccc;padding:4px 8px">&nbsp;</td></tr>' +
+            '</table>');
+        }}>
+          ⊞
+        </ToolBtn>
       </div>
 
       {/* ── Editor area ── */}
@@ -187,6 +236,13 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
         [contenteditable] s                           { text-decoration: line-through; }
         [contenteditable] ul { list-style: disc;    padding-left: 20px; margin: 4px 0; }
         [contenteditable] ol { list-style: decimal; padding-left: 20px; margin: 4px 0; }
+        [contenteditable] table { border-collapse: collapse; width: 100%; }
+        [contenteditable] td, [contenteditable] th { border: 1px solid #ccc; padding: 4px 8px; }
+        [contenteditable] pre { background: #f5f5f5; border-radius: 4px; padding: 8px 10px; font-family: monospace; font-size: 12px; }
+        [contenteditable] h2 { font-size: 1.2em; font-weight: 700; margin: 8px 0 4px; }
+        [contenteditable] h3 { font-size: 1.1em; font-weight: 600; margin: 6px 0 3px; }
+        [contenteditable] h4 { font-size: 1em; font-weight: 600; margin: 4px 0 2px; }
+        [contenteditable] a { color: var(--ps-accent); text-decoration: underline; }
       `}</style>
     </div>
   );

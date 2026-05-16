@@ -564,6 +564,8 @@ export type DesignSettings = {
     /** Anpassad bild-URL (overridar kind om satt) */
     src: string | null;
   };
+  /** Named sections with per-section accent colors */
+  sections?: Array<{ id: string; name: string; color: string }>;
 };
 
 export const DEFAULT_DESIGN: DesignSettings = {
@@ -684,6 +686,8 @@ export type TestQuestionRef = {
   section_label?: string;
   /** v2: Freeform per-document position. null = linjärt läge. */
   layout?: BlockLayout | null;
+  /** Reference to which named section this question belongs */
+  sectionId?: string;
 };
 
 // ---------------------------------------------------------------------------
