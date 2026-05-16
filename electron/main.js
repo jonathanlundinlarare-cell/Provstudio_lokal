@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -112,8 +112,23 @@ ipcMain.handle('import-file', async () => {
 });
 
 ipcMain.handle('fetch-update', async (_event, url) => {
-  const response = await net.fetch(url);
-  return response.text();
+  const https = require('https');
+  return new Promise((resolve, reject) => {
+    function get(u) {
+      https.get(u, { headers: { 'User-Agent': 'Provstudio-Lokalt/1.0' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return get(res.headers.location);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => resolve(data));
+      }).on('error', reject);
+    }
+    get(url);
+  });
 });
 
 ipcMain.handle('save-index-html', (_event, html) => {
