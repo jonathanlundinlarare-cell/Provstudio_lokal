@@ -1215,7 +1215,13 @@ export function PrintableTest({
             </div>
           )}
 
-          <h1 className="test-title" style={{ fontFamily: "var(--heading-font, inherit)" }}>
+          <h1 className="test-title" style={{
+            fontFamily:    "var(--heading-font, inherit)",
+            fontWeight:    design.titleWeight    ?? "700",
+            textTransform: (design.titleTransform ?? "none") as React.CSSProperties["textTransform"],
+            fontStyle:     design.titleItalic    ? "italic" : "normal",
+            color:         design.titleColor === "accent" ? accent : undefined,
+          }}>
             <CoverTitle title={title} accents={design.titleAccents} />
             {design.version ? <sup className="title-version">{design.version}</sup> : null}
           </h1>
