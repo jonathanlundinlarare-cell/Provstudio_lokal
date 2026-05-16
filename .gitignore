@@ -1,0 +1,9 @@
+node_modules/
+react-src/node_modules/
+electron/node_modules/
+dist/
+electron/dist/
+react-src/dist/
+*.log
+.DS_Store
+Thumbs.db

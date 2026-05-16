@@ -1,0 +1,184 @@
+import { v4 as uuidv4 } from 'uuid';
+import type { Question, QuestionOrderItem, DesignSettings, DocumentType } from './test-types';
+import { DEFAULT_DESIGN } from './test-types';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export type LocalDocument = {
+  id: string;
+  title: string;
+  subject: string;
+  doc_type: DocumentType;
+  design_settings: DesignSettings;
+  question_order: QuestionOrderItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+type LocalStore = {
+  schemaVersion: number;
+  questions: Question[];
+  documents: LocalDocument[];
+};
+
+// ── In-memory store ───────────────────────────────────────────────────────────
+
+let store: LocalStore = {
+  schemaVersion: 1,
+  questions: [],
+  documents: [],
+};
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    localAPI?: {
+      loadData: () => Promise<Record<string, unknown>>;
+      saveData: (data: unknown) => Promise<void>;
+      saveImage: (id: string, b64: string) => Promise<void>;
+      readImage: (id: string) => Promise<string | null>;
+      openPrint: (docId: string) => Promise<void>;
+      exportFile: (data: unknown) => Promise<{ success: boolean }>;
+      importFile: () => Promise<unknown>;
+      fetchUpdate: (url: string) => Promise<string>;
+      saveIndexHtml: (html: string) => Promise<void>;
+      getVersion: () => Promise<string>;
+    };
+  }
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function scheduleSave(): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (window.localAPI) {
+      window.localAPI.saveData(store);
+    } else {
+      localStorage.setItem('provstudio-store', JSON.stringify(store));
+    }
+  }, 500);
+}
+
+export async function initStore(): Promise<void> {
+  let raw: Record<string, unknown> = {};
+  if (window.localAPI) {
+    raw = (await window.localAPI.loadData()) as Record<string, unknown>;
+  } else {
+    const saved = localStorage.getItem('provstudio-store');
+    if (saved) raw = JSON.parse(saved);
+  }
+
+  if (raw && typeof raw === 'object' && 'schemaVersion' in raw) {
+    store = raw as LocalStore;
+  }
+}
+
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+export const documents = {
+  list(): LocalDocument[] {
+    return [...store.documents].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+  },
+
+  get(id: string): LocalDocument | undefined {
+    return store.documents.find((d) => d.id === id);
+  },
+
+  create(partial?: Partial<LocalDocument>): LocalDocument {
+    const now = new Date().toISOString();
+    const doc: LocalDocument = {
+      id: uuidv4(),
+      title: 'Namnlöst dokument',
+      subject: '',
+      doc_type: 'test',
+      design_settings: { ...DEFAULT_DESIGN },
+      question_order: [],
+      created_at: now,
+      updated_at: now,
+      ...partial,
+    };
+    store.documents.push(doc);
+    scheduleSave();
+    return doc;
+  },
+
+  update(id: string, patch: Partial<LocalDocument>): LocalDocument | null {
+    const idx = store.documents.findIndex((d) => d.id === id);
+    if (idx === -1) return null;
+    store.documents[idx] = {
+      ...store.documents[idx],
+      ...patch,
+      id,
+      updated_at: new Date().toISOString(),
+    };
+    scheduleSave();
+    return store.documents[idx];
+  },
+
+  delete(id: string): void {
+    store.documents = store.documents.filter((d) => d.id !== id);
+    scheduleSave();
+  },
+
+  duplicate(id: string): LocalDocument | null {
+    const original = store.documents.find((d) => d.id === id);
+    if (!original) return null;
+    const now = new Date().toISOString();
+    const copy: LocalDocument = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: uuidv4(),
+      title: `${original.title} (kopia)`,
+      created_at: now,
+      updated_at: now,
+    };
+    store.documents.push(copy);
+    scheduleSave();
+    return copy;
+  },
+};
+
+// ── Question bank ─────────────────────────────────────────────────────────────
+
+export const questionBank = {
+  list(): Question[] {
+    return [...store.questions];
+  },
+
+  get(id: string): Question | undefined {
+    return store.questions.find((q) => q.id === id);
+  },
+
+  create(partial?: Partial<Question>): Question {
+    const q: Question = {
+      id: uuidv4(),
+      user_id: 'local',
+      type: 'open',
+      subject: null,
+      tags: null,
+      content: { text: '', lines: 4 },
+      points: null,
+      difficulty: null,
+      ...partial,
+    } as Question;
+    store.questions.push(q);
+    scheduleSave();
+    return q;
+  },
+
+  update(id: string, patch: Partial<Question>): Question | null {
+    const idx = store.questions.findIndex((q) => q.id === id);
+    if (idx === -1) return null;
+    store.questions[idx] = { ...store.questions[idx], ...patch, id };
+    scheduleSave();
+    return store.questions[idx];
+  },
+
+  delete(id: string): void {
+    store.questions = store.questions.filter((q) => q.id !== id);
+    scheduleSave();
+  },
+};
