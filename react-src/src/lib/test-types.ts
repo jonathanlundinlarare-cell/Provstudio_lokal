@@ -282,11 +282,11 @@ export type VocabBlockContent      = { word: string; definition: string; related
 export type QuoteBlockContent      = { text: string; attribution?: string };
 export type CalloutBlockContent    = { text: string; color?: string };
 export type ImageBlockContent      = { imageUrl: string; caption?: string; altText?: string };
-export type ChecklistBlockContent  = { items: string[] };
+export type ChecklistBlockContent  = { items: string[]; title?: string };
 export type MarginNoteBlockContent = { text: string };
 export type PageBreakBlockContent  = Record<string, never>;
 export type DividerBlockContent    = Record<string, never>;
-export type HeadingBlockContent    = { title: string; subtitle?: string; chapterLabel?: string };
+export type HeadingBlockContent    = { title: string; subtitle?: string; chapterLabel?: string; chapter?: string };
 
 export type ContentBlockContent =
   | IntroBlockContent
@@ -485,6 +485,10 @@ export type DesignSettings = {
   showPageNumbers?: boolean;
   /** Kursnamn (visas på försättsblad) */
   course?: string;
+  /** Veckoperiod (t.ex. "v.14–16") */
+  weekRange?: string;
+  /** Kapitel (t.ex. "3") */
+  chapter?: string;
   /** Skolnamn (visas på försättsblad) */
   school?: string;
   /** Provtid (t.ex. "60 minuter") */
@@ -600,6 +604,8 @@ export const DEFAULT_DESIGN: DesignSettings = {
   mcMarker: "square",
   showPageNumbers: true,
   course: "",
+  weekRange: "",
+  chapter: "",
   school: "",
   duration: "",
   aids: "",

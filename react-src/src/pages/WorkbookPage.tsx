@@ -4,7 +4,12 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { ChevronLeft, Trash2 } from "lucide-react";
+import {
+  BookOpen, FileText, Files, Sparkles, Library, Check, Download,
+  User, Users, Info, PenLine, Type, Image as ImageIcon, Flag, Bell,
+  CheckCircle, Minus, Copy, ChevronDown, Palette,
+  ChevronLeft, Trash2, type LucideIcon,
+} from "lucide-react";
 import { documents, questionBank, scheduleSave } from "@/lib/local-db";
 import { toast } from "sonner";
 import {
@@ -17,20 +22,20 @@ import {
 import { BankPickerModal } from "@/components/BankPickerModal";
 
 /* ── Block library ─────────────────────────────────────────────────────────── */
-const WORKBOOK_BLOCKS = [
-  { type: "heading",    label: "Rubrik",        color: "#1E5F5C" },
-  { type: "intro",      label: "Inledning",     color: "#1E5F5C" },
-  { type: "instruction",label: "Instruktion",   color: "#2B5BA8" },
-  { type: "source",     label: "Källtext",      color: "#A87F1A" },
-  { type: "vocab",      label: "Begreppsruta",  color: "#7A1F2B" },
-  { type: "image",      label: "Bild",          color: "#5C2A5C" },
-  { type: "exercise",   label: "Övning",        color: "#2D5A3D" },
-  { type: "quote",      label: "Citat",         color: "#A87F1A" },
-  { type: "marginNote", label: "Marginalnot",   color: "#B7791F" },
-  { type: "checklist",  label: "Checklista",    color: "#1E3A5F" },
-  { type: "divider",    label: "Avdelare",      color: "#6B6459" },
-  { type: "pageBreak",  label: "Sidbrytning",   color: "#6B6459" },
-] as const;
+const WORKBOOK_BLOCKS: Array<{ type: ContentBlockType; icon: LucideIcon; label: string; color: string }> = [
+  { type: "heading",    icon: Type,         label: "Rubrik",       color: "#1E5F5C" },
+  { type: "intro",      icon: PenLine,      label: "Inledning",    color: "#1E5F5C" },
+  { type: "instruction",icon: Info,         label: "Instruktion",  color: "#2B5BA8" },
+  { type: "source",     icon: BookOpen,     label: "Källtext",     color: "#A87F1A" },
+  { type: "vocab",      icon: Type,         label: "Begreppsruta", color: "#7A1F2B" },
+  { type: "image",      icon: ImageIcon,    label: "Bild",         color: "#5C2A5C" },
+  { type: "exercise",   icon: PenLine,      label: "Övning",       color: "#2D5A3D" },
+  { type: "quote",      icon: Flag,         label: "Citat",        color: "#A87F1A" },
+  { type: "marginNote", icon: Bell,         label: "Marginalnot",  color: "#B7791F" },
+  { type: "checklist",  icon: CheckCircle,  label: "Checklista",   color: "#1E3A5F" },
+  { type: "divider",    icon: Minus,        label: "Avdelare",     color: "#6B6459" },
+  { type: "pageBreak",  icon: Files,        label: "Sidbrytning",  color: "#6B6459" },
+];
 
 /* ── Accent palette ─────────────────────────────────────────────────────────── */
 const ACCENT_PALETTE = [
@@ -63,237 +68,46 @@ function fontStack(font: string): string {
   return "var(--ps-ui, system-ui)";
 }
 
-/* ── Write lines renderer ─────────────────────────────────────────────────── */
-function WriteLines({ count, accent }: { count: number; accent: string }) {
+/* ── Page footer component ───────────────────────────────────────────────── */
+function PageFooter({ pageNum, course, chapter, side }: { pageNum: number; course: string; chapter: string; side: "left" | "right" }) {
+  const left = [course?.toUpperCase(), chapter ? `KAP ${chapter}` : ""].filter(Boolean).join(" · ");
   return (
-    <div style={{ marginTop: 8 }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} style={{ height: 22, borderBottom: `1px solid ${accent}44`, marginBottom: 2 }} />
-      ))}
+    <div style={{
+      display: "flex",
+      justifyContent: side === "left" ? "flex-start" : "flex-end",
+      paddingTop: 14, marginTop: "auto", borderTop: "1px solid #eee",
+      fontSize: 9, color: "#999", letterSpacing: "0.06em",
+      fontFamily: "var(--ps-ui)",
+    }}>
+      {side === "left" ? left : `SIDA ${pageNum}`}
     </div>
   );
 }
 
-/* ── Block renderer ───────────────────────────────────────────────────────── */
-function WorkbookBlock({
-  block,
-  accent,
-  fontFamily,
-  teacherView,
-  isSelected,
-  onClick,
-  exerciseNum,
-}: {
-  block: ContentBlockRef;
-  accent: string;
-  fontFamily: string;
-  teacherView: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-  exerciseNum?: number;
-}) {
-  const c = block.content as Record<string, unknown>;
-
-  const wrapper: React.CSSProperties = {
-    borderRadius: 6,
-    outline: isSelected ? `2px solid #3b82f6` : "2px solid transparent",
-    outlineOffset: 2,
-    cursor: "pointer",
-    marginBottom: 10,
-    position: "relative",
-  };
-
-  switch (block.block_type) {
-    case "heading":
-      return (
-        <div style={wrapper} onClick={onClick}>
-          {c.chapter ? (
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: accent, marginBottom: 4, fontFamily }}>
-              {String(c.chapter)}
-            </div>
-          ) : null}
-          <h1 style={{ fontSize: 32, lineHeight: 1.1, color: "#14110d", margin: 0, fontFamily, fontWeight: 700 }}>
-            {String(c.text || "Ny rubrik")}
-          </h1>
-          {c.subtitle ? (
-            <div style={{ fontSize: 14, color: "#7a7468", marginTop: 4, fontFamily }}>{String(c.subtitle)}</div>
-          ) : null}
-          <div style={{ height: 3, background: accent, borderRadius: 2, marginTop: 10, width: 48 }} />
-        </div>
-      );
-
-    case "intro": {
-      const text = String(c.text || "");
-      const firstChar = text[0] ?? "";
-      const rest = text.slice(1);
-      return (
-        <div style={wrapper} onClick={onClick}>
-          <p style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0, fontFamily, color: "#14110d" }}>
-            {firstChar && (
-              <span style={{ float: "left", fontSize: 38, lineHeight: 0.9, marginRight: 6, marginTop: 4, color: accent, fontFamily }}>
-                {firstChar}
-              </span>
-            )}
-            {rest}
-          </p>
-        </div>
-      );
-    }
-
-    case "instruction":
-      return (
-        <div style={{ ...wrapper, borderLeft: `3px solid ${accent}`, paddingLeft: 10 }} onClick={onClick}>
-          <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0, fontFamily, color: "#3d3930", fontStyle: "italic" }}>
-            {String(c.text || "")}
-          </p>
-        </div>
-      );
-
-    case "source":
-      return (
-        <div style={{ ...wrapper, background: "#FBF8F1", border: "1px solid #E7DDC4", borderRadius: 8, padding: "10px 12px" }} onClick={onClick}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7a7468", marginBottom: 6, fontFamily }}>
-            {String(c.title || "KÄLLA")}
-          </div>
-          <p style={{ fontSize: 12.5, lineHeight: 1.65, margin: 0, fontStyle: "italic", color: "#14110d", fontFamily }}>
-            {String(c.text || "")}
-          </p>
-          {c.attribution ? (
-            <div style={{ fontSize: 10.5, color: "#7a7468", marginTop: 6, fontFamily }}>— {String(c.attribution)}</div>
-          ) : null}
-          {teacherView && c.note ? (
-            <div style={{ marginTop: 8, padding: "6px 8px", background: "#FEF9C3", borderRadius: 5, fontSize: 11, color: "#78350f", fontFamily }}>
-              Lärarnot: {String(c.note)}
-            </div>
-          ) : null}
-        </div>
-      );
-
-    case "vocab":
-      return (
-        <div style={{ ...wrapper, border: "1.5px solid #7A1F2B44", borderRadius: 8, padding: "8px 12px" }} onClick={onClick}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7A1F2B", marginBottom: 4, fontFamily }}>BEGREPP</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#14110d", marginBottom: 4, fontFamily }}>{String(c.word || "")}</div>
-          <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: 0, color: "#3d3930", fontFamily }}>{String(c.definition || "")}</p>
-          {(c.related as string[] | undefined)?.length ? (
-            <div style={{ marginTop: 6, display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {(c.related as string[]).map((r, i) => (
-                <span key={i} style={{ fontSize: 10, background: "#7A1F2B14", color: "#7A1F2B", borderRadius: 4, padding: "1px 6px", fontFamily }}>{r}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      );
-
-    case "exercise": {
-      const num = exerciseNum ?? (c.n as number) ?? 1;
-      return (
-        <div style={{ ...wrapper, paddingLeft: 36, position: "relative" }} onClick={onClick}>
-          <div style={{
-            position: "absolute", left: 0, top: 0,
-            width: 26, height: 26, borderRadius: "50%",
-            background: accent, color: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 700, fontFamily,
-          }}>
-            {num}
-          </div>
-          <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, fontFamily, color: "#14110d" }}>
-            {String(c.text || "")}
-          </p>
-          <WriteLines count={(c.lines as number) ?? 4} accent={accent} />
-          {teacherView && c.marginNote ? (
-            <div style={{
-              position: "absolute", right: -80, top: 0, width: 72,
-              fontSize: 9.5, color: "#92400e", background: "#FEF9C3",
-              padding: "4px 6px", borderRadius: 4, fontFamily,
-            }}>
-              {String(c.marginNote)}
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-
-    case "quote":
-      return (
-        <div style={{ ...wrapper, borderLeft: `3px solid ${accent}`, paddingLeft: 12 }} onClick={onClick}>
-          <p style={{ fontSize: 14, lineHeight: 1.6, margin: 0, fontStyle: "italic", fontFamily, color: "#14110d" }}>
-            "{String(c.text || "")}"
-          </p>
-          {c.attribution ? (
-            <div style={{ fontSize: 11, color: "#7a7468", marginTop: 4, fontFamily }}>— {String(c.attribution)}</div>
-          ) : null}
-        </div>
-      );
-
-    case "image":
-      return (
-        <div style={wrapper} onClick={onClick}>
-          <div style={{
-            aspectRatio: "1.5", borderRadius: 6, overflow: "hidden",
-            background: `linear-gradient(135deg, ${accent}22, ${accent}44)`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: accent, fontSize: 13, fontFamily,
-          }}>
-            {String(c.placeholder || "Bild")}
-          </div>
-          {c.caption ? (
-            <div style={{ fontSize: 11, color: "#7a7468", textAlign: "center", marginTop: 4, fontFamily }}>{String(c.caption)}</div>
-          ) : null}
-        </div>
-      );
-
-    case "checklist":
-      return (
-        <div style={{ ...wrapper, border: "1px dashed #d6d0c8", borderRadius: 8, padding: "8px 12px" }} onClick={onClick}>
-          {c.title ? (
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#14110d", marginBottom: 6, fontFamily }}>
-              ✓ {String(c.title)}
-            </div>
-          ) : null}
-          {((c.items as string[]) ?? []).map((item, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <div style={{ width: 12, height: 12, border: "1px solid #d6d0c8", borderRadius: 2, flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, color: "#3d3930", fontFamily }}>{item}</span>
-            </div>
-          ))}
-        </div>
-      );
-
-    case "marginNote":
-      if (!teacherView) return null;
-      return (
-        <div style={{ ...wrapper, background: "#FEF9C3", padding: "6px 10px", borderRadius: 6 }} onClick={onClick}>
-          <span style={{ fontSize: 10.5, color: "#78350f", fontFamily }}>{String(c.text || "")}</span>
-        </div>
-      );
-
-    case "divider":
-      return (
-        <div style={wrapper} onClick={onClick}>
-          <hr style={{ border: "none", borderTop: `2px solid ${accent}44`, margin: "4px 0" }} />
-        </div>
-      );
-
-    default:
-      return null;
-  }
-}
+/* ── Action button style ──────────────────────────────────────────────────── */
+const actionBtnStyle: React.CSSProperties = {
+  width: 28, height: 28, borderRadius: 6,
+  border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ps-ink-2)",
+};
 
 /* ── Block inspector ──────────────────────────────────────────────────────── */
 function WorkbookBlockInspector({
   block,
+  blocks,
   onEdit,
   onDelete,
   onMoveUp,
   onMoveDown,
+  onCopy,
 }: {
   block: ContentBlockRef;
+  blocks: ContentBlockRef[];
   onEdit: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onCopy: () => void;
 }) {
   const c = block.content as Record<string, unknown>;
 
@@ -322,12 +136,33 @@ function WorkbookBlockInspector({
 
   return (
     <div>
+      {/* Block type label */}
+      <div style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+        Block · {WORKBOOK_BLOCKS.find(b => b.type === block.block_type)?.label ?? block.block_type ?? ""}
+      </div>
+
       {/* Actions row */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        <button onClick={onMoveUp} title="Flytta upp" style={actionBtnStyle}>↑</button>
-        <button onClick={onMoveDown} title="Flytta ner" style={actionBtnStyle}>↓</button>
+      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+        <button
+          title="Kopiera"
+          onClick={onCopy}
+          style={actionBtnStyle}
+        >
+          <Copy size={12} />
+        </button>
+        <button
+          title="Flytta ner"
+          onClick={onMoveDown}
+          style={actionBtnStyle}
+        >
+          <ChevronDown size={12} />
+        </button>
         <div style={{ flex: 1 }} />
-        <button onClick={onDelete} title="Ta bort" style={{ ...actionBtnStyle, color: "#dc2626", borderColor: "#dc262640" }}>
+        <button
+          title="Ta bort"
+          onClick={onDelete}
+          style={{ ...actionBtnStyle, border: "1px solid #dc262640", color: "#dc2626" }}
+        >
           <Trash2 size={12} />
         </button>
       </div>
@@ -433,76 +268,14 @@ function WorkbookBlockInspector({
   );
 }
 
-const actionBtnStyle: React.CSSProperties = {
-  height: 28, padding: "0 8px", borderRadius: 6,
-  border: "1px solid var(--ps-rule-2)", background: "none", cursor: "pointer",
-  fontFamily: "var(--ps-ui)", fontSize: 12, color: "var(--ps-ink-3)",
-  display: "flex", alignItems: "center", gap: 4,
-};
-
-/* ── Page spread ──────────────────────────────────────────────────────────── */
-function PageSpread({
-  leftBlocks,
-  rightBlocks,
-  accent,
-  fontFamily,
-  teacherView,
-  selectedId,
-  onSelect,
-  exerciseOffset,
-}: {
-  leftBlocks: ContentBlockRef[];
-  rightBlocks: ContentBlockRef[];
-  accent: string;
-  fontFamily: string;
-  teacherView: boolean;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  exerciseOffset: number;
-}) {
-  let exNum = exerciseOffset;
-  const renderPage = (blocks: ContentBlockRef[]) => (
-    <div style={{
-      width: 480, minHeight: 640, background: "#fff",
-      padding: "40px 36px 32px", boxSizing: "border-box",
-      fontFamily,
-    }}>
-      {blocks.map(b => {
-        if (b.block_type === "exercise") exNum++;
-        return (
-          <WorkbookBlock
-            key={b.block_id}
-            block={b}
-            accent={accent}
-            fontFamily={fontFamily}
-            teacherView={teacherView}
-            isSelected={selectedId === b.block_id}
-            onClick={() => onSelect(b.block_id)}
-            exerciseNum={b.block_type === "exercise" ? exNum : undefined}
-          />
-        );
-      })}
-    </div>
-  );
-
-  return (
-    <div style={{
-      display: "flex", gap: 0,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)",
-      borderRadius: 4, overflow: "hidden",
-      marginBottom: 32,
-    }}>
-      {renderPage(leftBlocks)}
-      <div style={{ width: 1, background: "#e0dbd4" }} />
-      {renderPage(rightBlocks)}
-    </div>
-  );
-}
-
 /* ── Main component ───────────────────────────────────────────────────────── */
 export default function WorkbookPage({ documentId, onBack }: { documentId: string; onBack: () => void }) {
   const [title, setTitle]       = useState("");
-  const [design, setDesign]     = useState({ accent: "#1E5F5C", font: "serif", showMarginNotes: true, twoColumn: true });
+  const [design, setDesign]     = useState<{
+    accent: string; font: string; showMarginNotes: boolean; twoColumn: boolean;
+    course: string; weekRange: string; chapter: string;
+    primaryColor?: string; fontFamily?: string; subtitle?: string;
+  }>({ accent: "#1E5F5C", font: "serif", showMarginNotes: true, twoColumn: true, course: "", weekRange: "", chapter: "" });
   const [blocks, setBlocks]     = useState<ContentBlockRef[]>([]);
   const [teacherView, setTeacherView] = useState(false);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
@@ -512,7 +285,12 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [bank, setBank]               = useState<Question[]>([]);
   const [subtitle, setSubtitle]       = useState("");
-  const [course, setCourse]           = useState("");
+  const [docType, setDocType]         = useState<"test" | "workbook" | "homework">("workbook");
+
+  // helper to patch design
+  const setD = useCallback((patch: Partial<typeof design>) => {
+    setDesign(d => ({ ...d, ...patch }));
+  }, []);
 
   /* ── Load ── */
   useEffect(() => {
@@ -520,7 +298,6 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     if (!doc) { toast.error("Kunde inte ladda dokumentet"); onBack(); return; }
     setTitle(doc.title);
     setSubtitle(doc.design_settings?.subtitle ?? "");
-    setCourse(doc.design_settings?.course ?? "");
     // Load design settings from doc
     const ds = doc.design_settings;
     if (ds) {
@@ -529,7 +306,13 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
         font: ds.fontFamily === "humanist" ? "humanist" : "serif",
         showMarginNotes: true,
         twoColumn: true,
+        course: ds.course ?? "",
+        weekRange: (ds as unknown as { weekRange?: string }).weekRange ?? "",
+        chapter: (ds as unknown as { chapter?: string }).chapter ?? "",
       });
+    }
+    if (doc.doc_type) {
+      setDocType(doc.doc_type as "test" | "workbook" | "homework");
     }
     const orderBlocks = (doc.question_order ?? []).filter(isContentBlockRef) as ContentBlockRef[];
     setBlocks(orderBlocks);
@@ -541,18 +324,21 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   const lastSaved = useRef("");
   useEffect(() => {
     if (loading) return;
-    const payload = JSON.stringify({ title, design, blocks, subtitle, course });
+    const payload = JSON.stringify({ title, design, blocks, subtitle, docType });
     if (payload === lastSaved.current) return;
     setSaveState("saving");
     const h = setTimeout(() => {
       documents.update(documentId, {
         title,
+        doc_type: docType,
         question_order: blocks,
         design_settings: {
           primaryColor: design.accent,
           fontFamily: design.font as "serif" | "humanist",
           subtitle,
-          course,
+          course: design.course,
+          weekRange: design.weekRange,
+          chapter: design.chapter,
         } as unknown as DesignSettings,
       });
       scheduleSave();
@@ -560,7 +346,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
       setSaveState("saved");
     }, 1500);
     return () => clearTimeout(h);
-  }, [title, design, blocks, subtitle, course, loading, documentId]);
+  }, [title, design, blocks, subtitle, docType, loading, documentId]);
 
   /* ── Block operations ── */
   const addBlock = useCallback((blockType: ContentBlockType) => {
@@ -581,17 +367,45 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     if (selectedId === id) setSelectedId(null);
   }, [selectedId]);
 
-  const moveBlock = useCallback((id: string, dir: -1 | 1) => {
+  const moveBlock = useCallback((id: string, dir: "up" | "down") => {
+    const dirNum: -1 | 1 = dir === "up" ? -1 : 1;
     setBlocks(b => {
       const idx = b.findIndex(r => r.block_id === id);
       if (idx < 0) return b;
       const next = [...b];
-      const swapIdx = idx + dir;
+      const swapIdx = idx + dirNum;
       if (swapIdx < 0 || swapIdx >= next.length) return b;
       [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
       return next;
     });
   }, []);
+
+  const copyBlock = useCallback((id: string) => {
+    setBlocks(b => {
+      const idx = b.findIndex(r => r.block_id === id);
+      if (idx < 0) return b;
+      const original = b[idx];
+      const copy: ContentBlockRef = { ...original, block_id: uuidv4() };
+      const next = [...b];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+  }, []);
+
+  /* ── PDF download ── */
+  const handleDownload = async () => {
+    const el = document.getElementById("workbook-print-root");
+    if (!el) return;
+    const html2pdf = (await import("html2pdf.js")).default as unknown as (opts?: unknown) => {
+      from: (el: HTMLElement) => { set: (o: unknown) => { save: () => Promise<void> } }
+    };
+    await html2pdf().from(el).set({
+      margin: 0, filename: `${title || "häfte"}.pdf`,
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    }).save();
+  };
 
   /* ── Pages (split by pageBreak) ── */
   const pages = useMemo(() => {
@@ -617,7 +431,229 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
 
   const selectedBlock = selectedId ? blocks.find(b => b.block_id === selectedId) ?? null : null;
   const fontFamily = fontStack(design.font);
+  const accent = design.accent;
   const totalBlocks = blocks.filter(b => b.block_type !== "pageBreak" && b.block_type !== "divider").length;
+
+  /* ── Block renderer ── */
+  const renderBlock = (b: ContentBlockRef, onClick: () => void, isSelected: boolean, exerciseNum: number) => {
+    const c = b.content as Record<string, unknown>;
+    const wrapperStyle: React.CSSProperties = {
+      borderRadius: 6,
+      outline: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+      outlineOffset: 2,
+      cursor: "pointer",
+      marginBottom: 10,
+      position: "relative",
+    };
+
+    switch (b.block_type) {
+      case "heading": {
+        const h = c as { title?: string; text?: string; subtitle?: string; chapter?: string; chapterLabel?: string };
+        const chLabel = h.chapterLabel || (h.chapter ? `KAPITEL ${h.chapter}` : "");
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ textAlign: "left", marginBottom: 12 }}>
+              {(chLabel || design.course) && (
+                <div style={{ fontSize: 9, color: "#888", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                  {[chLabel, design.course].filter(Boolean).join(" · ")}
+                </div>
+              )}
+              <h1 style={{ fontSize: 38, margin: "6px 0 2px", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.05, fontFamily: "Newsreader, serif" }}>
+                {h.title || h.text || "Rubrik"}
+              </h1>
+              {h.subtitle && <div style={{ fontSize: 13, fontStyle: "italic", color: "#666" }}>{h.subtitle}</div>}
+              <div style={{ width: 60, height: 1, background: accent, marginTop: 12 }} />
+            </div>
+          </div>
+        );
+      }
+
+      case "intro": {
+        const rawText = String(c.text || "");
+        const first = rawText.charAt(0);
+        const rest = rawText.slice(1);
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#222", margin: "0 0 14px", padding: "10px 0 0", fontFamily: "Newsreader, serif" }}>
+              {first && (
+                <span style={{ float: "left", fontSize: 38, lineHeight: 0.9, color: accent, marginRight: 6, fontWeight: 600, fontStyle: "italic" }}>
+                  {first}
+                </span>
+              )}
+              {rest || rawText}
+            </p>
+          </div>
+        );
+      }
+
+      case "instruction": {
+        const text = String(c.text || "");
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ display: "flex", gap: 10, margin: "8px 0", padding: "10px 12px", background: accent + "0f", borderLeft: `3px solid ${accent}`, borderRadius: "0 4px 4px 0" }}>
+              <Info size={13} style={{ color: accent, marginTop: 2, flexShrink: 0 }} />
+              <div style={{ fontSize: 11, lineHeight: 1.55, color: "#333", fontStyle: "italic" }}>{text || "(Instruktionstext)"}</div>
+            </div>
+          </div>
+        );
+      }
+
+      case "source": {
+        const s = c as { title?: string; text?: string; attribution?: string; note?: string };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0", padding: 14, background: "#FBF8F1", border: "1px solid #E7DDC4", borderRadius: 4, position: "relative" }}>
+              <div style={{ position: "absolute", top: -7, left: 12, background: "#FBF8F1", padding: "0 6px", fontSize: 8.5, color: "#A87F1A", letterSpacing: "0.14em", fontWeight: 600 }}>
+                KÄLLA{s.title ? ` · ${s.title.toUpperCase()}` : ""}
+              </div>
+              <div style={{ fontSize: 11, lineHeight: 1.65, fontStyle: "italic", color: "#333", fontFamily: "Newsreader, serif" }}>
+                {s.text ? `"${s.text}"` : "(Källtext)"}
+              </div>
+              {s.attribution && (
+                <div style={{ fontSize: 9, color: "#888", marginTop: 6, textAlign: "right" }}>— {s.attribution}</div>
+              )}
+              {teacherView && s.note && (
+                <div style={{ marginTop: 8, padding: "6px 8px", background: "#FEF9C3", borderRadius: 5, fontSize: 11, color: "#78350f", fontFamily }}>
+                  Lärarnot: {s.note}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      case "vocab": {
+        const v = c as { word?: string; definition?: string; related?: string[] };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0", padding: 12, background: "white", border: "1.5px solid #7A1F2B", borderRadius: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 9, color: "#7A1F2B", letterSpacing: "0.12em", fontWeight: 700 }}>BEGREPP</span>
+                <div style={{ flex: 1, height: 1, background: "#7A1F2B", opacity: 0.3 }} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#7A1F2B", fontFamily: "Newsreader, serif" }}>{v.word || "Ord"}</div>
+              <div style={{ fontSize: 10.5, color: "#333", lineHeight: 1.55, marginTop: 4 }}>{v.definition || "(Definition)"}</div>
+              {v.related && v.related.length > 0 && (
+                <div style={{ marginTop: 6, fontSize: 9, color: "#888", fontStyle: "italic" }}>
+                  Se även: {v.related.join(", ")}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      case "exercise": {
+        const ex = c as { text?: string; lines?: number };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ width: 22, height: 22, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 600, fontFamily: "Newsreader, serif" }}>
+                  {exerciseNum}
+                </span>
+                <div style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}>{ex.text || "(Uppgiftstext)"}</div>
+              </div>
+              <div style={{ marginTop: 6, marginLeft: 30 }}>
+                {Array.from({ length: ex.lines ?? 3 }).map((_, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid #C8C2B5", height: 22 }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "quote": {
+        const q = c as { text?: string; attribution?: string };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "14px 0", padding: "10px 14px 10px 18px", borderLeft: `3px solid ${accent}`, fontFamily: "Newsreader, serif" }}>
+              <div style={{ fontSize: 14, fontStyle: "italic", lineHeight: 1.5, color: "#222" }}>
+                {q.text ? `"${q.text}"` : "(Citat)"}
+              </div>
+              {q.attribution && <div style={{ fontSize: 9.5, color: "#888", marginTop: 4 }}>— {q.attribution}</div>}
+            </div>
+          </div>
+        );
+      }
+
+      case "checklist": {
+        const cl = c as { title?: string; items?: string[] };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0", padding: 12, border: "1.5px dashed #B8B0A0", borderRadius: 4 }}>
+              {cl.title && (
+                <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>
+                  ✓ {cl.title}
+                </div>
+              )}
+              {(cl.items ?? [""]).map((it, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, marginBottom: 3 }}>
+                  <span style={{ width: 11, height: 11, border: `1.5px solid ${accent}`, borderRadius: 2, flexShrink: 0, display: "inline-block" }} />
+                  {it}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      case "image": {
+        const img = c as { imageUrl?: string; caption?: string };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              {img.imageUrl ? (
+                <img src={img.imageUrl} alt={img.caption ?? ""} style={{ width: "100%", borderRadius: 3, display: "block" }} />
+              ) : (
+                <div style={{ aspectRatio: "1.5", background: "linear-gradient(135deg, #DDD3B8 0%, #B89E72 100%)", borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                  <svg width="80" height="60" viewBox="0 0 80 60" style={{ opacity: 0.5 }}>
+                    <rect x="10" y="40" width="14" height="14" fill="rgba(0,0,0,0.4)" />
+                    <rect x="26" y="34" width="14" height="20" fill="rgba(0,0,0,0.4)" />
+                    <rect x="42" y="38" width="14" height="16" fill="rgba(0,0,0,0.4)" />
+                    <rect x="58" y="32" width="12" height="22" fill="rgba(0,0,0,0.4)" />
+                    <circle cx="60" cy="14" r="6" fill="rgba(255,255,255,0.3)" />
+                  </svg>
+                </div>
+              )}
+              {img.caption && (
+                <div style={{ fontSize: 9.5, color: "#666", fontStyle: "italic", marginTop: 4 }}>
+                  <span style={{ fontWeight: 600, marginRight: 4 }}>Bild.</span>{img.caption}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      case "marginNote": {
+        const mn = c as { text?: string };
+        if (!teacherView) return null;
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "8px 0", padding: "8px 10px", background: accent + "14", border: `1px dashed ${accent}`, borderRadius: 4, fontSize: 10.5, color: "#333", display: "flex", gap: 6 }}>
+              <Bell size={12} style={{ color: accent, marginTop: 1, flexShrink: 0 }} />
+              <div><strong style={{ fontSize: 9.5 }}>Lärarnot:</strong> {mn.text || "(Marginalnot)"}</div>
+            </div>
+          </div>
+        );
+      }
+
+      case "divider":
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <hr style={{ border: "none", borderTop: `2px solid ${accent}44`, margin: "4px 0" }} />
+          </div>
+        );
+
+      case "pageBreak":
+        return null;
+
+      default:
+        return null;
+    }
+  };
 
   if (loading) return (
     <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)" }}>
@@ -629,62 +665,94 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 320px", height: "100vh", overflow: "hidden", fontFamily: "var(--ps-ui)" }}>
 
       {/* ── LEFT panel ── */}
-      <aside style={{ borderRight: "1px solid var(--ps-rule)", background: "var(--ps-bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Back + title */}
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--ps-rule)", flexShrink: 0 }}>
+      <aside style={{ width: 240, borderRight: "1px solid var(--ps-rule)", background: "var(--ps-bg)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
+
+        {/* Header */}
+        <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--ps-rule)", flexShrink: 0 }}>
           <button
             onClick={onBack}
-            style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12, fontFamily: "var(--ps-ui)", padding: 0, marginBottom: 8 }}
+            style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12, fontFamily: "var(--ps-ui)", padding: 0, marginBottom: 6 }}
           >
-            <ChevronLeft size={12} /> Mina dokument
+            <ChevronLeft size={14} /> Mina dokument
           </button>
-          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--ps-ink-4)", marginBottom: 3, fontFamily: "var(--ps-ui)" }}>Arbetshäfte</div>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ps-ink)", fontFamily: "var(--ps-ui)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <BookOpen size={14} style={{ color: "var(--ps-accent)" }} />
+            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ps-accent)", fontFamily: "var(--ps-ui)" }}>Arbetshäfte</span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: "-0.01em", fontFamily: "var(--ps-ui)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {title || "Namnlöst häfte"}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)", marginTop: 2 }}>
+            {[design.course, design.weekRange, `${pages.length * 2} sidor`].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+
+        {/* Document type switcher */}
+        <div style={{ padding: "12px 14px 8px", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "var(--ps-ui)" }}>
+            Dokumenttyp
+          </div>
+          <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
+            {([
+              { id: "test"     as const, Icon: FileText,  label: "Prov"  },
+              { id: "workbook" as const, Icon: BookOpen,  label: "Häfte" },
+              { id: "homework" as const, Icon: Files,     label: "Läxa"  },
+            ]).map(t => (
+              <button key={t.id} onClick={() => setDocType(t.id)} style={{
+                flex: 1, height: 26, padding: "0 6px", borderRadius: 6, border: "none",
+                background: docType === t.id ? "var(--ps-paper)" : "transparent",
+                color: docType === t.id ? "var(--ps-ink)" : "var(--ps-ink-3)",
+                fontFamily: "var(--ps-ui)", fontSize: 10.5, fontWeight: docType === t.id ? 500 : 400,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                boxShadow: docType === t.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              }}>
+                <t.Icon size={11} /> {t.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Block library */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px" }}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ps-ink-4)", marginBottom: 8, paddingLeft: 2, fontFamily: "var(--ps-ui)" }}>
-            Block
+        <div style={{ padding: "8px 14px 12px", flex: 1, overflow: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "6px 0 8px" }}>
+            <span style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--ps-ui)" }}>Block</span>
+            <span style={{ fontSize: 10, color: "var(--ps-ink-4)", fontFamily: "var(--ps-ui)" }}>Dra till sidan</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 16 }}>
-            {WORKBOOK_BLOCKS.map(({ type, label, color }) => (
-              <button
-                key={type}
-                onClick={() => addBlock(type as ContentBlockType)}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+            {WORKBOOK_BLOCKS.map(blockDef => (
+              <button key={blockDef.type} onClick={() => addBlock(blockDef.type as ContentBlockType)}
                 style={{
-                  padding: "7px 6px", borderRadius: 7,
-                  border: `1px solid ${color}33`,
-                  background: `${color}0d`,
-                  cursor: "pointer", textAlign: "center",
-                  fontFamily: "var(--ps-ui)", fontSize: 11, fontWeight: 500,
-                  color: color,
-                  transition: "background 0.1s",
+                  padding: "8px 8px", borderRadius: 6, border: "1px solid var(--ps-rule)",
+                  background: "var(--ps-paper)", cursor: "pointer", fontFamily: "var(--ps-ui)",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                  fontSize: 10.5, color: "var(--ps-ink-2)", transition: "border-color 0.1s",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${color}20`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = `${color}0d`; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = blockDef.color; e.currentTarget.style.background = blockDef.color + "0c"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--ps-rule)"; e.currentTarget.style.background = "var(--ps-paper)"; }}
               >
-                {label}
+                <blockDef.icon size={14} style={{ color: blockDef.color }} />
+                {blockDef.label}
               </button>
             ))}
           </div>
 
           {/* Bank reuse */}
-          <div style={{ border: "1px solid var(--ps-rule-2)", borderRadius: 8, padding: "10px 10px", marginTop: 4 }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ps-ink-4)", marginBottom: 8, fontFamily: "var(--ps-ui)" }}>
-              Återbruk från frågebanken
+          <div style={{ marginTop: 16, padding: 10, background: "var(--ps-accent)0f", borderRadius: 8, border: "1px solid var(--ps-accent)33" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <Sparkles size={12} style={{ color: "var(--ps-accent)" }} />
+              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--ps-ui)" }}>Återbruk från frågebanken</span>
             </div>
+            <p style={{ fontSize: 10.5, color: "var(--ps-ink-3)", margin: 0, lineHeight: 1.45, fontFamily: "var(--ps-ui)" }}>
+              Dra in övningar från ditt provarkiv. Ändringar propagerar mellan dokument.
+            </p>
             <button
               onClick={() => setBankPickerOpen(true)}
-              style={{
-                width: "100%", padding: "7px 0", borderRadius: 7,
-                border: "1px dashed var(--ps-rule-2)", background: "none",
-                cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12, color: "var(--ps-ink-3)",
-              }}
+              style={{ marginTop: 8, width: "100%", height: 26, borderRadius: 6, fontSize: 11,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                border: "1px solid var(--ps-rule-2)", background: "transparent", cursor: "pointer",
+                fontFamily: "var(--ps-ui)", color: "var(--ps-ink-2)" }}
             >
-              Öppna frågebanken
+              <Library size={11} /> Öppna frågebanken
             </button>
           </div>
         </div>
@@ -700,9 +768,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           {/* Mode tabs */}
           <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
             {([
-              { id: false, label: "Elevversion" },
-              { id: true,  label: "Lärarversion" },
-            ]).map(m => (
+              { id: false, label: "Elevversion", Icon: User },
+              { id: true,  label: "Lärarversion", Icon: Users },
+            ] as const).map(m => (
               <button
                 key={String(m.id)}
                 onClick={() => setTeacherView(m.id)}
@@ -713,45 +781,75 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                   fontFamily: "var(--ps-ui)", fontSize: 12, fontWeight: teacherView === m.id ? 500 : 400,
                   cursor: "pointer",
                   boxShadow: teacherView === m.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                  display: "flex", alignItems: "center", gap: 5,
                 }}
               >
-                {m.label}
+                <m.Icon size={12} /> {m.label}
               </button>
             ))}
           </div>
 
           <div style={{ flex: 1 }} />
 
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)", minWidth: 80 }}>
-            {saveState === "saving" ? "Sparar…" : saveState === "saved" ? "✓ Sparat" : ""} {totalBlocks} block
+          <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--ps-ui)" }}>
+            {saveState === "saved" && <Check size={11} style={{ color: "#16a34a" }} />}
+            {saveState === "saving" ? "Sparar…" : saveState === "saved" ? `Sparat just nu · ${totalBlocks} block` : `${totalBlocks} block`}
           </span>
 
           <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={() => window.print()}>
             Skriv ut
           </button>
+          <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={handleDownload}>
+            <Download size={12} /> PDF
+          </button>
         </div>
 
         {/* Spread canvas */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div id="workbook-print-root" style={{ flex: 1, overflowY: "auto", padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
           {spreads.map(([left, right], spreadIdx) => {
             // Calculate exercise offset for this spread
-            let offset = 0;
+            let exCounter = 0;
             for (let s = 0; s < spreadIdx; s++) {
-              offset += spreads[s][0].filter(b => b.block_type === "exercise").length;
-              offset += spreads[s][1].filter(b => b.block_type === "exercise").length;
+              exCounter += spreads[s][0].filter(b => b.block_type === "exercise").length;
+              exCounter += spreads[s][1].filter(b => b.block_type === "exercise").length;
             }
+
+            const renderPageBlocks = (pageBlocks: ContentBlockRef[], startExNum: number) => {
+              let localEx = startExNum;
+              return pageBlocks.map(b => {
+                if (b.block_type === "exercise") localEx++;
+                return renderBlock(
+                  b,
+                  () => { setSelectedId(b.block_id); setRightTab("block"); },
+                  selectedId === b.block_id,
+                  b.block_type === "exercise" ? localEx : 0,
+                );
+              });
+            };
+
+            const leftExStart = exCounter;
+            const leftExCount = left.filter(b => b.block_type === "exercise").length;
+            const rightExStart = leftExStart + leftExCount;
+
             return (
-              <PageSpread
-                key={spreadIdx}
-                leftBlocks={left}
-                rightBlocks={right}
-                accent={design.accent}
-                fontFamily={fontFamily}
-                teacherView={teacherView}
-                selectedId={selectedId}
-                onSelect={id => { setSelectedId(id); setRightTab("block"); }}
-                exerciseOffset={offset}
-              />
+              <div key={spreadIdx} style={{ display: "flex", gap: 4, background: "rgba(20,17,13,0.06)", padding: 4, borderRadius: 6, marginBottom: 48 }}>
+                {/* left page */}
+                <div style={{ width: 480, minHeight: 678, background: "white",
+                  boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
+                  padding: "28px 32px", fontFamily, color: "#14110D",
+                  display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+                  {renderPageBlocks(left, leftExStart)}
+                  <PageFooter pageNum={spreadIdx * 2 + 1} course={design.course ?? ""} chapter={design.chapter ?? ""} side="left" />
+                </div>
+                {/* right page */}
+                <div style={{ width: 480, minHeight: 678, background: "white",
+                  boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
+                  padding: "28px 32px", fontFamily, color: "#14110D",
+                  display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+                  {renderPageBlocks(right, rightExStart)}
+                  <PageFooter pageNum={spreadIdx * 2 + 2} course={design.course ?? ""} chapter={design.chapter ?? ""} side="right" />
+                </div>
+              </div>
             );
           })}
 
@@ -774,9 +872,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
         {/* Tabs */}
         <div style={{ display: "flex", padding: "10px 12px 0", gap: 3, flexShrink: 0 }}>
           {([
-            { id: "block"  as const, label: "Block" },
-            { id: "design" as const, label: "Layout" },
-            { id: "doc"    as const, label: "Häfte" },
+            { id: "block"  as const, label: "Block",  Icon: PenLine  },
+            { id: "design" as const, label: "Layout", Icon: Palette  },
+            { id: "doc"    as const, label: "Häfte",  Icon: BookOpen },
           ]).map(t => (
             <button key={t.id} onClick={() => setRightTab(t.id)} style={{
               flex: 1, height: 30, padding: "0 6px", borderRadius: 6,
@@ -785,9 +883,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
               color: rightTab === t.id ? "var(--ps-ink)" : "var(--ps-ink-3)",
               borderColor: rightTab === t.id ? "var(--ps-rule)" : "transparent",
               fontFamily: "var(--ps-ui)", fontSize: 12, fontWeight: rightTab === t.id ? 500 : 400,
-              cursor: "pointer",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
             }}>
-              {t.label}
+              <t.Icon size={12} /> {t.label}
             </button>
           ))}
         </div>
@@ -798,10 +896,12 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
             selectedBlock ? (
               <WorkbookBlockInspector
                 block={selectedBlock}
+                blocks={blocks}
                 onEdit={(patch) => editBlock(selectedBlock.block_id, patch)}
-                onDelete={() => deleteBlock(selectedBlock.block_id)}
-                onMoveUp={() => moveBlock(selectedBlock.block_id, -1)}
-                onMoveDown={() => moveBlock(selectedBlock.block_id, 1)}
+                onDelete={() => { deleteBlock(selectedBlock.block_id); setSelectedId(null); }}
+                onMoveUp={() => moveBlock(selectedBlock.block_id, "up")}
+                onMoveDown={() => moveBlock(selectedBlock.block_id, "down")}
+                onCopy={() => copyBlock(selectedBlock.block_id)}
               />
             ) : (
               <div style={{ padding: "24px 0", textAlign: "center", color: "var(--ps-ink-4)", fontSize: 12, fontFamily: "var(--ps-ui)" }}>
@@ -820,7 +920,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 {ACCENT_PALETTE.map(color => (
                   <button
                     key={color}
-                    onClick={() => setDesign(d => ({ ...d, accent: color }))}
+                    onClick={() => setD({ accent: color })}
                     style={{
                       width: 28, height: 28, borderRadius: "50%", background: color, border: "none",
                       cursor: "pointer",
@@ -842,7 +942,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 ]).map(f => (
                   <button
                     key={f.id}
-                    onClick={() => setDesign(d => ({ ...d, font: f.id }))}
+                    onClick={() => setD({ font: f.id })}
                     style={{
                       flex: 1, height: 30, borderRadius: 6,
                       border: "1px solid",
@@ -861,7 +961,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <input
                   type="checkbox"
                   checked={design.twoColumn}
-                  onChange={e => setDesign(d => ({ ...d, twoColumn: e.target.checked }))}
+                  onChange={e => setD({ twoColumn: e.target.checked })}
                 />
                 <span style={{ fontSize: 12.5, color: "var(--ps-ink)", fontFamily: "var(--ps-ui)" }}>Två kolumner</span>
               </label>
@@ -869,7 +969,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <input
                   type="checkbox"
                   checked={design.showMarginNotes}
-                  onChange={e => setDesign(d => ({ ...d, showMarginNotes: e.target.checked }))}
+                  onChange={e => setD({ showMarginNotes: e.target.checked })}
                 />
                 <span style={{ fontSize: 12.5, color: "var(--ps-ink)", fontFamily: "var(--ps-ui)" }}>Visa marginalnoter (lärarversion)</span>
               </label>
@@ -879,23 +979,48 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           {/* Doc tab */}
           {rightTab === "doc" && (
             <div>
-              {[
-                { label: "Titel", value: title, set: setTitle },
-                { label: "Undertitel", value: subtitle, set: setSubtitle },
-                { label: "Kurs", value: course, set: setCourse },
-              ].map(({ label, value, set }) => (
-                <label key={label} style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
-                  <span style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)" }}>
-                    {label}
-                  </span>
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={e => set(e.target.value)}
-                    style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--ps-rule-2)", fontFamily: "var(--ps-ui)", fontSize: 12.5, background: "var(--ps-bg-soft)" }}
-                  />
+              <label style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
+                <span style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)" }}>Titel</span>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                  className="ps-input" style={{ fontSize: 12.5 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
+                <span style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)" }}>Undertitel</span>
+                <input type="text" value={subtitle} onChange={e => setSubtitle(e.target.value)}
+                  className="ps-input" style={{ fontSize: 12.5 }} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 12 }}>
+                <span style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)" }}>Kurs</span>
+                <input type="text" value={design.course} onChange={e => setD({ course: e.target.value })}
+                  className="ps-input" style={{ fontSize: 12.5 }} />
+              </label>
+
+              {/* Kapitel + Veckor */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Kapitel</span>
+                  <input value={design.chapter ?? ""} onChange={e => setD({ chapter: e.target.value })} className="ps-input" style={{ fontSize: 12.5 }} />
                 </label>
-              ))}
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Veckor</span>
+                  <input value={design.weekRange ?? ""} onChange={e => setD({ weekRange: e.target.value })} className="ps-input" style={{ fontSize: 12.5 }} />
+                </label>
+              </div>
+
+              {/* Distribution */}
+              <div style={{ marginTop: 12, borderTop: "1px solid var(--ps-rule)", paddingTop: 12 }}>
+                <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Distribution</div>
+                {[
+                  { label: "Tillgängligt som digital läxa" },
+                  { label: "Periodiserat (släpper en sida i veckan)" },
+                  { label: "Innehåller lärarversion", defaultOn: true },
+                ].map((t, i) => (
+                  <label key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
+                    <input type="checkbox" defaultChecked={t.defaultOn} style={{ accentColor: "var(--ps-accent)", width: 14, height: 14 }} />
+                    <span style={{ fontSize: 11.5, color: "var(--ps-ink-2)" }}>{t.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
         </div>
