@@ -29,7 +29,6 @@ import {
   CheckSquare,
   ChevronLeft,
   Download,
-  Edit2,
   Eye,
   Flag,
   Grid,
@@ -38,6 +37,7 @@ import {
   Plus,
   Printer,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   CONTENT_BLOCK_TYPE_LABELS,
@@ -63,6 +63,7 @@ import {
 import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import { QuestionEditorModal } from "@/components/editor/QuestionEditorModal";
 import { FreeformCanvas, FreeformItemLabel } from "@/components/editor/FreeformCanvas";
+import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
 
 /* ─── Route ────────────────────────────────────────────────────────────── */
 
@@ -242,8 +243,8 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [saveState, setSaveState] = useState<"idle"|"saving"|"saved">("idle");
   const [loading, setLoading]     = useState(true);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
-  const [rightTab, setRightTab]       = useState<"layout"|"block"|"doc">("layout");
-  const [centerMode, setCenterMode]   = useState<"edit"|"preview"|"answer">("edit");
+  const [rightTab, setRightTab]       = useState<"layout"|"sections"|"doc">("layout");
+  const [centerMode, setCenterMode]   = useState<"preview"|"answer">("preview");
   const [creatingType, setCreatingType] = useState<QuestionType | null>(null);
   const [insertAfterIdx, setInsertAfterIdx] = useState<number | null>(null);
   const [editingQ, setEditingQ]       = useState<Question | null>(null);
@@ -251,6 +252,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
   const [isFreeform, setIsFreeform]   = useState(false);
   const [showGrid, setShowGrid]       = useState(true);
+  const [newQOpen, setNewQOpen]       = useState(false);
 
   const setD = (patch: Partial<DesignSettings>) => setDesign(d => ({ ...d, ...patch }));
 
@@ -332,7 +334,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
     };
     setOrder(o => [...o, ref]);
     setSelectedId(ref.block_id);
-    setRightTab("block");
+    setRightTab("layout");
   };
 
   const updateBlockContent = (blockId: string, content: ContentBlockContent) => {
@@ -387,6 +389,23 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
     setBank(questionBank.list());
   }, []);
 
+  const addQuestion = useCallback((type: QuestionType | "info") => {
+    const defaults: Record<string, unknown> = {
+      info: { text: "Skriv informationen här. Detta block visar text för eleven — inget svar krävs.", points: 0 },
+    };
+    const q = questionBank.create({
+      type: type as QuestionType,
+      content: defaults[type] ? { text: (defaults[type] as { text: string }).text } : { text: "Ny fråga" },
+      points: String((defaults[type] as { points?: number })?.points ?? 1),
+      user_id: "local",
+      subject: null, tags: null, difficulty: null,
+    } as Partial<Question>);
+    setOrder(o => [...o, { question_id: q.id } as TestQuestionRef]);
+    setBank(b => [...b, q]);
+    setNewQOpen(false);
+    setEditingQ(q);
+  }, []);
+
   const handleDownload = async () => {
     const el = document.getElementById("printable-root");
     if (!el) return;
@@ -411,114 +430,32 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
 
   /* ── Render ── */
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr 320px", height: "100vh", overflow: "hidden", fontFamily: "var(--ps-ui)" }}>
-
-      {/* ── LEFT: Outline + Block library ── */}
-      <aside style={{ borderRight: "1px solid var(--ps-rule)", background: "var(--ps-bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-        {/* Header */}
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--ps-rule)", flexShrink: 0 }}>
-          <button
-            onClick={onBack}
-            style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12.5, fontFamily: "var(--ps-ui)", padding: 0, marginBottom: 8 }}
-          >
-            <ChevronLeft size={13} /> Mina dokument
-          </button>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 15, fontWeight: 600, fontFamily: "var(--ps-ui)", color: "var(--ps-ink)", padding: 0, letterSpacing: "-0.01em" }}
-            placeholder="Dokumentets titel"
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <div style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>
-              {qCount} frågor{totalPts > 0 ? ` · ${totalPts} p` : ""}
-            </div>
-            <div style={{ flex: 1 }} />
-            {/* Doc type toggle */}
-            <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
-              {(["test", "workbook", "homework"] as DocumentType[]).map(dt => (
-                <button key={dt} onClick={() => setDocType(dt)} style={{
-                  height: 22, padding: "0 7px", borderRadius: 6, border: "none",
-                  background: docType === dt ? "var(--ps-accent)" : "transparent",
-                  color: docType === dt ? "white" : "var(--ps-ink-3)",
-                  fontFamily: "var(--ps-ui)", fontSize: 10.5, fontWeight: 500,
-                  cursor: "pointer",
-                }}>
-                  {DOCUMENT_TYPE_LABELS[dt]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Outline */}
-        <div style={{ flex: 1, overflow: "auto", padding: "8px 10px" }}>
-          <OutlineList
-            order={order}
-            bankMap={bankMap}
-            selectedId={selectedId}
-            onSelect={(id, tab) => { setSelectedId(id); setRightTab(tab ?? "block"); }}
-            onDelete={removeItem}
-            onReorder={reorderItems}
-          />
-        </div>
-
-        {/* Block library */}
-        <div style={{ borderTop: "1px solid var(--ps-rule)", flexShrink: 0 }}>
-          {/* Tabs */}
-          <div style={{ display: "flex", padding: "8px 10px 0" }}>
-            <button
-              onClick={() => setAddMode("questions")}
-              style={{ flex: 1, height: 28, borderRadius: "6px 6px 0 0", border: "1px solid", borderBottom: "none", fontFamily: "var(--ps-ui)", fontSize: 11.5, cursor: "pointer",
-                background: addMode === "questions" ? "var(--ps-paper)" : "transparent",
-                color: addMode === "questions" ? "var(--ps-ink)" : "var(--ps-ink-3)",
-                borderColor: addMode === "questions" ? "var(--ps-rule)" : "transparent",
-                fontWeight: addMode === "questions" ? 500 : 400,
-              }}
-            >
-              Ny fråga
-            </button>
-            <button
-              onClick={() => setAddMode("blocks")}
-              style={{ flex: 1, height: 28, borderRadius: "6px 6px 0 0", border: "1px solid", borderBottom: "none", fontFamily: "var(--ps-ui)", fontSize: 11.5, cursor: "pointer",
-                background: addMode === "blocks" ? "var(--ps-paper)" : "transparent",
-                color: addMode === "blocks" ? "var(--ps-ink)" : "var(--ps-ink-3)",
-                borderColor: addMode === "blocks" ? "var(--ps-rule)" : "transparent",
-                fontWeight: addMode === "blocks" ? 500 : 400,
-              }}
-            >
-              <Layers size={11} style={{ display: "inline", marginRight: 3 }} />
-              Block
-            </button>
-          </div>
-          <div style={{ background: "var(--ps-paper)", border: "1px solid var(--ps-rule)", borderTop: "none", padding: "10px 10px 12px" }}>
-            {addMode === "questions" ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
-                {Q_TYPES_BY_DOC[docType].map(t => (
-                  <AddBtn key={t} label={QUESTION_TYPE_LABELS[t]} onClick={() => setCreatingType(t)} />
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 3 }}>
-                {B_TYPES_BY_DOC[docType].map(t => (
-                  <AddBtn key={t} label={CONTENT_BLOCK_TYPE_LABELS[t]} accent onClick={() => addBlock(t)} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", height: "100vh", overflow: "hidden", fontFamily: "var(--ps-ui)" }}>
 
       {/* ── CENTER: Canvas ── */}
       <main style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--ps-bg-soft)" }}>
         {/* Topbar */}
         <div style={{ background: "var(--ps-bg)", borderBottom: "1px solid var(--ps-rule)", padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {/* Left: back + divider + title + meta */}
+          <button
+            onClick={onBack}
+            style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12.5, fontFamily: "var(--ps-ui)", padding: 0, whiteSpace: "nowrap" }}
+          >
+            <ChevronLeft size={13} /> Mina dokument
+          </button>
+          <div style={{ width: 1, height: 18, background: "var(--ps-rule)" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ps-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Namnlöst dokument"}</span>
+            <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)" }}>{design.subtitle ?? ""}{design.subtitle ? " · " : ""}{qCount} frågor · {totalPts} p</span>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Mode tabs */}
           <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
             {([
-              { id: "edit"    as const, label: "Redigera",    icon: <Edit2 size={11} /> },
-              { id: "preview" as const, label: "Förhandsgr.", icon: <Eye size={11} /> },
-              { id: "answer"  as const, label: "Facit",       icon: <CheckSquare size={11} /> },
+              { id: "preview" as const, label: "Förhandsgranska", icon: <Eye size={11} /> },
+              { id: "answer"  as const, label: "Facit",           icon: <CheckSquare size={11} /> },
             ]).map(m => (
               <button key={m.id} onClick={() => setCenterMode(m.id)} style={{
                 height: 27, padding: "0 10px", borderRadius: 6, border: "none",
@@ -530,45 +467,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
               }}>{m.icon} {m.label}</button>
             ))}
           </div>
-          {/* Freeform toggle — only in edit mode */}
-          {centerMode === "edit" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}>
-              <div style={{ width: 1, height: 18, background: "var(--ps-rule)" }} />
-              <button
-                onClick={toggleFreeform}
-                title={isFreeform ? "Växla till linjärt läge" : "Växla till freeform-läge"}
-                style={{
-                  height: 27, padding: "0 10px", borderRadius: 6, border: "1px solid",
-                  borderColor: isFreeform ? "var(--ps-accent)" : "var(--ps-rule-2)",
-                  background: isFreeform ? "var(--ps-accent)14" : "transparent",
-                  color: isFreeform ? "var(--ps-accent)" : "var(--ps-ink-3)",
-                  fontFamily: "var(--ps-ui)", fontSize: 11.5, cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 4, fontWeight: isFreeform ? 500 : 400,
-                }}
-              >
-                <Layers size={11} /> {isFreeform ? "Freeform" : "Linjärt"}
-              </button>
-              {isFreeform && (
-                <>
-                  <button
-                    onClick={() => setShowGrid(g => !g)}
-                    title="Visa/dölj rutnät"
-                    style={{ height: 27, width: 27, borderRadius: 6, border: "1px solid", borderColor: showGrid ? "var(--ps-accent)" : "var(--ps-rule-2)", background: showGrid ? "var(--ps-accent)14" : "transparent", color: showGrid ? "var(--ps-accent)" : "var(--ps-ink-3)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    <Grid size={12} />
-                  </button>
-                  <button
-                    onClick={clearLayouts}
-                    title="Återställ till linjärt läge och ta bort alla positioner"
-                    style={{ height: 27, padding: "0 8px", borderRadius: 6, border: "1px solid var(--ps-rule-2)", background: "transparent", color: "var(--ps-ink-4)", fontFamily: "var(--ps-ui)", fontSize: 10.5, cursor: "pointer" }}
-                  >
-                    Återställ
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          <div style={{ flex: 1 }} />
+
           <span style={{ fontSize: 11, color: "var(--ps-ink-3)", minWidth: 56 }}>
             {saveState === "saving" ? "Sparar…" : saveState === "saved" ? "✓ Sparat" : ""}
           </span>
@@ -581,61 +480,47 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         </div>
 
         {/* Paper */}
-        <div style={{ flex: 1, overflow: "auto", padding: isFreeform && centerMode === "edit" ? "0" : "28px 32px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: "28px 32px" }}>
           <div id="printable-root">
-            {/* ── Freeform edit mode ── */}
-            {centerMode === "edit" && isFreeform && (
-              <FreeformCanvas
-                order={order}
-                bankMap={bankMap}
-                selectedId={selectedId}
-                showGrid={showGrid}
-                onSelect={(id) => { setSelectedId(id); if (id) setRightTab("block"); }}
-                onLayoutChange={handleLayoutChange}
-                renderItemContent={(item, q) => (
-                  <FreeformItemLabel item={item} q={q} />
-                )}
-              />
-            )}
-
-            {/* ── Linear edit mode ── */}
-            {centerMode === "edit" && !isFreeform && (
-              <InlineQuestionCanvas
-                order={order}
-                bankMap={bankMap}
+            {/* Preview / Facit mode */}
+            <div
+              onClick={e => {
+                const el = (e.target as HTMLElement).closest("[data-qid]") as HTMLElement | null;
+                if (el) {
+                  const q = bankMap.get(el.dataset.qid!);
+                  if (q) setEditingQ(q);
+                }
+              }}
+              style={{ cursor: "default" }}
+              title="Klicka på en fråga för att redigera"
+            >
+              <PrintableTest
+                title={title}
+                subtitle={design.subtitle ?? ""}
                 design={design}
-                selectedId={selectedId}
-                onSelect={(id) => { setSelectedId(id); setRightTab("block"); }}
-                onEdit={(q) => setEditingQ(q)}
-                onDelete={(idx) => removeItem(idx)}
-                onInsertAfter={(afterIdx, type) => {
-                  setInsertAfterIdx(afterIdx);
-                  setCreatingType(type);
-                }}
+                items={printItems}
               />
-            )}
+            </div>
+          </div>
 
-            {/* ── Preview / Facit mode ── */}
-            {(centerMode === "preview" || centerMode === "answer") && (
-              <div
-                onClick={e => {
-                  const el = (e.target as HTMLElement).closest("[data-qid]") as HTMLElement | null;
-                  if (el) {
-                    const q = bankMap.get(el.dataset.qid!);
-                    if (q) setEditingQ(q);
-                  }
-                }}
-                style={{ cursor: "default" }}
-                title="Klicka på en fråga för att redigera"
-              >
-                <PrintableTest
-                  title={title}
-                  subtitle={design.subtitle ?? ""}
-                  design={design}
-                  items={printItems}
-                />
-              </div>
-            )}
+          {/* Floating "Ny fråga" pill */}
+          <div style={{
+            position: "sticky", bottom: 24, marginTop: -80,
+            display: "flex", justifyContent: "center",
+            pointerEvents: "none", zIndex: 10,
+          }}>
+            <button onClick={() => setNewQOpen(true)} style={{
+              pointerEvents: "auto",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              height: 44, padding: "0 22px",
+              borderRadius: 999,
+              background: "var(--ps-ink)", color: "white",
+              border: "none", cursor: "pointer",
+              fontFamily: "var(--ps-ui)", fontSize: 14, fontWeight: 500,
+              boxShadow: "0 10px 28px -8px rgba(20,17,13,0.4), 0 2px 6px rgba(20,17,13,0.15)",
+            }}>
+              <Plus size={15} /> Ny fråga
+            </button>
           </div>
         </div>
       </main>
@@ -644,9 +529,9 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
       <aside style={{ borderLeft: "1px solid var(--ps-rule)", background: "var(--ps-bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ display: "flex", padding: "10px 12px 0", gap: 3, flexShrink: 0 }}>
           {([
-            { id: "layout" as const, label: "Design" },
-            { id: "block"  as const, label: "Block" },
-            { id: "doc"    as const, label: "Dokument" },
+            { id: "layout"   as const, label: "Layout" },
+            { id: "sections" as const, label: "Sektioner" },
+            { id: "doc"      as const, label: "Dokument" },
           ]).map(t => (
             <button key={t.id} onClick={() => setRightTab(t.id)} style={{
               flex: 1, height: 30, padding: "0 6px", borderRadius: 6,
@@ -662,53 +547,54 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
 
         <div style={{ flex: 1, overflow: "auto", padding: "14px 14px 32px" }}>
           {rightTab === "layout" && <LayoutPanel design={design} setD={setD} />}
-          {rightTab === "block" && (
-            selectedQ
-              ? <QuestionInspector q={selectedQ} onEdit={() => setEditingQ(selectedQ)} onRefresh={refreshBank} />
-              : selectedBlockRef
-                ? <BlockInspector ref_={selectedBlockRef} onUpdate={(content) => updateBlockContent(selectedBlockRef.block_id, content)} />
-                : <div style={{ color: "var(--ps-ink-4)", fontSize: 12.5, padding: "40px 0", textAlign: "center" }}>
-                    Klicka på ett element i listan eller canvas.
+          {rightTab === "sections" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {order.filter(isQuestionRef).map((ref, idx) => {
+                const q = bankMap.get(ref.question_id);
+                if (!q) return null;
+                const text = ((q.content as { text?: string })?.text ?? "").replace(/<[^>]+>/g, "").slice(0, 60);
+                return (
+                  <div key={ref.question_id + idx} onClick={() => setEditingQ(q)} style={{
+                    padding: "8px 10px", borderRadius: 8, border: "1px solid var(--ps-rule-2)",
+                    background: "var(--ps-paper)", cursor: "pointer", fontSize: 12.5,
+                    color: "var(--ps-ink)", lineHeight: 1.4,
+                  }}>
+                    <div style={{ fontSize: 10, color: "var(--ps-ink-3)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {QUESTION_TYPE_LABELS[q.type]}
+                    </div>
+                    {text || "(Tom fråga)"}
                   </div>
+                );
+              })}
+              {order.filter(isQuestionRef).length === 0 && (
+                <div style={{ color: "var(--ps-ink-4)", fontSize: 12, padding: "32px 0", textAlign: "center" }}>
+                  Inga frågor ännu. Klicka "Ny fråga" för att börja.
+                </div>
+              )}
+            </div>
           )}
           {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} />}
         </div>
       </aside>
 
       {/* ── Modals ── */}
-      {creatingType && (
-        <QuestionEditorModal
-          mode="create"
-          type={creatingType}
-          defaultLines={design.defaultLines ?? 4}
-          onClose={() => { setCreatingType(null); setInsertAfterIdx(null); }}
-          onSaved={async (newId) => {
-            await refreshBank();
-            if (newId) {
-              if (insertAfterIdx !== null) {
-                setOrder(o => {
-                  const next = [...o];
-                  next.splice(insertAfterIdx + 1, 0, { question_id: newId } as TestQuestionRef);
-                  return next;
-                });
-              } else {
-                setOrder(o => [...o, { question_id: newId } as TestQuestionRef]);
-              }
-            }
-            setCreatingType(null);
-            setInsertAfterIdx(null);
-          }}
-        />
-      )}
       {editingQ && (
-        <QuestionEditorModal
-          mode="edit"
-          question={editingQ}
-          defaultLines={design.defaultLines ?? 4}
+        <QuestionEditModal2
+          q={editingQ}
+          onEdit={(patch) => {
+            const updated = questionBank.update(editingQ.id, patch);
+            if (updated) setBank(b => b.map(x => x.id === editingQ.id ? updated : x));
+          }}
+          onDelete={() => {
+            setOrder(o => o.filter(r => !isQuestionRef(r) || r.question_id !== editingQ.id));
+            questionBank.delete(editingQ.id);
+            setBank(b => b.filter(x => x.id !== editingQ.id));
+            setEditingQ(null);
+          }}
           onClose={() => setEditingQ(null)}
-          onSaved={async () => { await refreshBank(); setEditingQ(null); }}
         />
       )}
+      {newQOpen && <NewQuestionModal onClose={() => setNewQOpen(false)} onPick={addQuestion} />}
       {editingBlockIdx !== null && (
         <ContentBlockEditorModal
           blockRef={order[editingBlockIdx] as ContentBlockRef}
@@ -1905,4 +1791,429 @@ function LayoutThumb({ variant, accent }: { variant: string; accent: string }) {
     ),
   };
   return <>{thumbnails[variant] ?? null}</>;
+}
+
+/* ─── NewQuestionModal ───────────────────────────────────────────────────── */
+
+const AUTO_Q_TYPES = new Set<QuestionType>([
+  "multiple_choice", "short_answer", "true_false", "cloze",
+  "matching", "ranking", "numeric", "definition",
+]);
+
+type QCardDef = { type: QuestionType | "info"; label: string; icon: React.ReactNode };
+
+const NEW_Q_GROUPS: Array<{ title: string; types: QCardDef[] }> = [
+  {
+    title: "Klassiska",
+    types: [
+      {
+        type: "info",
+        label: "Information",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="8" y="6" width="24" height="28" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <circle cx="20" cy="16" r="2" fill="currentColor"/>
+            <line x1="20" y1="21" x2="20" y2="28" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "open",
+        label: "Öppen fråga",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <line x1="10" y1="16" x2="30" y2="16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="22" x2="30" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="28" x2="22" y2="28" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "essay",
+        label: "Uppsats",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <line x1="10" y1="13" x2="30" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="19" x2="30" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="25" x2="30" y2="25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="31" x2="22" y2="31" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "drawing",
+        label: "Rityta",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="9" y="12" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M14 24 L18 18 L22 22 L25 19 L30 24" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
+    title: "Automaträttande",
+    types: [
+      {
+        type: "multiple_choice",
+        label: "Flerval",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="13" cy="15" r="4" fill="currentColor"/>
+            <line x1="20" y1="15" x2="30" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="13" cy="25" r="4" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <line x1="20" y1="25" x2="30" y2="25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "short_answer",
+        label: "Enkelt svar",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <line x1="10" y1="18" x2="30" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="25" x2="22" y2="25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "true_false",
+        label: "Sant/Falskt",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="15" cy="20" r="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M12 20 L14 22 L18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="28" cy="20" r="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M25 17 L31 23 M31 17 L25 23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "cloze",
+        label: "Lucktext",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="14" y="17" width="12" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="3 2"/>
+            <line x1="10" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="22" y1="12" x2="30" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="10" y1="29" x2="30" y2="29" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "matching",
+        label: "Matchning",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="8" y="12" width="10" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+            <rect x="22" y="12" width="10" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+            <rect x="8" y="22" width="10" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+            <rect x="22" y="22" width="10" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+            <line x1="18" y1="15" x2="22" y2="25" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5"/>
+            <line x1="18" y1="25" x2="22" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5"/>
+          </svg>
+        ),
+      },
+      {
+        type: "ranking",
+        label: "Rangordning",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <text x="9" y="18" style={{ fontSize: 9 }} fill="currentColor" fontFamily="sans-serif">1.</text>
+            <line x1="17" y1="15" x2="30" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <text x="9" y="25" style={{ fontSize: 9 }} fill="currentColor" fontFamily="sans-serif">2.</text>
+            <line x1="17" y1="22" x2="30" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <text x="9" y="32" style={{ fontSize: 9 }} fill="currentColor" fontFamily="sans-serif">3.</text>
+            <line x1="17" y1="29" x2="30" y2="29" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "numeric",
+        label: "Numerisk",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="10" y="15" width="20" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <text x="13" y="23" style={{ fontSize: 8 }} fill="currentColor" fontFamily="monospace">123</text>
+          </svg>
+        ),
+      },
+      {
+        type: "definition",
+        label: "Begrepp",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path d="M10 28 C10 20 14 14 20 14 C26 14 30 20 30 28" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+            <line x1="14" y1="28" x2="26" y2="28" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="20" y1="14" x2="20" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
+    title: "Specialfunktioner",
+    types: [
+      {
+        type: "source_critique",
+        label: "Källkritik",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="10" y="8" width="20" height="24" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <line x1="14" y1="15" x2="26" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="14" y1="20" x2="26" y2="20" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="14" y1="25" x2="20" y2="25" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "group",
+        label: "Flerdelad",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <text x="9" y="16" style={{ fontSize: 8 }} fill="currentColor" fontFamily="sans-serif">a)</text>
+            <line x1="18" y1="13" x2="30" y2="13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <text x="9" y="22" style={{ fontSize: 8 }} fill="currentColor" fontFamily="sans-serif">b)</text>
+            <line x1="18" y1="19" x2="30" y2="19" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <text x="9" y="28" style={{ fontSize: 8 }} fill="currentColor" fontFamily="sans-serif">c)</text>
+            <line x1="18" y1="25" x2="30" y2="25" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "formula",
+        label: "Formel",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <text x="10" y="24" style={{ fontSize: 11 }} fill="currentColor" fontFamily="serif" fontStyle="italic">x² = a</text>
+          </svg>
+        ),
+      },
+      {
+        type: "image",
+        label: "Bildfråga",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="9" y="12" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <circle cx="15" cy="18" r="2.5" fill="currentColor" opacity="0.5"/>
+            <path d="M9 24 L15 19 L20 23 L24 20 L31 27" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ),
+      },
+      {
+        type: "table",
+        label: "Tabell",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="9" y="12" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <line x1="9" y1="19" x2="31" y2="19" stroke="currentColor" strokeWidth="1"/>
+            <line x1="20" y1="12" x2="20" y2="28" stroke="currentColor" strokeWidth="1"/>
+          </svg>
+        ),
+      },
+      {
+        type: "diagram_label",
+        label: "Diagramnamn",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="9" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <line x1="20" y1="11" x2="20" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="20" y1="27" x2="20" y2="29" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="11" y1="20" x2="13" y2="20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="27" y1="20" x2="29" y2="20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="20" cy="20" r="2" fill="currentColor"/>
+          </svg>
+        ),
+      },
+      {
+        type: "two_column",
+        label: "Jämför kol.",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="8" y="12" width="10" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <rect x="22" y="12" width="10" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          </svg>
+        ),
+      },
+    ],
+  },
+];
+
+function NewQuestionModal({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (type: QuestionType | "info") => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(20,17,13,0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(720px, 100%)",
+          maxHeight: "92vh",
+          overflow: "auto",
+          background: "white",
+          borderRadius: 12,
+          boxShadow: "0 24px 60px -12px rgba(0,0,0,0.3)",
+          border: "1px solid var(--ps-rule)",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 18px",
+            borderBottom: "1px solid var(--ps-rule)",
+          }}
+        >
+          <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ps-ink)", fontFamily: "var(--ps-ui)" }}>
+            Ny uppgift
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, color: "var(--ps-ink-3)", display: "flex", alignItems: "center", gap: 5 }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 3,
+                  background: "var(--ps-ink)",
+                  color: "white",
+                  fontSize: 9,
+                  fontWeight: 800,
+                  fontFamily: "var(--ps-ui)",
+                }}
+              >
+                A
+              </span>
+              = Automaträttande
+            </span>
+            <button
+              onClick={onClose}
+              style={{
+                width: 30,
+                height: 30,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--ps-ink-3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 6,
+              }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Groups */}
+        <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
+          {NEW_Q_GROUPS.map((group) => (
+            <div key={group.title}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--ps-ink-3)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
+                  marginBottom: 10,
+                  fontFamily: "var(--ps-ui)",
+                }}
+              >
+                {group.title}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {group.types.map(({ type, label, icon }) => {
+                  const isAuto = AUTO_Q_TYPES.has(type as QuestionType);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => onPick(type)}
+                      style={{
+                        position: "relative",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        padding: "14px 8px",
+                        borderRadius: 8,
+                        border: "1px solid var(--ps-rule-2)",
+                        background: "var(--ps-bg-soft)",
+                        cursor: "pointer",
+                        fontFamily: "var(--ps-ui)",
+                        color: "var(--ps-ink-2)",
+                        transition: "border-color 0.1s, background 0.1s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--ps-accent)";
+                        (e.currentTarget as HTMLButtonElement).style.background = "var(--ps-paper)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--ps-rule-2)";
+                        (e.currentTarget as HTMLButtonElement).style.background = "var(--ps-bg-soft)";
+                      }}
+                    >
+                      {isAuto && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: 0,
+                            height: 0,
+                            borderStyle: "solid",
+                            borderWidth: "20px 20px 0 0",
+                            borderColor: "var(--ps-ink) transparent transparent transparent",
+                            borderRadius: "7px 0 0 0",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: -18,
+                              left: 2,
+                              fontSize: 7,
+                              fontWeight: 800,
+                              color: "white",
+                              fontFamily: "var(--ps-ui)",
+                            }}
+                          >
+                            A
+                          </span>
+                        </span>
+                      )}
+                      {icon}
+                      <span style={{ fontSize: 11.5, textAlign: "center", lineHeight: 1.3 }}>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
