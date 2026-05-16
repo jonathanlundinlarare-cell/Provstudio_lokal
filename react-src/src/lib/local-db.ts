@@ -19,6 +19,7 @@ type LocalStore = {
   schemaVersion: number;
   questions: Question[];
   documents: LocalDocument[];
+  customTaxonomy?: Record<string, string[]>;
 };
 
 // ── In-memory store ───────────────────────────────────────────────────────────
@@ -180,5 +181,42 @@ export const questionBank = {
   delete(id: string): void {
     store.questions = store.questions.filter((q) => q.id !== id);
     scheduleSave();
+  },
+};
+
+// ── Custom taxonomy ───────────────────────────────────────────────────────────
+
+export const taxonomy = {
+  get(): Record<string, string[]> {
+    return store.customTaxonomy ?? {};
+  },
+
+  addSubject(name: string): void {
+    if (!store.customTaxonomy) store.customTaxonomy = {};
+    if (!store.customTaxonomy[name]) store.customTaxonomy[name] = [];
+    scheduleSave();
+  },
+
+  addCategory(subject: string, cat: string): void {
+    if (!store.customTaxonomy) store.customTaxonomy = {};
+    if (!store.customTaxonomy[subject]) store.customTaxonomy[subject] = [];
+    if (!store.customTaxonomy[subject].includes(cat)) {
+      store.customTaxonomy[subject].push(cat);
+      scheduleSave();
+    }
+  },
+
+  removeSubject(name: string): void {
+    if (store.customTaxonomy) {
+      delete store.customTaxonomy[name];
+      scheduleSave();
+    }
+  },
+
+  removeCategory(subject: string, cat: string): void {
+    if (store.customTaxonomy?.[subject]) {
+      store.customTaxonomy[subject] = store.customTaxonomy[subject].filter(c => c !== cat);
+      scheduleSave();
+    }
   },
 };

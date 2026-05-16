@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { questionBank } from "../lib/local-db";
+import { questionBank, taxonomy } from "../lib/local-db";
 import type { Question, QuestionType, Difficulty, OpenContent, MultipleChoiceContent, MatchingContent, ImageContent, TableContent, RankingContent, DrawingContent, QuestionStatus } from "@/lib/test-types";
 import {
   Plus, Upload, Edit2, List, CheckSquare, Type,
@@ -81,7 +81,7 @@ type TreeNode = {
   children?: TreeNode[];
 };
 
-function buildTree(questions: Question[]): TreeNode[] {
+function buildTree(questions: Question[], customTax: Record<string, string[]> = {}): TreeNode[] {
   const counts = new Map<string, number>();
   for (const q of questions) {
     const key = `${q.subject ?? "Övrigt"}::${q.cat ?? ""}`;
@@ -90,24 +90,35 @@ function buildTree(questions: Question[]): TreeNode[] {
 
   const nodes: TreeNode[] = [];
 
-  // SO subjects — always visible with predefined categories
-  for (const [subj, cats] of Object.entries(SO_TAXONOMY)) {
+  // Build merged taxonomy: SO + custom
+  const mergedTax: Record<string, string[]> = {};
+  for (const [s, cats] of Object.entries(SO_TAXONOMY)) mergedTax[s] = [...cats];
+  for (const [s, cats] of Object.entries(customTax)) {
+    if (mergedTax[s]) {
+      for (const c of cats) if (!mergedTax[s].includes(c)) mergedTax[s].push(c);
+    } else {
+      mergedTax[s] = [...cats];
+    }
+  }
+
+  const definedSubjects = new Set(Object.keys(mergedTax));
+
+  // All defined subjects (always visible)
+  for (const [subj, cats] of Object.entries(mergedTax)) {
     const children: TreeNode[] = cats.map(cat => ({
       id: `${subj}::${cat}`,
       label: cat,
       count: counts.get(`${subj}::${cat}`) ?? 0,
     }));
-    // Also pick up any uncategorised questions in this subject
     const total = children.reduce((s, c) => s + c.count, 0) + (counts.get(`${subj}::`) ?? 0);
     nodes.push({ id: `subj::${subj}`, label: subj, count: total, children });
   }
 
-  // Extra subjects from actual questions (non-SO)
-  const soSet = new Set(SO_SUBJECTS);
+  // Extra subjects from questions that aren't in merged taxonomy
   const extra = new Map<string, Map<string, number>>();
   for (const q of questions) {
     const subj = q.subject ?? "Övrigt";
-    if (soSet.has(subj)) continue;
+    if (definedSubjects.has(subj)) continue;
     if (!extra.has(subj)) extra.set(subj, new Map());
     const cat = q.cat ?? "";
     extra.get(subj)!.set(cat, (extra.get(subj)!.get(cat) ?? 0) + 1);
@@ -300,8 +311,7 @@ function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc }: {
       {/* Category bar */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "10px 18px 0" }}>
         <div>
-          <div style={{ fontSize: 11.5, color: "var(--ps-accent)", fontWeight: 500, letterSpacing: "0.01em" }}>{q.subject || "Övrigt"}</div>
-          {q.cat && <div style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>{q.cat}</div>}
+          <div style={{ fontSize: 11.5, color: "var(--ps-amber)", fontWeight: 500, letterSpacing: "0.01em" }}>{q.subject || "Övrigt"}{q.cat ? `: ${q.cat}` : ""}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)", fontFamily: "monospace" }}>ID: {q.id.slice(0, 6)}</span>
@@ -321,8 +331,10 @@ function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc }: {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 22, padding: "12px 18px 18px" }}>
         {/* Left: question */}
         <div>
-          <div style={{ fontSize: 15, lineHeight: 1.5, color: "var(--ps-ink)", marginBottom: 14 }}>
-            {questionText || <span style={{ color: "var(--ps-ink-4)", fontStyle: "italic" }}>(Ingen frågetext)</span>}
+          <div style={{ fontSize: 17, lineHeight: 1.55, color: "var(--ps-ink)", marginBottom: 14, fontFamily: "var(--ps-display)", fontWeight: 400 }}>
+            {questionText
+              ? <span dangerouslySetInnerHTML={{ __html: questionText }} />
+              : <span style={{ color: "var(--ps-ink-4)", fontStyle: "italic", fontFamily: "var(--ps-ui)", fontSize: 14 }}>(Ingen frågetext)</span>}
           </div>
           <QuestionPreview q={q} expanded={false} />
 
@@ -437,6 +449,7 @@ export default function BankPage({ onBack, onAddQuestion }: {
   onAddQuestion?: (q: Question) => void;
 }) {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [customTax, setCustomTax] = useState<Record<string, string[]>>(taxonomy.get);
   const [activeId, setActiveId]   = useState<string>("__all__");
   const [openSet, setOpenSet]     = useState<Set<string>>(new Set());
   const [expanded, setExpanded]   = useState<string | null>(null);
@@ -448,9 +461,10 @@ export default function BankPage({ onBack, onAddQuestion }: {
   const [showImport, setShowImport] = useState(false);
 
   function load() { setQuestions(questionBank.list()); }
+  function reloadTax() { setCustomTax({ ...taxonomy.get() }); }
   useEffect(() => { load(); }, []);
 
-  const tree = buildTree(questions);
+  const tree = buildTree(questions, customTax);
 
   const toggleOpen = (id: string) => setOpenSet(s => {
     const next = new Set(s);
@@ -638,17 +652,20 @@ export default function BankPage({ onBack, onAddQuestion }: {
 
       {/* Modals */}
       {creatingType && (() => {
-        // Derive defaults from active tree node
         let defSubj = "";
         let defCat = "";
         if (activeId.startsWith("subj::")) defSubj = activeId.slice(6);
         else if (activeId.includes("::")) { const [s, c] = activeId.split("::"); defSubj = s; defCat = c; }
         return (
-          <QuestionModal mode="create" type={creatingType} defaultSubject={defSubj} defaultCat={defCat} onClose={() => setCreatingType(null)} onSaved={() => { setCreatingType(null); load(); }} />
+          <QuestionModal mode="create" type={creatingType} defaultSubject={defSubj} defaultCat={defCat}
+            customTax={customTax} onTaxChange={reloadTax}
+            onClose={() => setCreatingType(null)} onSaved={() => { setCreatingType(null); load(); }} />
         );
       })()}
       {editingQ && (
-        <QuestionModal mode="edit" question={editingQ} onClose={() => setEditingQ(null)} onSaved={() => { setEditingQ(null); load(); }} />
+        <QuestionModal mode="edit" question={editingQ}
+          customTax={customTax} onTaxChange={reloadTax}
+          onClose={() => setEditingQ(null)} onSaved={() => { setEditingQ(null); load(); }} />
       )}
       {showImport && (
         <ImportModal onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); load(); }} />
@@ -778,12 +795,14 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
 
 // ── Question Modal ────────────────────────────────────────────────────────────
 
-function QuestionModal({ mode, type, question, defaultSubject, defaultCat, onClose, onSaved }: {
+function QuestionModal({ mode, type, question, defaultSubject, defaultCat, customTax, onTaxChange, onClose, onSaved }: {
   mode: "create" | "edit";
   type?: QuestionType;
   question?: Question;
   defaultSubject?: string;
   defaultCat?: string;
+  customTax?: Record<string, string[]>;
+  onTaxChange?: () => void;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -810,8 +829,21 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, onClo
   const [points, setPoints]   = useState(question?.points || "");
   const [subject, setSubject] = useState(question?.subject || defaultSubject || "");
   const [cat, setCat]         = useState(question?.cat || defaultCat || "");
-  const [customSubject, setCustomSubject] = useState(!SO_SUBJECTS.includes(question?.subject || defaultSubject || ""));
+  const [customSubject, setCustomSubject] = useState(false);
   const [customCat, setCustomCat] = useState(false);
+  const [addingSubject, setAddingSubject] = useState(false);
+  const [addingCat, setAddingCat] = useState(false);
+  const [newSubjectVal, setNewSubjectVal] = useState("");
+  const [newCatVal, setNewCatVal] = useState("");
+
+  // Merged subjects: SO + custom
+  const allSubjects = [...SO_SUBJECTS, ...Object.keys(customTax ?? {}).filter(s => !SO_SUBJECTS.includes(s))];
+  // Merged categories for current subject
+  const soSubjCats = SO_TAXONOMY[subject] ?? [];
+  const customSubjCats = (customTax ?? {})[subject] ?? [];
+  const allCats = [...soSubjCats, ...customSubjCats.filter(c => !soSubjCats.includes(c))];
+
+  const isKnownSubject = allSubjects.includes(subject);
   const [difficulty, setDiff] = useState<Difficulty | "">(question?.difficulty as Difficulty || "");
   const [status, setStatus]   = useState<QuestionStatus>(question?.status || "draft");
   const [rubricE, setRubricE] = useState(question?.rubric?.E || "");
@@ -1025,41 +1057,99 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, onClo
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {/* Subject */}
               <div>
                 <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Ämne</label>
                 {customSubject ? (
                   <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                    <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Eget ämne" className="ps-input" style={{ flex: 1 }} />
-                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomSubject(false); setSubject(""); setCat(""); setCustomCat(false); }} title="Välj fördefinierat">↩</button>
+                    <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Nytt ämnesnamn" className="ps-input" style={{ flex: 1 }} />
+                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomSubject(false); setSubject(""); setCat(""); setCustomCat(false); setAddingSubject(false); }} title="Avbryt">↩</button>
+                  </div>
+                ) : addingSubject ? (
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                    <input autoFocus value={newSubjectVal} onChange={e => setNewSubjectVal(e.target.value)}
+                      placeholder="Nytt ämnesnamn" className="ps-input" style={{ flex: 1 }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && newSubjectVal.trim()) {
+                          taxonomy.addSubject(newSubjectVal.trim());
+                          setSubject(newSubjectVal.trim());
+                          setCat("");
+                          setNewSubjectVal("");
+                          setAddingSubject(false);
+                          onTaxChange?.();
+                        } else if (e.key === "Escape") { setAddingSubject(false); setNewSubjectVal(""); }
+                      }}
+                    />
+                    <button type="button" className="ps-btn ps-btn-accent ps-btn-sm" onClick={() => {
+                      if (!newSubjectVal.trim()) return;
+                      taxonomy.addSubject(newSubjectVal.trim());
+                      setSubject(newSubjectVal.trim());
+                      setCat("");
+                      setNewSubjectVal("");
+                      setAddingSubject(false);
+                      onTaxChange?.();
+                    }}>Spara</button>
+                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setAddingSubject(false); setNewSubjectVal(""); }}>✕</button>
                   </div>
                 ) : (
                   <select value={subject} onChange={e => {
-                    if (e.target.value === "__custom__") { setCustomSubject(true); setSubject(""); setCat(""); setCustomCat(false); }
+                    if (e.target.value === "__add__") { setAddingSubject(true); }
+                    else if (e.target.value === "__custom__") { setCustomSubject(true); setSubject(""); setCat(""); }
                     else { setSubject(e.target.value); setCat(""); setCustomCat(false); }
                   }} className="ps-input" style={{ width: "100%", marginTop: 4 }}>
                     <option value="">— Välj ämne —</option>
-                    {SO_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                    <option value="Övrigt">Övrigt</option>
-                    <option value="__custom__">— Eget ämne —</option>
+                    {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option disabled>─────────</option>
+                    <option value="__add__">＋ Lägg till nytt ämne…</option>
                   </select>
                 )}
               </div>
+
+              {/* Category */}
               <div>
                 <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Kategori / Avsnitt</label>
-                {customSubject || customCat || !SO_SUBJECTS.includes(subject) ? (
+                {customCat ? (
                   <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                    <input value={cat} onChange={e => setCat(e.target.value)} placeholder="t.ex. Industrialiseringen" className="ps-input" style={{ flex: 1 }} />
-                    {SO_SUBJECTS.includes(subject) && <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomCat(false); setCat(""); }} title="Välj fördefinierad">↩</button>}
+                    <input value={cat} onChange={e => setCat(e.target.value)} placeholder="Eget avsnitt" className="ps-input" style={{ flex: 1 }} />
+                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setCustomCat(false); setCat(""); }} title="Avbryt">↩</button>
                   </div>
-                ) : (
+                ) : addingCat ? (
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                    <input autoFocus value={newCatVal} onChange={e => setNewCatVal(e.target.value)}
+                      placeholder="Ny kategori" className="ps-input" style={{ flex: 1 }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && newCatVal.trim() && subject) {
+                          taxonomy.addCategory(subject, newCatVal.trim());
+                          setCat(newCatVal.trim());
+                          setNewCatVal("");
+                          setAddingCat(false);
+                          onTaxChange?.();
+                        } else if (e.key === "Escape") { setAddingCat(false); setNewCatVal(""); }
+                      }}
+                    />
+                    <button type="button" className="ps-btn ps-btn-accent ps-btn-sm" onClick={() => {
+                      if (!newCatVal.trim() || !subject) return;
+                      taxonomy.addCategory(subject, newCatVal.trim());
+                      setCat(newCatVal.trim());
+                      setNewCatVal("");
+                      setAddingCat(false);
+                      onTaxChange?.();
+                    }}>Spara</button>
+                    <button type="button" className="ps-btn ps-btn-ghost ps-btn-sm" onClick={() => { setAddingCat(false); setNewCatVal(""); }}>✕</button>
+                  </div>
+                ) : isKnownSubject ? (
                   <select value={cat} onChange={e => {
-                    if (e.target.value === "__custom__") { setCustomCat(true); setCat(""); }
+                    if (e.target.value === "__add__") setAddingCat(true);
+                    else if (e.target.value === "__custom__") { setCustomCat(true); setCat(""); }
                     else setCat(e.target.value);
-                  }} className="ps-input" style={{ width: "100%", marginTop: 4 }} disabled={!subject || !SO_SUBJECTS.includes(subject)}>
+                  }} className="ps-input" style={{ width: "100%", marginTop: 4 }} disabled={!subject}>
                     <option value="">— Välj kategori —</option>
-                    {(SO_TAXONOMY[subject] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
-                    <option value="__custom__">— Eget avsnitt —</option>
+                    {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option disabled>─────────</option>
+                    <option value="__add__">＋ Lägg till ny kategori…</option>
                   </select>
+                ) : (
+                  <input value={cat} onChange={e => setCat(e.target.value)} placeholder="t.ex. Avsnitt 3" className="ps-input" style={{ width: "100%", marginTop: 4 }} />
                 )}
               </div>
             </div>
