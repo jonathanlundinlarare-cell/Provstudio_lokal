@@ -20,6 +20,7 @@ import type {
   FormulaContent,
   ContentBlockType,
 } from "@/lib/test-types";
+import { getCoverComponent, type CoverDoc, type CoverTemplateId } from "@/components/editor/CoverTemplates";
 
 /** A question item in the printable list */
 export type PrintableQuestionItem = {
@@ -1683,102 +1684,49 @@ export function PrintableTest({
   return (
     <div className="printable-test" style={outerStyle}>
 
-      {/* ── Cover page ── */}
-      {showCover && (() => {
-        // Build cover image overlay (rendered outside content div so position:absolute anchors to paper-page)
-        const ci = design.coverImage;
-        const imgSrc = (ci?.enabled && ci.src) ? ci.src : design.coverImageUrl ?? null;
-        const coverImageOverlay = imgSrc ? (() => {
-          const height  = ci?.enabled ? (ci.height ?? 130)   : 130;
-          const fadeY   = ci?.enabled ? (ci.fadeY ?? 22)      : 22;
-          const fadeX   = ci?.enabled ? (ci.fadeX ?? 12)      : 0;
-          const opacity = ci?.enabled ? (ci.opacity ?? 0.95)  : 0.95;
-          const paperBg = PAPER_STYLES[design.paperStyle ?? "white"]?.bg ?? "#FFFFFF";
-          return (
+      {/* ── Cover page (v4: template-based) ──
+          Undefined coverTemplate on legacy docs = "official" (visually preserves existing covers) */}
+      {showCover && (design.coverTemplate ?? "official") !== "none" && (() => {
+        const tplId = (design.coverTemplate ?? "official") as CoverTemplateId;
+        const CoverComp = getCoverComponent(tplId);
+        if (!CoverComp) return null;
+        const coverDoc: CoverDoc = {
+          title:         title,
+          subtitle:      subtitle ?? "",
+          course:        course,
+          school:        school,
+          teacher:       "",
+          date:          new Date().toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" }),
+          grade:         "",
+          duration:      design.duration ?? "",
+          points:        totalPoints,
+          questionCount: chunks.flat().filter(p => p.kind === "qblock").length,
+          examNumber:    design.chapter ?? "1",
+          instructions:  design.coverInstructions ?? "",
+          coverImageUrl: design.coverImage?.src ?? design.coverImageUrl ?? "",
+        };
+        return (
+          <div className="paper-page" style={{
+            width: "210mm",
+            minHeight: "297mm",
+            background: "white",
+            margin: "0 auto 24px",
+            boxShadow: "0 6px 24px rgba(0,0,0,0.08)",
+            position: "relative",
+            overflow: "hidden",
+            pageBreakAfter: "always",
+            breakAfter: "page",
+          }}>
+            {/* Cover renders at fixed 794×1123 — scale to fit 210mm (~794px @ 96dpi) */}
             <div style={{
-              position: "absolute",
-              bottom: 0, left: 0, right: 0,
-              height: `${height}mm`,
-              overflow: "hidden",
-              zIndex: 0,
+              width: 794,
+              height: 1123,
+              transformOrigin: "top left",
+              transform: "scale(1)",
             }}>
-              <img
-                src={imgSrc}
-                alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center top",
-                  opacity,
-                  display: "block",
-                }}
-              />
-              {/* Top fade overlay */}
-              <div style={{
-                position: "absolute", inset: 0,
-                background: `linear-gradient(to bottom, ${paperBg} 0%, transparent ${fadeY}%)`,
-                pointerEvents: "none",
-              }} />
-              {/* Side fades overlay */}
-              {fadeX > 0 && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  background: `linear-gradient(to right, ${paperBg} 0%, transparent ${fadeX}%, transparent ${100 - fadeX}%, ${paperBg} 100%)`,
-                  pointerEvents: "none",
-                }} />
-              )}
+              <CoverComp doc={coverDoc} accent={accent} />
             </div>
-          );
-        })() : null;
-
-        return renderPage(
-          <>
-            {design.logoUrl && (
-              <div className="cover-logo" style={{ marginBottom: 12 }}>
-                <img src={design.logoUrl} alt="Logotyp" style={{ maxHeight: 40 }} />
-              </div>
-            )}
-
-            <PageHeader
-              layout={variant.headerStyle}
-              title={title}
-              subtitle={subtitle ?? ""}
-              course={course}
-              school={school}
-              accent={accent}
-              headingFont={headingFont}
-              titleWeight={titleWeight}
-              titleItalic={titleItalic}
-              titleTransform={titleTransform}
-              titleTracking={titleTracking}
-              titleColor={titleColor}
-              headerOrnament={design.headerOrnament}
-              metaStyle={variant.metaStyle}
-            />
-
-            {showMeta && (
-              <MetaBlock metaStyle={variant.metaStyle} accent={accent} showDate={design.showDate !== false} showTeacher={design.showTeacher !== false} />
-            )}
-
-            {/* Default meta row for non-meta layouts */}
-            {!showMeta && (
-              <div className="name-row">
-                <span className="name-cell"><span className="name-label">Namn:</span><span className="name-line" /></span>
-                <span className="name-cell"><span className="name-label">Klass:</span><span className="name-line" /></span>
-                {design.showDate !== false && (
-                  <span className="name-cell"><span className="name-label">Datum:</span><span className="name-line" /></span>
-                )}
-                {design.showTeacher && (
-                  <span className="name-cell"><span className="name-label">Lärare:</span><span className="name-line" /></span>
-                )}
-              </div>
-            )}
-
-            <CoverMeta design={design} totalPoints={totalPoints} accent={accent} />
-          </>,
-          1,
-          coverImageOverlay
+          </div>
         );
       })()}
 

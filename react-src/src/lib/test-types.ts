@@ -589,6 +589,10 @@ export type DesignSettings = {
   lineHeight?: number;
   /** Inkludera försättsblad */
   includeCover?: boolean;
+  /** v4: Försättsbladsmall — "none" = ingen sida. Ersätter includeCover. */
+  coverTemplate?: "editorial-index" | "color-block" | "swiss-grid" | "brief" | "official" | "imagery" | "none";
+  /** v4: Fri instruktionstext som vissa cover-mallar visar. */
+  coverInstructions?: string;
   /** Innehållsförteckning */
   showToc?: boolean;
   /** Instruktionstext */

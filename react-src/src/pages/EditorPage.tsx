@@ -63,6 +63,8 @@ import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import { useAutosave } from "@/hooks/useAutosave";
 import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
 import { BankPickerModal } from "@/components/BankPickerModal";
+import { CoverPicker } from "@/components/editor/CoverPicker";
+import type { CoverDoc, CoverTemplateId } from "@/components/editor/CoverTemplates";
 
 /* ─── Route ────────────────────────────────────────────────────────────── */
 
@@ -522,7 +524,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "14px 14px 32px" }}>
-          {rightTab === "layout" && <LayoutPanel design={design} setD={setD} />}
+          {rightTab === "layout" && <LayoutPanel design={design} setD={setD} title={title} />}
           {rightTab === "sections" && (
             <SektionerPanel
               sections={design.sections ?? []}
@@ -1425,7 +1427,7 @@ function SektionerPanel({ sections, order, bankMap, onChange, onOrderChange, onB
 
 /* ─── LayoutPanel ────────────────────────────────────────────────────────── */
 
-function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Partial<DesignSettings>) => void }) {
+function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p: Partial<DesignSettings>) => void; title: string }) {
   const accent = design.primaryColor ?? "#1E5F5C";
 
   // Custom tones stored in localStorage
@@ -1764,22 +1766,53 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
         />
       </PsGroup>
 
-      {/* 17. Försättsblad */}
+      {/* 17. Försättsblad — mall-väljare */}
       <PsGroup title="Försättsblad">
-        <PsToggle label="Inkludera försättsblad" on={design.showCover !== false} onChange={v => setD({ showCover: v })} />
+        <CoverPicker
+          selected={(design.coverTemplate ?? (design.showCover === false ? "none" : "official")) as CoverTemplateId}
+          onSelect={(id) => setD({ coverTemplate: id, showCover: id !== "none" })}
+          doc={buildCoverDoc(design, title)}
+          accent={accent}
+          instructions={design.coverInstructions ?? ""}
+          onInstructionsChange={(text) => setD({ coverInstructions: text })}
+        />
+      </PsGroup>
+
+      {/* 18. Sidoinställningar — kvarvarande togglar som inte hör till cover */}
+      <PsGroup title="Sidoinställningar">
         <PsToggle label="Innehållsförteckning" on={design.showToc ?? false} onChange={v => setD({ showToc: v })} />
-        <PsToggle label="Instruktionstext" on={design.showInstructions !== false} onChange={v => setD({ showInstructions: v })} />
         <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
         <PsToggle label="Meta-info vid fråga" on={design.showMeta ?? false} onChange={v => setD({ showMeta: v })} />
         <PsToggle label="Datum-fält" on={design.showDate !== false} onChange={v => setD({ showDate: v })} />
         <PsToggle label="Lärare-fält" on={design.showTeacher !== false} onChange={v => setD({ showTeacher: v })} />
       </PsGroup>
 
-      {/* 18. Försättsbild */}
-      <CoverImagePanel design={design} setD={setD} />
+      {/* 19. Bild på cover (endast Bildmotiv-mallen) */}
+      {design.coverTemplate === "imagery" && (
+        <CoverImagePanel design={design} setD={setD} />
+      )}
 
     </div>
   );
+}
+
+/* Build a CoverDoc from design + title for the picker preview & live render */
+function buildCoverDoc(design: DesignSettings, title: string): CoverDoc {
+  return {
+    title:         title || "Namnlös titel",
+    subtitle:      design.subtitle ?? "",
+    course:        design.course ?? "",
+    school:        design.school ?? "",
+    teacher:       "",
+    date:          new Date().toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" }),
+    grade:         "",
+    duration:      design.duration ?? "",
+    points:        0,
+    questionCount: 0,
+    examNumber:    design.chapter ?? "1",
+    instructions:  design.coverInstructions ?? "",
+    coverImageUrl: design.coverImage?.src ?? design.coverImageUrl ?? "",
+  };
 }
 
 /* ─── CoverImagePanel ────────────────────────────────────────────────────── */
