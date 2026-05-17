@@ -544,7 +544,10 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           q={editingQ}
           onEdit={(patch) => {
             const updated = questionBank.update(editingQ.id, patch);
-            if (updated) setBank(b => b.map(x => x.id === editingQ.id ? updated : x));
+            if (updated) {
+              setBank(b => b.map(x => x.id === editingQ.id ? updated : x));
+              setEditingQ(updated);
+            }
           }}
           onDelete={() => {
             setOrder(o => o.filter(r => !isQuestionRef(r) || r.question_id !== editingQ.id));
@@ -1716,14 +1719,6 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
             value={design.dropCap ?? "off"}
             onChange={v => setD({ dropCap: v as DesignSettings["dropCap"] })}
             options={[{ v: "off", label: "Av" }, { v: "filled", label: "Fylld" }, { v: "outline", label: "Outline" }, { v: "box", label: "Ruta" }]}
-          />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Ornament i sidhuvud</span>
-          <Segmented
-            value={design.headerOrnament ?? "none"}
-            onChange={v => setD({ headerOrnament: v as DesignSettings["headerOrnament"] })}
-            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "double-rule", label: "═" }, { v: "ornament", label: "✦" }, { v: "diamond", label: "◆" }]}
           />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>

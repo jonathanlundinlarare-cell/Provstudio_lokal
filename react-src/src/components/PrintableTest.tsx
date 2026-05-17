@@ -747,25 +747,20 @@ function DropCap({ char, dropCap, accent }: { char: string; dropCap: DesignSetti
 
 /* ─── Points display ─────────────────────────────────────────────────── */
 
-function PointsDisplay({ points, style: pStyle, accent, format = "plain" }: {
+function PointsDisplay({ points, style: pStyle, accent, format = "plain", gradePoints }: {
   points: string;
   style: DesignSettings["pointsStyle"];
   accent: string;
   format?: DesignSettings["pointsFormat"];
+  gradePoints?: { E?: number; C?: number; A?: number };
 }) {
   // Format the points text based on format setting
   let displayText = `${points} p`;
   if (format === "blank") {
     displayText = `___ / ${points} p`;
   } else if (format === "grades") {
-    const boxStyle: React.CSSProperties = { display: "inline-block", width: 14, height: 14, border: "1px solid currentColor", borderRadius: 2, verticalAlign: "middle", marginLeft: 2 };
-    return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--points-size, 10pt)", color: "#444" }}>
-        <span>E<span style={boxStyle} /></span>
-        <span>C<span style={boxStyle} /></span>
-        <span>A<span style={boxStyle} /></span>
-      </span>
-    );
+    const gp = gradePoints ?? {};
+    displayText = `E:${gp.E ?? 0} / C:${gp.C ?? 0} / A:${gp.A ?? 0}`;
   }
 
   if (pStyle === "pill") {
@@ -1437,7 +1432,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                               <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>{sub.text}</span>
                               {showPoints && sub.points && (
                                 <span style={{ marginLeft: "auto" }}>
-                                  <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} />
+                                  <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
                                 </span>
                               )}
                             </div>
@@ -1458,7 +1453,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                 {/* Points on the right */}
                 {showPoints && q.points && (isLead ? !hasSubs : true) && (
                   <div style={{ flexShrink: 0, marginTop: 2 }}>
-                    <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} />
+                    <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
                   </div>
                 )}
               </div>
@@ -1585,7 +1580,7 @@ export function PrintableTest({
   // Track section indices across all rendered items
   let globalSectionIndex = 0;
 
-  const renderPage = (pageContent: React.ReactNode, pageNumber: number) => {
+  const renderPage = (pageContent: React.ReactNode, pageNumber: number, absoluteOverlay?: React.ReactNode) => {
     return (
       <div
         className="paper-page"
@@ -1623,6 +1618,9 @@ export function PrintableTest({
           {pageContent}
         </div>
 
+        {/* Absolute overlay (e.g. cover image) — rendered directly in paper-page so position:absolute anchors to page */}
+        {absoluteOverlay}
+
         {/* Footer */}
         <PaperFooter
           footerStyle={footerStyle}
@@ -1655,97 +1653,103 @@ export function PrintableTest({
     <div className="printable-test" style={outerStyle}>
 
       {/* ── Cover page ── */}
-      {showCover && renderPage(
-        <>
-          {design.logoUrl && (
-            <div className="cover-logo" style={{ marginBottom: 12 }}>
-              <img src={design.logoUrl} alt="Logotyp" style={{ maxHeight: 40 }} />
-            </div>
-          )}
-
-          <PageHeader
-            layout={variant.headerStyle}
-            title={title}
-            subtitle={subtitle ?? ""}
-            course={course}
-            school={school}
-            accent={accent}
-            headingFont={headingFont}
-            titleWeight={titleWeight}
-            titleItalic={titleItalic}
-            titleTransform={titleTransform}
-            titleTracking={titleTracking}
-            titleColor={titleColor}
-            headerOrnament={design.headerOrnament}
-            metaStyle={variant.metaStyle}
-          />
-
-          {showMeta && (
-            <MetaBlock metaStyle={variant.metaStyle} accent={accent} showDate={design.showDate !== false} showTeacher={design.showTeacher !== false} />
-          )}
-
-          {/* Default meta row for non-meta layouts */}
-          {!showMeta && (
-            <div className="name-row">
-              <span className="name-cell"><span className="name-label">Namn:</span><span className="name-line" /></span>
-              <span className="name-cell"><span className="name-label">Klass:</span><span className="name-line" /></span>
-              <span className="name-cell"><span className="name-label">Datum:</span><span className="name-line" /></span>
-            </div>
-          )}
-
-          <CoverMeta design={design} totalPoints={totalPoints} accent={accent} />
-
-          {/* Cover image — absolute, bottom of page, with fade */}
-          {(() => {
-            const ci = design.coverImage;
-            const imgSrc = (ci?.enabled && ci.src) ? ci.src : design.coverImageUrl ?? null;
-            if (!imgSrc) return null;
-            const height  = ci?.enabled ? (ci.height ?? 130)   : 130;
-            const fadeY   = ci?.enabled ? (ci.fadeY ?? 22)      : 22;
-            const fadeX   = ci?.enabled ? (ci.fadeX ?? 12)      : 0;
-            const opacity = ci?.enabled ? (ci.opacity ?? 0.95)  : 0.95;
-            const paperBg = PAPER_STYLES[design.paperStyle ?? "white"]?.bg ?? "#FFFFFF";
-
-            return (
+      {showCover && (() => {
+        // Build cover image overlay (rendered outside content div so position:absolute anchors to paper-page)
+        const ci = design.coverImage;
+        const imgSrc = (ci?.enabled && ci.src) ? ci.src : design.coverImageUrl ?? null;
+        const coverImageOverlay = imgSrc ? (() => {
+          const height  = ci?.enabled ? (ci.height ?? 130)   : 130;
+          const fadeY   = ci?.enabled ? (ci.fadeY ?? 22)      : 22;
+          const fadeX   = ci?.enabled ? (ci.fadeX ?? 12)      : 0;
+          const opacity = ci?.enabled ? (ci.opacity ?? 0.95)  : 0.95;
+          const paperBg = PAPER_STYLES[design.paperStyle ?? "white"]?.bg ?? "#FFFFFF";
+          return (
+            <div style={{
+              position: "absolute",
+              bottom: 0, left: 0, right: 0,
+              height: `${height}mm`,
+              overflow: "hidden",
+              zIndex: 0,
+            }}>
+              <img
+                src={imgSrc}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center top",
+                  opacity,
+                  display: "block",
+                }}
+              />
+              {/* Top fade overlay */}
               <div style={{
-                position: "absolute",
-                bottom: 0, left: 0, right: 0,
-                height: `${height}mm`,
-                overflow: "hidden",
-                zIndex: 0,
-              }}>
-                <img
-                  src={imgSrc}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "center top",
-                    opacity,
-                    display: "block",
-                  }}
-                />
-                {/* Top fade overlay */}
+                position: "absolute", inset: 0,
+                background: `linear-gradient(to bottom, ${paperBg} 0%, transparent ${fadeY}%)`,
+                pointerEvents: "none",
+              }} />
+              {/* Side fades overlay */}
+              {fadeX > 0 && (
                 <div style={{
                   position: "absolute", inset: 0,
-                  background: `linear-gradient(to bottom, ${paperBg} 0%, transparent ${fadeY}%)`,
+                  background: `linear-gradient(to right, ${paperBg} 0%, transparent ${fadeX}%, transparent ${100 - fadeX}%, ${paperBg} 100%)`,
                   pointerEvents: "none",
                 }} />
-                {/* Side fades overlay */}
-                {fadeX > 0 && (
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: `linear-gradient(to right, ${paperBg} 0%, transparent ${fadeX}%, transparent ${100 - fadeX}%, ${paperBg} 100%)`,
-                    pointerEvents: "none",
-                  }} />
+              )}
+            </div>
+          );
+        })() : null;
+
+        return renderPage(
+          <>
+            {design.logoUrl && (
+              <div className="cover-logo" style={{ marginBottom: 12 }}>
+                <img src={design.logoUrl} alt="Logotyp" style={{ maxHeight: 40 }} />
+              </div>
+            )}
+
+            <PageHeader
+              layout={variant.headerStyle}
+              title={title}
+              subtitle={subtitle ?? ""}
+              course={course}
+              school={school}
+              accent={accent}
+              headingFont={headingFont}
+              titleWeight={titleWeight}
+              titleItalic={titleItalic}
+              titleTransform={titleTransform}
+              titleTracking={titleTracking}
+              titleColor={titleColor}
+              headerOrnament={design.headerOrnament}
+              metaStyle={variant.metaStyle}
+            />
+
+            {showMeta && (
+              <MetaBlock metaStyle={variant.metaStyle} accent={accent} showDate={design.showDate !== false} showTeacher={design.showTeacher !== false} />
+            )}
+
+            {/* Default meta row for non-meta layouts */}
+            {!showMeta && (
+              <div className="name-row">
+                <span className="name-cell"><span className="name-label">Namn:</span><span className="name-line" /></span>
+                <span className="name-cell"><span className="name-label">Klass:</span><span className="name-line" /></span>
+                {design.showDate !== false && (
+                  <span className="name-cell"><span className="name-label">Datum:</span><span className="name-line" /></span>
+                )}
+                {design.showTeacher && (
+                  <span className="name-cell"><span className="name-label">Lärare:</span><span className="name-line" /></span>
                 )}
               </div>
-            );
-          })()}
-        </>,
-        1
-      )}
+            )}
+
+            <CoverMeta design={design} totalPoints={totalPoints} accent={accent} />
+          </>,
+          1,
+          coverImageOverlay
+        );
+      })()}
 
       {/* ── Empty state ── */}
       {chunks.length === 0 && !showCover && renderPage(

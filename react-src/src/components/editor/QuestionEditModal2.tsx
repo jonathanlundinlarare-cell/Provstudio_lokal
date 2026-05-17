@@ -3,10 +3,11 @@
  * Opened from preview/answer mode by clicking a question.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Trash2, X, Minus } from "lucide-react";
 import type { Question, QuestionType, MatchingPair } from "@/lib/test-types";
 import { RichTextEditor } from "./RichTextEditor";
+import { taxonomy } from "@/lib/local-db";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1281,74 +1282,184 @@ function TypeSpecificFields({
   }
 }
 
-/* ── RattningsreglerFields ──────────────────────────────────────────────── */
+/* ── MetadataFields ─────────────────────────────────────────────────────── */
 
-function RattningsreglerFields({
-  q,
-  patchContent,
-  patchQ,
-}: {
-  q: Question;
-  patchContent: (fields: Record<string, unknown>) => void;
-  patchQ: (fields: Partial<Question>) => void;
-}) {
-  const qType = q.type as string;
-  if (qType === "info") return null;
-  const c = q.content as Record<string, unknown>;
-  const auto = AUTO_TYPES.has(q.type);
-  const isGroup = q.type === "group";
-
-  const hasPartialCredit = ["multiple_choice", "cloze", "matching", "ranking", "definition"].includes(q.type);
+function MetadataFields({ q, patchQ }: { q: Question; patchQ: (f: Partial<Question>) => void }) {
+  const tax = taxonomy.get();
+  const subjects = Object.keys(tax);
+  const currentSubject = q.subject ?? "";
+  const cats = currentSubject ? (tax[currentSubject] ?? []) : [];
 
   return (
-    <Collapser title="Rättningsregler" defaultOpen={false}>
-      {/* Points row */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <ModalField label="Ämne">
+          <select
+            value={currentSubject}
+            onChange={e => patchQ({ subject: e.target.value || null })}
+            style={psInput}
+          >
+            <option value="">— Välj ämne —</option>
+            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </ModalField>
+        <ModalField label="Kategori">
+          <select
+            value={q.cat ?? ""}
+            onChange={e => patchQ({ cat: e.target.value || null })}
+            style={psInput}
+            disabled={!currentSubject}
+          >
+            <option value="">— Välj kategori —</option>
+            {cats.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </ModalField>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        <ModalField label="Svårighetsgrad">
+          <select
+            value={q.difficulty ?? ""}
+            onChange={e => patchQ({ difficulty: (e.target.value || null) as Question["difficulty"] })}
+            style={psInput}
+          >
+            <option value="">—</option>
+            <option value="easy">Lätt</option>
+            <option value="medium">Medel</option>
+            <option value="hard">Svår</option>
+          </select>
+        </ModalField>
+        <ModalField label="Status">
+          <select
+            value={q.status ?? "draft"}
+            onChange={e => patchQ({ status: e.target.value as Question["status"] })}
+            style={psInput}
+          >
+            <option value="draft">Utkast</option>
+            <option value="review">Granska</option>
+            <option value="approved">Godkänd</option>
+            <option value="archived">Arkiverad</option>
+          </select>
+        </ModalField>
+        <ModalField label="Författare">
+          <input
+            value={q.author ?? ""}
+            onChange={e => patchQ({ author: e.target.value || undefined })}
+            placeholder="Ditt namn"
+            style={psInput}
+          />
+        </ModalField>
+      </div>
+    </div>
+  );
+}
+
+/* ── BedömningTab ───────────────────────────────────────────────────────── */
+
+const GRADE_LABELS: { key: "E" | "C" | "A"; label: string; desc: string; color: string }[] = [
+  { key: "E", label: "E", desc: "Godtagbart",                      color: "#16A34A" },
+  { key: "C", label: "C", desc: "Välutvecklat",                    color: "#2563EB" },
+  { key: "A", label: "A", desc: "Välutvecklat och nyanserat",      color: "#7C3AED" },
+];
+
+function BedömningTab({
+  q,
+  patchQ,
+  rubricE, setRubricE,
+  rubricC, setRubricC,
+  rubricA, setRubricA,
+  gpE, setGpE,
+  gpC, setGpC,
+  gpA, setGpA,
+}: {
+  q: Question;
+  patchQ: (f: Partial<Question>) => void;
+  rubricE: string; setRubricE: (v: string) => void;
+  rubricC: string; setRubricC: (v: string) => void;
+  rubricA: string; setRubricA: (v: string) => void;
+  gpE: number; setGpE: (v: number) => void;
+  gpC: number; setGpC: (v: number) => void;
+  gpA: number; setGpA: (v: number) => void;
+}) {
+  const isGroup = q.type === "group";
+  const auto = AUTO_TYPES.has(q.type);
+  const setters = { E: setRubricE, C: setRubricC, A: setRubricA };
+  const gpSetters = { E: setGpE, C: setGpC, A: setGpA };
+  const rubricVals = { E: rubricE, C: rubricC, A: rubricA };
+  const gpVals = { E: gpE, C: gpC, A: gpA };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Total points */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)" }}>Tilldela poäng</span>
+        <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)" }}>Totalpoäng</span>
         {auto && <Pill color="#16A34A">Auto</Pill>}
         {isGroup && <Pill>Summa från delfrågor</Pill>}
-      </div>
-
-      {/* Points input */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="number"
           value={q.points ?? "0"}
           min={0}
           disabled={isGroup}
           onChange={(e) => patchQ({ points: e.target.value })}
-          style={{ ...psInput, width: 70, opacity: isGroup ? 0.5 : 1 }}
+          style={{ ...psInput, width: 70, marginLeft: "auto", opacity: isGroup ? 0.5 : 1 }}
         />
-        <span style={{ fontSize: 12.5, color: "var(--ps-ink-3)" }}>poäng</span>
-        <span style={{ color: "var(--ps-ink-4)", fontSize: 12 }}>→</span>
-        <input
-          value={(c.scoringRule as string) ?? ""}
-          onChange={(e) => patchContent({ scoringRule: e.target.value })}
-          placeholder="t.ex. 1p per rätt svar"
-          style={{ ...psInput, flex: 1 }}
-        />
+        <span style={{ fontSize: 12.5, color: "var(--ps-ink-3)" }}>p</span>
       </div>
 
-      {hasPartialCredit && (
-        <Toggle2
-          label="Tillåt delvisa poäng"
-          on={(c.partialCredit as boolean) ?? false}
-          onChange={(v) => patchContent({ partialCredit: v })}
-        />
-      )}
-
-      {!auto && (
-        <ModalField label="Bedömningsanvisning">
-          <textarea
-            value={(c.gradingNotes as string) ?? ""}
-            onChange={(e) => patchContent({ gradingNotes: e.target.value })}
-            placeholder="Beskriv hur svaret ska bedömas…"
-            rows={3}
-            style={{ ...psInput, resize: "vertical" }}
-          />
-        </ModalField>
-      )}
-    </Collapser>
+      {/* E/C/A cards */}
+      {GRADE_LABELS.map(({ key, label, desc, color }) => (
+        <div
+          key={key}
+          style={{
+            border: `1.5px solid ${color}30`,
+            borderRadius: 10,
+            background: `${color}06`,
+            overflow: "hidden",
+          }}
+        >
+          {/* Card header */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 14px",
+            borderBottom: `1px solid ${color}20`,
+            background: `${color}10`,
+          }}>
+            <span style={{
+              width: 24, height: 24,
+              borderRadius: "50%",
+              background: color,
+              color: "white",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, fontWeight: 700, flexShrink: 0,
+            }}>
+              {label}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>{desc}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)" }}>Poäng:</span>
+              <input
+                type="number"
+                value={gpVals[key]}
+                min={0}
+                onChange={e => gpSetters[key](parseFloat(e.target.value) || 0)}
+                style={{ ...psInput, width: 60, textAlign: "center" }}
+              />
+            </div>
+          </div>
+          {/* Rubric textarea */}
+          <div style={{ padding: "10px 14px" }}>
+            <textarea
+              value={rubricVals[key]}
+              onChange={e => setters[key](e.target.value)}
+              placeholder={`Vad krävs för betyget ${label}…`}
+              rows={3}
+              style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1356,6 +1467,38 @@ function RattningsreglerFields({
 
 export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
   const text = (q.content as { text?: string })?.text ?? "";
+  const [tab, setTab] = useState<"content" | "rubric">("content");
+
+  // Local state for Bedömning tab — avoids stale-q re-render loops
+  const [rubricE, setRubricE] = useState(q.rubric?.E ?? "");
+  const [rubricC, setRubricC] = useState(q.rubric?.C ?? "");
+  const [rubricA, setRubricA] = useState(q.rubric?.A ?? "");
+  const [gpE, setGpE] = useState(q.grade_points?.E ?? 0);
+  const [gpC, setGpC] = useState(q.grade_points?.C ?? 0);
+  const [gpA, setGpA] = useState(q.grade_points?.A ?? 0);
+
+  // Sync local rubric/gp state to parent
+  const flushRubric = () => {
+    onEdit({
+      rubric: { E: rubricE, C: rubricC, A: rubricA },
+      grade_points: { E: gpE, C: gpC, A: gpA },
+    });
+  };
+
+  // Flush when switching tabs or on unmount
+  const handleTabSwitch = (newTab: "content" | "rubric") => {
+    if (tab === "rubric") flushRubric();
+    setTab(newTab);
+  };
+
+  useEffect(() => {
+    return () => { /* flush happens in handleClose */ };
+  }, []);
+
+  const handleClose = () => {
+    if (tab === "rubric") flushRubric();
+    onClose();
+  };
 
   const patchContent = (fields: Record<string, unknown>) => {
     onEdit({ content: { ...(q.content as Record<string, unknown>), ...fields } } as Partial<Question>);
@@ -1364,6 +1507,20 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
   const patchQ = (fields: Partial<Question>) => onEdit(fields);
 
   const typeName = QUESTION_TYPE_NAMES[q.type] ?? q.type;
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    height: 36,
+    border: "none",
+    borderBottom: active ? "2px solid var(--ps-accent, #1E5F5C)" : "2px solid transparent",
+    background: "transparent",
+    cursor: "pointer",
+    fontFamily: "var(--ps-ui)",
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    color: active ? "var(--ps-accent, #1E5F5C)" : "var(--ps-ink-2)",
+    transition: "all .15s",
+  });
 
   return (
     <div
@@ -1377,11 +1534,11 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
         justifyContent: "center",
         padding: 20,
       }}
-      onClick={onClose}
+      onClick={handleClose}
       onKeyDown={(e) => {
         if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
           e.preventDefault();
-          onClose();
+          handleClose();
         }
       }}
     >
@@ -1415,7 +1572,7 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
             {typeName}
           </span>
           <button
-            onClick={() => { onDelete(); onClose(); }}
+            onClick={() => { onDelete(); handleClose(); }}
             title="Ta bort fråga"
             style={{
               width: 32,
@@ -1433,7 +1590,7 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
             <Trash2 size={15} />
           </button>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             title="Stäng"
             style={{
               width: 32,
@@ -1452,26 +1609,82 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
           </button>
         </div>
 
-        {/* Rich text editor — fully functional toolbar + contentEditable */}
-        <RichTextEditor
-          value={text}
-          onChange={(html) => patchContent({ text: html })}
-          placeholder="Skriv din uppgift här …"
-          minHeight={140}
-        />
-
-        {/* Type-specific fields + Rättningsregler */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            padding: "12px 16px 20px",
-          }}
-        >
-          <TypeSpecificFields q={q} patchContent={patchContent} patchQ={patchQ} />
-          <RattningsreglerFields q={q} patchContent={patchContent} patchQ={patchQ} />
+        {/* Tabs */}
+        <div style={{
+          display: "flex",
+          borderBottom: "1px solid var(--ps-rule)",
+          flexShrink: 0,
+          padding: "0 16px",
+        }}>
+          <button style={tabStyle(tab === "content")} onClick={() => handleTabSwitch("content")}>
+            Frågeinnehåll
+          </button>
+          <button style={tabStyle(tab === "rubric")} onClick={() => handleTabSwitch("rubric")}>
+            Bedömning
+          </button>
         </div>
+
+        {/* Tab: Frågeinnehåll */}
+        {tab === "content" && (
+          <>
+            {/* Rich text editor */}
+            <RichTextEditor
+              value={text}
+              onChange={(html) => patchContent({ text: html })}
+              placeholder="Skriv din uppgift här …"
+              minHeight={140}
+            />
+
+            {/* Type-specific fields */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px 4px" }}>
+              <TypeSpecificFields q={q} patchContent={patchContent} patchQ={patchQ} />
+            </div>
+
+            {/* Metadata (ämne, kategori, svårighet, status, författare) */}
+            <div style={{ padding: "8px 16px 20px", borderTop: "1px solid var(--ps-rule)", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                Metadata
+              </div>
+              <MetadataFields q={q} patchQ={patchQ} />
+            </div>
+          </>
+        )}
+
+        {/* Tab: Bedömning */}
+        {tab === "rubric" && (
+          <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <BedömningTab
+              q={q}
+              patchQ={patchQ}
+              rubricE={rubricE} setRubricE={setRubricE}
+              rubricC={rubricC} setRubricC={setRubricC}
+              rubricA={rubricA} setRubricA={setRubricA}
+              gpE={gpE} setGpE={setGpE}
+              gpC={gpC} setGpC={setGpC}
+              gpA={gpA} setGpA={setGpA}
+            />
+            {/* Save rubric button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+              <button
+                onClick={flushRubric}
+                style={{
+                  height: 36,
+                  padding: "0 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "var(--ps-accent, #1E5F5C)",
+                  color: "white",
+                  fontFamily: "var(--ps-ui)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Spara bedömning
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
