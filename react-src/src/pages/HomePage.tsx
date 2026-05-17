@@ -25,6 +25,11 @@ const TYPE_CHIP_CLASS: Record<DocumentType, string> = {
   wordsearch: 'ps-chip ps-chip-purple',
 };
 
+/** Tar bort HTML-taggar från en sträng (för titlar som sparats med richText-formatering) */
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]+>/g, '').trim() || str.trim();
+}
+
 export default function HomePage({ onOpen, onNew, onBank }: Props) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<DocumentType | 'all'>('all');
@@ -142,7 +147,7 @@ export default function HomePage({ onOpen, onNew, onBank }: Props) {
 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-[var(--ps-ink)] text-sm truncate">
-                    {doc.title || 'Namnlöst dokument'}
+                    {stripHtml(doc.title) || 'Namnlöst dokument'}
                   </p>
                   {doc.subject && (
                     <p className="text-xs text-[var(--ps-ink-4)] truncate">{doc.subject}</p>
