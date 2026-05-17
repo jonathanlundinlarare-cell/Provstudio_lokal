@@ -45,7 +45,9 @@ jobs:
 
       - name: Update releases/
         run: |
-          cp react-src/dist/index.html releases/index.html
+          # Vite outputs the bundled single-file HTML to electron/index.html
+          # (see react-src/vite.config.ts → build.outDir = '../electron')
+          cp electron/index.html releases/index.html
           echo "{\"version\":\"${{ steps.version.outputs.version }}\"}" > releases/latest.json
           echo "Updated releases/ with version ${{ steps.version.outputs.version }}"
 
