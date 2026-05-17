@@ -1729,7 +1729,7 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
           <Segmented
             value={design.sectionDivider ?? "none"}
             onChange={v => setD({ sectionDivider: v as DesignSettings["sectionDivider"] })}
-            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "dotted", label: "···" }, { v: "ornament", label: "✦" }, { v: "hairline", label: "╌" }]}
+            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "dotted", label: "···" }, { v: "ornament", label: "✦" }, { v: "hairline", label: "╌" }, { v: "editorial-rule", label: "𝐈 ⎯" }]}
           />
         </label>
       </PsGroup>

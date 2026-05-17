@@ -613,6 +613,37 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
     );
   }
 
+  if (layout === "editorial-rule") {
+    // Pixelperfekt "Orsaker"-stil: italic serif + hairline med liten brytning ~84%
+    return (
+      <div style={{
+        margin: "32px 0 22px",
+        display: "flex", alignItems: "baseline", gap: 14,
+        breakAfter: "avoid", pageBreakAfter: "avoid",
+      }}>
+        <span style={{
+          fontFamily: headingFont,
+          fontStyle: "italic",
+          fontSize: 22,
+          fontWeight: 400,
+          color: "#14110D",
+          letterSpacing: "-0.005em",
+          flexShrink: 0,
+          lineHeight: 1,
+        }}>
+          {label}
+        </span>
+        <div style={{
+          flex: 1,
+          height: 1,
+          background: "linear-gradient(to right, #D0CCC4 0%, #D0CCC4 82%, transparent 82%, transparent 84%, #D0CCC4 84%, #D0CCC4 100%)",
+          position: "relative",
+          top: -4,
+        }} />
+      </div>
+    );
+  }
+
   // Fallback — thin style
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0 8px", breakAfter: "avoid", pageBreakAfter: "avoid" }}>
@@ -1553,7 +1584,7 @@ export function PrintableTest({
   // Layout variant mapping
   const layoutVariants: Record<string, { headerStyle: string; metaStyle: string; sectionLayout: string }> = {
     classic:  { headerStyle: "serif-large", metaStyle: "underline",  sectionLayout: "band"        },
-    editorial:{ headerStyle: "tabloid",     metaStyle: "boxed",      sectionLayout: "rule-number" },
+    editorial:{ headerStyle: "tabloid",     metaStyle: "boxed",      sectionLayout: "editorial-rule" },
     minimal:  { headerStyle: "centered-rule",metaStyle: "inline",    sectionLayout: "hairline"    },
     exam:     { headerStyle: "stamped",     metaStyle: "table",      sectionLayout: "outline"     },
   };

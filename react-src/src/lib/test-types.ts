@@ -576,7 +576,7 @@ export type DesignSettings = {
   /** Ornament i provhuvud: none | rule | double-rule | ornament | diamond */
   headerOrnament?: "none" | "rule" | "double-rule" | "ornament" | "diamond";
   /** Avdelare mellan sektioner: none | rule | dotted | ornament | hairline */
-  sectionDivider?: "none" | "rule" | "dotted" | "ornament" | "hairline";
+  sectionDivider?: "none" | "rule" | "dotted" | "ornament" | "hairline" | "editorial-rule";
   /** Densitet (avstånd): comfortable | compact | spacious */
   density?: "comfortable" | "compact" | "spacious";
   /** Sidfotsstil: none | minimal | info | hairline | branded */
