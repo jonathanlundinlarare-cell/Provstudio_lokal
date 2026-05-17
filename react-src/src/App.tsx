@@ -35,7 +35,16 @@ export default function App() {
   const [newDocDialog, setNewDocDialog] = useState<DocumentType | null>(null);
   const [newDocTitle, setNewDocTitle]   = useState('');
   const [newDocSubject, setNewDocSubject] = useState('');
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const autoChecked = useRef(false);
+
+  // Focus title input when dialog opens
+  useEffect(() => {
+    if (newDocDialog && titleInputRef.current) {
+      const t = setTimeout(() => titleInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [newDocDialog]);
 
   useEffect(() => {
     initStore().then(async () => {
@@ -163,26 +172,54 @@ export default function App() {
             </h2>
 
             <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <span style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--ps-ui)" }}>Titel</span>
+              <span style={{ fontSize: 11, color: "#6B6459", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "system-ui, sans-serif" }}>Titel</span>
               <input
-                autoFocus
+                ref={titleInputRef}
+                type="text"
                 value={newDocTitle}
                 onChange={e => setNewDocTitle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && confirmNewDocument()}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNewDocument(); } }}
                 placeholder="T.ex. Kapiteltest 3 — Industrialismen"
-                style={{ height: 36, padding: "0 10px", borderRadius: 7, border: "1px solid var(--ps-rule-2, #d6d0c8)", fontFamily: "var(--ps-ui)", fontSize: 13, color: "var(--ps-ink)", outline: "none" }}
+                style={{
+                  height: 36,
+                  padding: "0 10px",
+                  borderRadius: 7,
+                  border: "1px solid #d6d0c8",
+                  fontFamily: "system-ui, sans-serif",
+                  fontSize: 13,
+                  color: "#14110D",
+                  background: "#fff",
+                  outline: "none",
+                  pointerEvents: "auto",
+                  userSelect: "text",
+                  WebkitUserSelect: "text",
+                }}
               />
             </label>
 
             <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <span style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--ps-ui)" }}>Ämne</span>
+              <span style={{ fontSize: 11, color: "#6B6459", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "system-ui, sans-serif" }}>Ämne</span>
               <input
+                type="text"
                 list="new-doc-subjects"
                 value={newDocSubject}
                 onChange={e => setNewDocSubject(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && confirmNewDocument()}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNewDocument(); } }}
                 placeholder="Välj eller skriv ämne…"
-                style={{ height: 36, padding: "0 10px", borderRadius: 7, border: "1px solid var(--ps-rule-2, #d6d0c8)", fontFamily: "var(--ps-ui)", fontSize: 13, color: "var(--ps-ink)", outline: "none" }}
+                style={{
+                  height: 36,
+                  padding: "0 10px",
+                  borderRadius: 7,
+                  border: "1px solid #d6d0c8",
+                  fontFamily: "system-ui, sans-serif",
+                  fontSize: 13,
+                  color: "#14110D",
+                  background: "#fff",
+                  outline: "none",
+                  pointerEvents: "auto",
+                  userSelect: "text",
+                  WebkitUserSelect: "text",
+                }}
               />
               <datalist id="new-doc-subjects">
                 {SO_SUBJECTS.map(s => <option key={s} value={s} />)}

@@ -79,37 +79,42 @@ const LAYOUT_NAMES: Record<string, string> = {
   exam:      "Officiellt",
 };
 
-/* ── Design presets ──────────────────────────────────────────────────────── */
+/* ── Design presets ──────────────────────────────────────────────────────────
+ *  v4: En preset = en kombo av cover-mall + matchande sektionsstil + accentfärg.
+ *  Inga "fria" layout-/font-/papper-sliders längre — mallen är opinionerad
+ *  (se README från Forsattsblad-handoff).
+ *  Skolverket-klassisk är default. Övriga fem motsvarar handoff:ns cover-mallar.
+ * ───────────────────────────────────────────────────────────────────────── */
 const DESIGN_PRESETS: Array<{ id: string; name: string; desc: string; accent: string; design: Partial<import("@/lib/test-types").DesignSettings> }> = [
   {
-    id: "skolverket", name: "Skolverket", desc: "Officiell, neutral",
+    id: "skolverket", name: "Skolverket", desc: "Officiell · klassisk",
     accent: "#1E3A5F",
-    design: { layout: "exam", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 24, mcMarker: "square", pointsStyle: "italic", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+    design: { coverTemplate: "official", layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 24, mcMarker: "square", pointsStyle: "italic", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "editorial", name: "Editorial", desc: "Som en tidskrift",
-    accent: "#7A1F2B",
-    design: { layout: "editorial", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "cream", cardStyle: "gutter", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "circle", pointsStyle: "italic", margin: 24, bodySize: 11.5, dropCap: "filled", watermark: "", density: "spacious", sectionDivider: "ornament", showMeta: true, headerOrnament: "rule", footerStyle: "hairline", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
-  },
-  {
-    id: "academic", name: "Akademiskt", desc: "Klassiskt prov",
+    id: "editorial-index", name: "Editorial", desc: "Italic · magasin",
     accent: "#1E5F5C",
-    design: { layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "framed", pageFrame: "thin", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "box", margin: 22, bodySize: 11, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+    design: { coverTemplate: "editorial-index", layout: "editorial", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "circle", pointsStyle: "italic", margin: 24, bodySize: 11.5, dropCap: "off", watermark: "", density: "spacious", sectionDivider: "editorial-rule", showMeta: false, headerOrnament: "none", footerStyle: "minimal", titleWeight: 400, titleTransform: "none", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: true },
   },
   {
-    id: "modern", name: "Modern", desc: "Ren, geometrisk",
-    accent: "#2C2C2C",
-    design: { layout: "minimal", headingFont: "geist", bodyFont: "dm-sans", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "pill", margin: 20, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "hairline", showMeta: false, headerOrnament: "none", footerStyle: "minimal", titleWeight: 500, titleTransform: "none", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+    id: "color-block", name: "Färgblock", desc: "Mättat block · vinrött",
+    accent: "#7A1F2B",
+    design: { coverTemplate: "color-block", layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "circle", pointsStyle: "italic", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "math", name: "Mattehäfte", desc: "Rutat papper",
+    id: "swiss-grid", name: "Swiss", desc: "Arkitektoniskt rutnät",
     accent: "#1E3A5F",
-    design: { layout: "minimal", headingFont: "geist", bodyFont: "geist", paperStyle: "graph", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 24, mcMarker: "square", pointsStyle: "box", margin: 18, bodySize: 11.5, dropCap: "off", watermark: "", density: "spacious", sectionDivider: "hairline", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+    design: { coverTemplate: "swiss-grid", layout: "minimal", headingFont: "geist", bodyFont: "geist", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "ink", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "pill", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "hairline", showMeta: false, headerOrnament: "none", footerStyle: "minimal", titleWeight: 500, titleTransform: "none", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
   {
-    id: "vintage", name: "Vintage", desc: "Ornament & dropcap",
-    accent: "#5C2A5C",
-    design: { layout: "classic", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "linen", cardStyle: "stamped", pageFrame: "corners", numbering: "roman", numStyle: "plain", numColor: "accent", lineStyle: "dotted", lineHeight: 22, mcMarker: "letter", pointsStyle: "italic", margin: 26, bodySize: 11.5, dropCap: "outline", watermark: "PROV", density: "spacious", sectionDivider: "ornament", showMeta: false, headerOrnament: "ornament", footerStyle: "hairline", titleWeight: 700, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
+    id: "brief", name: "Brief", desc: "Mycket luft · italic",
+    accent: "#A87F1A",
+    design: { coverTemplate: "brief", layout: "minimal", headingFont: "newsreader", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 24, mcMarker: "circle", pointsStyle: "italic", margin: 26, bodySize: 11.5, dropCap: "off", watermark: "", density: "spacious", sectionDivider: "editorial-rule", showMeta: false, headerOrnament: "none", footerStyle: "minimal", titleWeight: 400, titleTransform: "none", titleItalic: true, titleTracking: 0, titleColor: "ink", sectionItalic: true },
+  },
+  {
+    id: "imagery", name: "Bildmotiv", desc: "Bild med fade · bold",
+    accent: "#1E3A5F",
+    design: { coverTemplate: "imagery", layout: "exam", headingFont: "geist", bodyFont: "newsreader", paperStyle: "white", cardStyle: "flat", pageFrame: "none", numbering: "number", numStyle: "plain", numColor: "accent", lineStyle: "solid", lineHeight: 22, mcMarker: "square", pointsStyle: "italic", margin: 22, bodySize: 11.5, dropCap: "off", watermark: "", density: "comfortable", sectionDivider: "rule", showMeta: false, headerOrnament: "none", footerStyle: "info", titleWeight: 800, titleTransform: "uppercase", titleItalic: false, titleTracking: 0, titleColor: "ink", sectionItalic: false },
   },
 ];
 
@@ -1500,20 +1505,6 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
         >
           + Spara nuvarande som ton
         </button>
-      </PsGroup>
-
-      {/* 2. Layout-stil */}
-      <PsGroup title="Layout-stil">
-        <select
-          value={design.layout ?? "classic"}
-          onChange={e => setD({ layout: e.target.value as DesignSettings["layout"] })}
-          className="ps-input"
-          style={{ fontSize: 12.5 }}
-        >
-          {Object.entries(LAYOUT_NAMES).map(([k, name]) => (
-            <option key={k} value={k}>{name}</option>
-          ))}
-        </select>
       </PsGroup>
 
       {/* 3. Accentfärg */}
