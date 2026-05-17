@@ -8,10 +8,9 @@ import WordsearchPage from './pages/WordsearchPage';
 import { SO_SUBJECTS } from './lib/so-taxonomy';
 import type { DocumentType } from './lib/test-types';
 
-const MANIFEST_URL =
-  'https://raw.githubusercontent.com/jonathanlundinlarare-cell/Provstudio_lokal/main/releases/latest.json';
-const HTML_URL =
-  'https://raw.githubusercontent.com/jonathanlundinlarare-cell/Provstudio_lokal/main/releases/index.html';
+const BASE = 'https://raw.githubusercontent.com/jonathanlundinlarare-cell/Provstudio_lokal/main/releases';
+const MANIFEST_URL = () => `${BASE}/latest.json?t=${Date.now()}`;
+const HTML_URL     = () => `${BASE}/index.html?t=${Date.now()}`;
 
 type Page =
   | { name: 'home' }
@@ -70,11 +69,11 @@ export default function App() {
   async function silentCheck() {
     if (!window.localAPI) return;
     try {
-      const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL);
+      const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL());
       const manifest = JSON.parse(manifestText) as { version: string };
       const current = await window.localAPI.getVersion();
       if (manifest.version !== current) {
-        const html = await window.localAPI.fetchUpdate(HTML_URL);
+        const html = await window.localAPI.fetchUpdate(HTML_URL());
         setUpdate({ phase: 'available', remoteVersion: manifest.version, html });
         // Show the banner — dialog only opens on user action
       }
@@ -87,7 +86,7 @@ export default function App() {
     if (!window.localAPI) return;
     setUpdate({ phase: 'checking' });
     try {
-      const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL);
+      const manifestText = await window.localAPI.fetchUpdate(MANIFEST_URL());
       const manifest = JSON.parse(manifestText) as { version: string };
       const current = await window.localAPI.getVersion();
       if (manifest.version === current) {
@@ -95,7 +94,7 @@ export default function App() {
         setTimeout(() => setUpdate({ phase: 'idle' }), 4000);
         return;
       }
-      const html = await window.localAPI.fetchUpdate(HTML_URL);
+      const html = await window.localAPI.fetchUpdate(HTML_URL());
       setUpdate({ phase: 'available', remoteVersion: manifest.version, html });
       setShowUpdateDialog(true);
     } catch {
