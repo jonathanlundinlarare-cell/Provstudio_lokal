@@ -32,6 +32,7 @@ export default function App() {
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [update, setUpdate] = useState<UpdateState>({ phase: 'idle' });
   const [installing, setInstalling] = useState(false);
+  const [isPrintMode] = useState(() => !!new URLSearchParams(window.location.search).get('print'));
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [newDocDialog, setNewDocDialog] = useState<DocumentType | null>(null);
   const [newDocTitle, setNewDocTitle]   = useState('');
@@ -53,8 +54,15 @@ export default function App() {
       // Hantera ?print=docId — öppnat av Electron för utskrift/PDF-export
       const params = new URLSearchParams(window.location.search);
       const printDocId = params.get('print');
-      if (printDocId && documents.get(printDocId)) {
-        setPage({ name: 'editor', documentId: printDocId });
+      if (printDocId) {
+        const printDoc = documents.get(printDocId);
+        if (printDoc) {
+          if (printDoc.doc_type === 'wordsearch') {
+            setPage({ name: 'wordsearch', documentId: printDocId });
+          } else {
+            setPage({ name: 'editor', documentId: printDocId });
+          }
+        }
       }
       if (window.localAPI) {
         const v = await window.localAPI.getVersion();
@@ -377,6 +385,7 @@ export default function App() {
           <WordsearchPage
             documentId={page.documentId}
             onBack={() => setPage({ name: 'home' })}
+            printMode={isPrintMode}
           />
         )}
       </div>

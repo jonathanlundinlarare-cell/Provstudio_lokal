@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from "react";
-import { Trash2, X, Minus } from "lucide-react";
+import { Trash2, X, Minus, Upload, ImageOff } from "lucide-react";
 import type { Question, QuestionType, MatchingPair, WordSearchEntry } from "@/lib/test-types";
 import { generateWordSearch } from "@/lib/wordsearch-gen";
 import { RichTextEditor } from "./RichTextEditor";
@@ -1169,9 +1169,47 @@ function TypeSpecificFields({
     case "image":
       return (
         <Collapser title="Bild">
-          <ModalField label="Bild-URL">
+          {/* Preview */}
+          {(c.imageUrl as string) ? (
+            <div style={{ marginBottom: 8, borderRadius: 6, overflow: "hidden", border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)", position: "relative" }}>
+              <img
+                src={c.imageUrl as string}
+                alt=""
+                style={{ display: "block", maxWidth: "100%", maxHeight: 160, objectFit: "contain", margin: "0 auto" }}
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+              <button
+                type="button"
+                onClick={() => patchContent({ imageUrl: "" })}
+                title="Ta bort bild"
+                style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 4, cursor: "pointer", color: "#fff", padding: "2px 5px", display: "flex", alignItems: "center" }}
+              >
+                <ImageOff size={12} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 8, height: 80, borderRadius: 6, border: "2px dashed var(--ps-rule-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ps-ink-4)", fontSize: 11, gap: 5 }}>
+              <ImageOff size={14} /> Ingen bild vald
+            </div>
+          )}
+
+          {/* Upload from disk */}
+          {window.localAPI?.pickImage && (
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await window.localAPI!.pickImage!();
+                if (res) patchContent({ imageUrl: res.dataUrl });
+              }}
+              style={{ width: "100%", marginBottom: 8, padding: "6px 0", border: "1px dashed var(--ps-rule-2)", borderRadius: 5, background: "none", cursor: "pointer", color: "var(--ps-ink-2)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            >
+              <Upload size={13} /> Välj bild från disk
+            </button>
+          )}
+
+          <ModalField label="Eller ange URL">
             <input
-              value={(c.imageUrl as string) ?? ""}
+              value={(c.imageUrl as string)?.startsWith("data:") ? "" : ((c.imageUrl as string) ?? "")}
               onChange={(e) => patchContent({ imageUrl: e.target.value })}
               placeholder="https://..."
               style={psInput}
@@ -1265,9 +1303,44 @@ function TypeSpecificFields({
       return (
         <>
           <Collapser title="Diagrambild">
-            <ModalField label="Bild-URL">
+            {/* Preview */}
+            {(c.imageUrl as string) ? (
+              <div style={{ marginBottom: 8, borderRadius: 6, overflow: "hidden", border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)", position: "relative" }}>
+                <img
+                  src={c.imageUrl as string}
+                  alt=""
+                  style={{ display: "block", maxWidth: "100%", maxHeight: 140, objectFit: "contain", margin: "0 auto" }}
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+                <button
+                  type="button"
+                  onClick={() => patchContent({ imageUrl: "" })}
+                  title="Ta bort bild"
+                  style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 4, cursor: "pointer", color: "#fff", padding: "2px 5px", display: "flex", alignItems: "center" }}
+                >
+                  <ImageOff size={12} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginBottom: 8, height: 60, borderRadius: 6, border: "2px dashed var(--ps-rule-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ps-ink-4)", fontSize: 11, gap: 5 }}>
+                <ImageOff size={14} /> Ingen bild vald
+              </div>
+            )}
+            {window.localAPI?.pickImage && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await window.localAPI!.pickImage!();
+                  if (res) patchContent({ imageUrl: res.dataUrl });
+                }}
+                style={{ width: "100%", marginBottom: 8, padding: "6px 0", border: "1px dashed var(--ps-rule-2)", borderRadius: 5, background: "none", cursor: "pointer", color: "var(--ps-ink-2)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+              >
+                <Upload size={13} /> Välj bild från disk
+              </button>
+            )}
+            <ModalField label="Eller ange URL">
               <input
-                value={(c.imageUrl as string) ?? ""}
+                value={(c.imageUrl as string)?.startsWith("data:") ? "" : ((c.imageUrl as string) ?? "")}
                 onChange={(e) => patchContent({ imageUrl: e.target.value })}
                 placeholder="https://..."
                 style={psInput}

@@ -159,6 +159,56 @@ ipcMain.handle('export-pdf', async (_event, docId, suggestedTitle) => {
   return { success: false };
 });
 
+ipcMain.handle('pick-image', async () => {
+  const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: 'Välj bild',
+    filters: [{ name: 'Bilder', extensions: ['jpg','jpeg','png','gif','webp','svg'] }],
+    properties: ['openFile'],
+  });
+  if (!filePaths || !filePaths[0]) return null;
+  const fp = filePaths[0];
+  const ext = path.extname(fp).toLowerCase().slice(1);
+  const mimeMap = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', svg:'image/svg+xml' };
+  const mime = mimeMap[ext] || 'image/jpeg';
+  const b64 = fs.readFileSync(fp).toString('base64');
+  return { dataUrl: `data:${mime};base64,${b64}` };
+});
+
+ipcMain.handle('export-pdf-wordsearch', async (_event, docId, suggestedTitle) => {
+  const win = new BrowserWindow({
+    width: 860, height: 1200, show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true, nodeIntegration: false,
+    },
+  });
+  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
+  win.loadURL(url);
+  await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  let pdfBuffer;
+  try {
+    pdfBuffer = await win.webContents.printToPDF({
+      pageSize: 'A4', printBackground: true,
+      margins: { marginType: 'none' },
+    });
+  } finally {
+    win.destroy();
+  }
+
+  const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Spara PDF — Ordpussel',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    defaultPath: `${(suggestedTitle || 'ordpussel').replace(/[<>:"/\\|?*]/g, '_')}.pdf`,
+  });
+  if (!canceled && filePath && pdfBuffer) {
+    fs.writeFileSync(filePath, pdfBuffer);
+    return { success: true };
+  }
+  return { success: false };
+});
+
 ipcMain.handle('export-file', async (_event, data) => {
   const { filePath } = await dialog.showSaveDialog(mainWindow, {
     title: 'Exportera dokument',
