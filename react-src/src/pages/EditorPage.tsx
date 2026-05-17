@@ -118,6 +118,11 @@ const DESIGN_PRESETS: Array<{ id: string; name: string; desc: string; accent: st
 ];
 
 /* ── Font options ────────────────────────────────────────────────────────── */
+/** Tar bort HTML-taggar från en sträng (för titlar som sparats med richText-formatering) */
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]+>/g, '').trim() || str.trim();
+}
+
 const FONT_OPTIONS = [
   { id: "newsreader",   name: "Newsreader",      category: "Serif · varm" },
   { id: "instrument",  name: "Instrument Serif", category: "Serif · display" },
@@ -426,7 +431,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           </button>
           <div style={{ width: 1, height: 18, background: "var(--ps-rule)" }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ps-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Namnlöst dokument"}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ps-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{stripHtml(title) || "Namnlöst dokument"}</span>
             <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)" }}>{design.subtitle ?? ""}{design.subtitle ? " · " : ""}{qCount} frågor · {totalPts} p</span>
           </div>
 
