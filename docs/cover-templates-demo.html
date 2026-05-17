@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Provstudio · Försättsbladsmallar (demo)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:ital,wght@0,400..800;1,400..800&family=Geist:wght@300..800&family=Geist+Mono:wght@300..600&display=swap" rel="stylesheet">
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #EFEBE2;
+      font-family: 'Geist', system-ui, sans-serif;
+      color: #14110D;
+      padding: 40px 32px 80px;
+    }
+    h1.demo-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-weight: 400;
+      font-size: 38px;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+    p.demo-sub {
+      font-size: 14px;
+      color: #6B6459;
+      margin: 0 0 32px;
+      max-width: 720px;
+      line-height: 1.55;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+      gap: 40px;
+      max-width: 1700px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .card-label {
+      padding: 14px 18px;
+      background: #fff;
+      border-bottom: 1px solid #ECE6D8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-label .name {
+      font-family: 'Geist', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      color: #14110D;
+    }
+    .card-label .id {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10.5px;
+      color: #9A9286;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 794/1123;
+      background: #F4F1EA;
+      overflow: hidden;
+    }
+    .stage-inner {
+      width: 794px;
+      height: 1123px;
+      transform-origin: top left;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="demo-title">Försättsblad — sex moderna mallar</h1>
+  <p class="demo-sub">
+    Demonstration av nya cover-mallar för Provstudio. Mallarna är pixelperfekta
+    A4-sidor (794×1123 px). Texten blir <code>contentEditable</code> i appen.
+    Klicka inte i demon — det här är bara en preview. Godkänn nedan för att
+    integrera i appen.
+  </p>
+
+  <div class="gallery" id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useRef, useState } = React;
+
+    /* ───────────── Färger ───────────── */
+    const PAPER = "#FFFFFF";
+    const INK   = "#14110D";
+    const INK_2 = "#3A3530";
+    const INK_3 = "#6B6459";
+    const INK_4 = "#9A9286";
+    const RULE  = "#E4DED1";
+    const CREAM = "#F4F1EA";
+
+    const sampleDoc = {
+      title: "Mellankrigstiden",
+      subtitle: "Versailles, Weimar och vägen mot kriget",
+      course: "Historia 1b",
+      school: "Hjalmar Strömerskolan",
+      teacher: "L. Andersson",
+      date: "13 mars 2026",
+      grade: "Åk 9",
+      duration: "80 min",
+      points: 42,
+      questionCount: 14,
+      examNumber: "03",
+    };
+
+    /* ───────────── Hjälpkomponenter ───────────── */
+    const MetaCell = ({ label, value }) => (
+      <div>
+        <div style={{ fontSize: 9, letterSpacing: "0.16em", color: INK_4, marginBottom: 6, textTransform: "uppercase" }}>{label}</div>
+        <div style={{ fontSize: 13, color: INK, letterSpacing: "0.02em" }}>{value}</div>
+      </div>
+    );
+
+    const SigField = ({ label }) => (
+      <div>
+        <div style={{ borderBottom: `1px solid ${INK_3}`, height: 22 }} />
+        <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, letterSpacing: "0.2em", color: INK_4, marginTop: 6, textTransform: "uppercase" }}>{label}</div>
+      </div>
+    );
+
+    const metaLabelTd = {
+      border: `1px solid ${RULE}`, padding: "10px 12px",
+      fontFamily: "'Geist Mono', monospace", fontSize: 9.5,
+      letterSpacing: "0.14em", color: INK_3, textTransform: "uppercase",
+      width: 90, verticalAlign: "middle",
+    };
+    const metaValTd = {
+      border: `1px solid ${RULE}`, padding: "10px 12px", height: 28,
+    };
+
+    /* ─────────── 01 · EDITORIAL INDEX ─────────── */
+    const CoverEditorialIndex = ({ doc, accent = "#1E5F5C" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: PAPER, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        position: "relative", overflow: "hidden",
+        padding: "64px 70px",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between",
+                      fontFamily: "'Geist Mono', monospace", fontSize: 11, color: INK_3,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      paddingBottom: 14, borderBottom: `1px solid ${INK}` }}>
+          <span>{doc.school}</span>
+          <span style={{ color: accent }}>{doc.course}</span>
+          <span>Prov nr. {doc.examNumber} / VT 26</span>
+        </div>
+
+        <div style={{ marginTop: "auto", maxWidth: 540 }}>
+          <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 11,
+                        letterSpacing: "0.16em", color: accent,
+                        textTransform: "uppercase", marginBottom: 18 }}>
+            Skriftligt prov · Individuellt
+          </div>
+          <h1 style={{ fontFamily: "'Instrument Serif', serif",
+                       fontSize: 116, lineHeight: 0.92, margin: 0,
+                       letterSpacing: "-0.025em", color: INK, fontWeight: 400 }}>
+            {doc.title}<span style={{ color: accent }}>.</span>
+          </h1>
+          <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
+                      fontSize: 22, color: INK_2, lineHeight: 1.32,
+                      margin: "18px 0 0", maxWidth: 480 }}>
+            {doc.subtitle}
+          </p>
+        </div>
+
+        <div style={{ marginTop: 56, paddingTop: 18, borderTop: `1px solid ${INK}`,
+                      display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24,
+                      fontFamily: "'Geist Mono', monospace", fontSize: 11,
+                      color: INK_3, letterSpacing: "0.05em" }}>
+          <MetaCell label="Datum" value={doc.date} />
+          <MetaCell label="Tid" value={doc.duration} />
+          <MetaCell label="Frågor" value={`${doc.questionCount} st`} />
+          <MetaCell label="Poäng" value={`${doc.points} p`} />
+        </div>
+      </div>
+    );
+
+    /* ─────────── 02 · COLOR BLOCK ─────────── */
+    const CoverColorBlock = ({ doc, accent = "#7A1F2B" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: PAPER, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ padding: "70px 70px 0", height: "38%",
+                      display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                        fontFamily: "'Geist Mono', monospace", fontSize: 10,
+                        letterSpacing: "0.18em", color: INK_3, textTransform: "uppercase",
+                        marginBottom: 28 }}>
+            <span>{doc.school}</span>
+            <span>{doc.course}</span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 18, alignItems: "center" }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: 8,
+              background: accent, color: "white",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "'Instrument Serif', serif", fontSize: 44, lineHeight: 1,
+            }}>P</div>
+            <div>
+              <div style={{ fontSize: 11, color: INK_4, letterSpacing: "0.12em",
+                            textTransform: "uppercase", marginBottom: 4 }}>
+                Prov · Kapitel {doc.examNumber}
+              </div>
+              <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22,
+                            fontStyle: "italic", color: INK, letterSpacing: "-0.01em" }}>
+                {doc.subtitle}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: "auto", paddingBottom: 28,
+                        display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 18 }}>
+            {[
+              { l: "Namn", v: "" },
+              { l: "Klass", v: "" },
+              { l: "Datum", v: doc.date },
+              { l: "Poäng", v: `${doc.points} p · ${doc.duration}` },
+            ].map((m, i) => (
+              <div key={i}>
+                <div style={{ fontSize: 9.5, letterSpacing: "0.18em", color: INK_4,
+                              textTransform: "uppercase", marginBottom: 8 }}>{m.l}</div>
+                <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 14,
+                              fontStyle: "italic", color: INK,
+                              minHeight: 22,
+                              borderBottom: m.v ? "none" : `1px solid ${INK_3}` }}>
+                  {m.v || " "}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0, height: "62%",
+          background: accent, color: "white", padding: "82px 70px 76px",
+          display: "flex", flexDirection: "column", justifyContent: "center",
+        }}>
+          <div style={{ position: "absolute", inset: 0, opacity: 0.08,
+                        backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+                        backgroundSize: "20px 20px" }} />
+
+          <div style={{ position: "relative" }}>
+            <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 132,
+                         lineHeight: 0.92, margin: 0, letterSpacing: "-0.03em",
+                         fontWeight: 400 }}>
+              {doc.title}
+            </h1>
+            <div style={{ marginTop: 26, height: 1, background: "rgba(255,255,255,0.4)", width: 120 }} />
+            <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
+                        fontSize: 22, lineHeight: 1.4, marginTop: 22, opacity: 0.92,
+                        maxWidth: 480 }}>
+              Läs varje fråga noggrant. Visa hur du tänker — det räcker inte med rätt svar.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+
+    /* ─────────── 03 · SWISS GRID ─────────── */
+    const CoverSwiss = ({ doc, accent = "#1E3A5F" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: CREAM, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        padding: "60px 64px",
+        position: "relative", overflow: "hidden",
+        display: "flex", flexDirection: "column",
+      }}>
+        {[[40, 40], [754, 40], [40, 1083], [754, 1083]].map(([x, y], i) => (
+          <div key={i} style={{ position: "absolute", left: x - 6, top: y - 6,
+                                width: 12, height: 12,
+                                borderLeft: i % 2 === 0 ? `1px solid ${INK_3}` : "none",
+                                borderRight: i % 2 === 1 ? `1px solid ${INK_3}` : "none",
+                                borderTop: i < 2 ? `1px solid ${INK_3}` : "none",
+                                borderBottom: i >= 2 ? `1px solid ${INK_3}` : "none" }} />
+        ))}
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                      fontFamily: "'Geist Mono', monospace", fontSize: 10, color: INK,
+                      letterSpacing: "0.16em", textTransform: "uppercase",
+                      paddingBottom: 14, borderBottom: `1px solid ${INK_3}` }}>
+          <span>{doc.school}</span>
+          <span style={{ color: INK_3 }}>VT 2026</span>
+        </div>
+
+        <div style={{ marginTop: 72, display: "grid", gridTemplateColumns: "auto 1fr", gap: 36,
+                      alignItems: "start" }}>
+          <div>
+            <div style={{ width: 220, position: "relative" }}>
+              <div style={{ border: `1px solid ${INK}`, padding: "20px 18px 14px",
+                            position: "relative" }}>
+                <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
+                              fontSize: 168, lineHeight: 0.78, color: INK,
+                              letterSpacing: "-0.03em" }}>
+                  {doc.examNumber}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ paddingTop: 26 }}>
+            <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10.5,
+                          letterSpacing: "0.2em", color: accent,
+                          textTransform: "uppercase", marginBottom: 14 }}>
+              {doc.course}
+            </div>
+            <h1 style={{ fontFamily: "'Geist', sans-serif", fontSize: 64,
+                         fontWeight: 500, lineHeight: 0.96, margin: 0,
+                         letterSpacing: "-0.02em" }}>
+              {doc.title}
+            </h1>
+            <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
+                        fontSize: 20, color: INK_2, lineHeight: 1.35,
+                        margin: "18px 0 0", maxWidth: 380 }}>
+              {doc.subtitle}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "auto", border: `1px solid ${INK}` }}>
+          {[
+            ["NAMN",     "",                       "KLASS",   doc.grade],
+            ["DATUM",    doc.date,                 "TID",     doc.duration],
+            ["FRÅGOR",   `${doc.questionCount} st`,"POÄNG",   `${doc.points} p`],
+            ["LÄRARE",   doc.teacher,              "BETYG",   "E · C · A"],
+          ].map((row, i, arr) => (
+            <div key={i} style={{
+              display: "grid", gridTemplateColumns: "100px 1fr 100px 1fr",
+              borderBottom: i < arr.length - 1 ? `1px solid ${INK}` : "none",
+              fontFamily: "'Geist Mono', monospace", fontSize: 10,
+            }}>
+              <div style={{ padding: "10px 12px", background: INK, color: "white",
+                            letterSpacing: "0.16em" }}>{row[0]}</div>
+              <div style={{ padding: "10px 12px", letterSpacing: "0.04em", color: INK_2,
+                            borderRight: `1px solid ${INK}` }}>{row[1] || " "}</div>
+              <div style={{ padding: "10px 12px", background: INK, color: "white",
+                            letterSpacing: "0.16em" }}>{row[2]}</div>
+              <div style={{ padding: "10px 12px", letterSpacing: "0.04em", color: INK_2 }}>{row[3]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    /* ─────────── 04 · BRIEF ─────────── */
+    const CoverBrief = ({ doc, accent = "#A87F1A" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: PAPER, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        padding: "60px 80px",
+        position: "relative", overflow: "hidden",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ position: "absolute", inset: 40,
+                      border: `1px solid ${RULE}`, pointerEvents: "none" }} />
+
+        <div style={{ margin: "auto", textAlign: "center", maxWidth: 580 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 64 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ width: 6, height: 6, borderRadius: 99,
+                                    background: i === 1 ? accent : INK }} />
+            ))}
+          </div>
+
+          <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 11,
+                        letterSpacing: "0.32em", color: accent,
+                        textTransform: "uppercase", marginBottom: 36 }}>
+            — Kapitel {doc.examNumber} —
+          </div>
+
+          <h1 style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
+                       fontSize: 108, lineHeight: 0.96, margin: 0,
+                       letterSpacing: "-0.025em", fontWeight: 400 }}>
+            {doc.title}
+          </h1>
+
+          <div style={{ width: 40, height: 1, background: INK,
+                        margin: "44px auto" }} />
+
+          <p style={{ fontFamily: "'Instrument Serif', serif", fontSize: 19,
+                      color: INK_2, lineHeight: 1.55, fontStyle: "italic",
+                      margin: 0, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>
+            {doc.subtitle}
+          </p>
+
+          <div style={{ marginTop: 80, fontFamily: "'Geist Mono', monospace",
+                        fontSize: 10, letterSpacing: "0.32em", color: INK_3,
+                        textTransform: "uppercase",
+                        display: "flex", justifyContent: "center", gap: 32 }}>
+            <span>{doc.duration}</span>
+            <span style={{ color: RULE }}>·</span>
+            <span>{doc.questionCount} frågor</span>
+            <span style={{ color: RULE }}>·</span>
+            <span>{doc.points} p</span>
+          </div>
+        </div>
+
+        <div style={{ position: "absolute", left: 80, right: 80, bottom: 88,
+                      display: "grid", gridTemplateColumns: "2fr 1fr", gap: 40 }}>
+          <SigField label="Namn" />
+          <SigField label="Klass" />
+        </div>
+      </div>
+    );
+
+    /* ─────────── 05 · OFFICIELLT ─────────── */
+    const CoverOfficial = ({ doc, accent = "#1E3A5F" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: PAPER, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        padding: "80px 80px 60px",
+        position: "relative", overflow: "hidden",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 22, paddingBottom: 18,
+                      borderBottom: "1.5px solid #111" }}>
+          <div style={{
+            width: 76, height: 76, border: `2px solid ${accent}`, borderRadius: 4,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            color: accent, fontFamily: "'Geist Mono', monospace", fontSize: 9, lineHeight: 1.3,
+            textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0,
+          }}>
+            <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Newsreader', serif",
+                          letterSpacing: 0, marginBottom: 2 }}>P</div>
+            <div>{doc.course.split(" ")[0]}</div>
+            <div>VT 26</div>
+          </div>
+          <div style={{ flex: 1, paddingTop: 4 }}>
+            <div style={{ fontSize: 11, color: INK_3, letterSpacing: "0.14em",
+                          textTransform: "uppercase", marginBottom: 6,
+                          fontFamily: "'Geist Mono', monospace" }}>
+              {doc.school} · {doc.course}
+            </div>
+            <h1 style={{ fontFamily: "'Newsreader', serif", fontSize: 38, margin: 0, lineHeight: 1.05,
+                         letterSpacing: "0.01em", textTransform: "uppercase", fontWeight: 700 }}>
+              {doc.title}
+            </h1>
+            <div style={{ fontSize: 14, color: INK_2, fontStyle: "italic", marginTop: 4,
+                          fontFamily: "'Newsreader', serif" }}>
+              {doc.subtitle}
+            </div>
+          </div>
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 22, fontSize: 12 }}>
+          <tbody>
+            <tr>
+              <td style={metaLabelTd}>NAMN</td>
+              <td style={metaValTd}></td>
+              <td style={metaLabelTd}>KLASS</td>
+              <td style={metaValTd}></td>
+            </tr>
+            <tr>
+              <td style={metaLabelTd}>DATUM</td>
+              <td style={metaValTd}></td>
+              <td style={metaLabelTd}>LÄRARE</td>
+              <td style={metaValTd}></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={{ borderTop: `1px solid ${RULE}`, borderBottom: `1px solid ${RULE}`,
+                      marginTop: 24, padding: "14px 0",
+                      display: "grid", gridTemplateColumns: "1fr 1fr 1fr", textAlign: "center" }}>
+          {[
+            [`60 minuter`, "Tid"],
+            ["Inga", "Hjälpmedel"],
+            [`${doc.points}`, "Maxpoäng"],
+          ].map(([val, label], i) => (
+            <div key={i}>
+              <div style={{ fontFamily: "'Newsreader', serif", fontSize: 22,
+                            fontWeight: val.match(/^\d/) ? 700 : 600,
+                            color: INK }}>
+                {val}
+              </div>
+              <div style={{ fontSize: 11, color: INK_3, marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, color: INK_2, fontStyle: "italic",
+                      fontFamily: "'Newsreader', serif", marginTop: 12 }}>
+          Skriv tydligt med blå eller svart penna. Räkna med att redovisa hur du tänkt även när det inte uttryckligen efterfrågas.
+        </div>
+
+        <div style={{ marginTop: "auto", paddingTop: 12,
+                      display: "flex", justifyContent: "space-between",
+                      fontSize: 11, color: INK_3, fontFamily: "'Geist Mono', monospace" }}>
+          <span>{doc.course}</span>
+          <span>Sida 1 / 3</span>
+        </div>
+      </div>
+    );
+
+    /* ─────────── 06 · BILDMOTIV ─────────── */
+    const SplitTitle = ({ text, accent }) => {
+      const t = text || "";
+      if (t.length < 4) return <span>{t}</span>;
+      const a = Math.floor(t.length / 3);
+      const b = Math.floor(t.length * 2 / 3);
+      return (
+        <>
+          <span style={{ color: INK }}>{t.slice(0, a)}</span>
+          <span style={{ color: INK_4 }}>{t.slice(a, b)}</span>
+          <span style={{ color: accent }}>{t.slice(b)}</span>
+        </>
+      );
+    };
+
+    const PaintingPlaceholder = ({ accent }) => (
+      <svg viewBox="0 0 794 540" preserveAspectRatio="xMidYMid slice"
+           style={{ width: "100%", height: "100%", display: "block" }}>
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#D5C7A6" />
+            <stop offset="1" stopColor="#B8A57E" />
+          </linearGradient>
+          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#7A6442" />
+            <stop offset="1" stopColor="#4A3C28" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="794" height="320" fill="url(#sky)" />
+        <circle cx="560" cy="180" r="56" fill="#E8D5A6" opacity="0.7" />
+        <path d="M0 280 L120 230 L240 270 L380 220 L520 250 L660 215 L794 240 L794 320 L0 320 Z"
+              fill="#8C7E60" opacity="0.7" />
+        <g fill="#5C4A30" opacity="0.9">
+          <rect x="110" y="260" width="60" height="80" />
+          <polygon points="110,260 140,235 170,260" />
+          <rect x="180" y="250" width="40" height="90" />
+          <rect x="240" y="240" width="80" height="100" />
+          <polygon points="240,240 280,215 320,240" />
+          <rect x="460" y="260" width="50" height="80" />
+          <rect x="540" y="245" width="70" height="95" />
+          <polygon points="540,245 575,220 610,245" />
+          <rect x="640" y="265" width="40" height="75" />
+        </g>
+        <rect x="0" y="320" width="794" height="220" fill="url(#ground)" />
+        <g fill="#2C2418" opacity="0.85">
+          {Array.from({ length: 30 }).map((_, i) => {
+            const x = (i * 28) + 20 + ((i % 3) * 4);
+            const y = 360 + ((i % 4) * 15);
+            return (
+              <g key={i} transform={`translate(${x}, ${y})`}>
+                <circle cx="0" cy="0" r="7" />
+                <rect x="-9" y="6" width="18" height="42" rx="3" />
+              </g>
+            );
+          })}
+        </g>
+        <rect x="0" y="0" width="794" height="540" fill={accent} opacity="0.08" />
+      </svg>
+    );
+
+    const CoverImagery = ({ doc, accent = "#1E3A5F" }) => (
+      <div style={{
+        width: 794, height: 1123,
+        background: PAPER, color: INK,
+        fontFamily: "'Geist', sans-serif",
+        position: "relative", overflow: "hidden",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ padding: "80px 76px 0", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10.5,
+                        letterSpacing: "0.22em", color: INK_3, textTransform: "uppercase",
+                        marginBottom: 26 }}>
+            {doc.school} · {doc.course}
+          </div>
+
+          <h1 style={{ fontFamily: "'Geist', sans-serif", fontSize: 72, margin: 0,
+                       lineHeight: 0.96, fontWeight: 800, letterSpacing: "-0.025em",
+                       textTransform: "uppercase", wordBreak: "break-word" }}>
+            <SplitTitle text={doc.title} accent={accent} />
+          </h1>
+
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: 8,
+                        marginTop: 14 }}>
+            <div style={{ fontFamily: "'Newsreader', serif", fontStyle: "italic",
+                          fontSize: 22, color: INK_2 }}>
+              {doc.subtitle}
+            </div>
+            <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10,
+                           letterSpacing: "0.16em", color: INK_4,
+                           padding: "2px 6px", border: `1px solid ${RULE}`, borderRadius: 3 }}>
+              V.{doc.examNumber}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "center", gap: 40, marginTop: 38,
+                        fontSize: 13, color: INK_2 }}>
+            <span>
+              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10.5,
+                              letterSpacing: "0.16em", color: accent,
+                              textTransform: "uppercase", marginRight: 8 }}>Namn</span>
+              <span style={{ display: "inline-block", borderBottom: `1px solid ${INK_3}`,
+                              minWidth: 220, height: 18 }}>&nbsp;</span>
+            </span>
+            <span>
+              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10.5,
+                              letterSpacing: "0.16em", color: accent,
+                              textTransform: "uppercase", marginRight: 8 }}>Klass</span>
+              <span style={{ display: "inline-block", borderBottom: `1px solid ${INK_3}`,
+                              minWidth: 90, height: 18 }}>&nbsp;</span>
+            </span>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "auto", height: 540, position: "relative",
+                      WebkitMaskImage: "linear-gradient(180deg, transparent 0%, black 28%, black 92%, transparent 100%)",
+                      maskImage: "linear-gradient(180deg, transparent 0%, black 28%, black 92%, transparent 100%)" }}>
+          <PaintingPlaceholder accent={accent} />
+        </div>
+      </div>
+    );
+
+    /* ─────────── Gallery med auto-skalning ─────────── */
+    const Card = ({ name, id, accent, Component }) => {
+      const stageRef = useRef(null);
+      const [scale, setScale] = useState(1);
+
+      useEffect(() => {
+        const ro = new ResizeObserver(entries => {
+          for (const e of entries) {
+            const w = e.contentRect.width;
+            setScale(w / 794);
+          }
+        });
+        if (stageRef.current) ro.observe(stageRef.current);
+        return () => ro.disconnect();
+      }, []);
+
+      return (
+        <div className="card">
+          <div className="card-label">
+            <span className="name">{name}</span>
+            <span className="id">{id}</span>
+          </div>
+          <div className="stage" ref={stageRef}>
+            <div className="stage-inner" style={{ transform: `scale(${scale})` }}>
+              <Component doc={sampleDoc} accent={accent} />
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const App = () => (
+      <>
+        <Card name="01 · Editorial Index" id="editorial-index" accent="#1E5F5C" Component={CoverEditorialIndex} />
+        <Card name="02 · Färgblock"       id="color-block"     accent="#7A1F2B" Component={CoverColorBlock} />
+        <Card name="03 · Swiss grid"      id="swiss-grid"      accent="#1E3A5F" Component={CoverSwiss} />
+        <Card name="04 · Brief"           id="brief"           accent="#A87F1A" Component={CoverBrief} />
+        <Card name="05 · Officiellt"      id="official"        accent="#1E3A5F" Component={CoverOfficial} />
+        <Card name="06 · Bildmotiv"       id="imagery"         accent="#7A1F2B" Component={CoverImagery} />
+      </>
+    );
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
