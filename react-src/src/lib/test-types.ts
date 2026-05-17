@@ -133,10 +133,13 @@ export type EssayContent = {
   wordLimit?: number;
 };
 
+export type GroupSub = { text: string; lines?: number; points?: string };
+
 /** v3: Grupprubrik — samlar deluppgifter under en gemensam instruktion */
 export type GroupContent = {
   title: string;
   instructions?: string;
+  subs?: GroupSub[];
 };
 
 /** v3: Begreppsdefinition */
@@ -579,6 +582,12 @@ export type DesignSettings = {
   };
   /** Named sections with per-section accent colors */
   sections?: Array<{ id: string; name: string; color: string }>;
+  /** Visa datum-fält i elevinfo */
+  showDate?: boolean;
+  /** Visa lärare-fält i elevinfo */
+  showTeacher?: boolean;
+  /** Format för poängvisning: plain = "3p", blank = "_/3p", grades = "E□ C□ A□" */
+  pointsFormat?: "plain" | "blank" | "grades";
 };
 
 export const DEFAULT_DESIGN: DesignSettings = {

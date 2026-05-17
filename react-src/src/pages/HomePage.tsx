@@ -1,78 +1,9 @@
 import { useState } from 'react';
 import { documents } from '../lib/local-db';
 import type { LocalDocument } from '../lib/local-db';
-import type { DocumentType, DesignSettings } from '../lib/test-types';
-import { DEFAULT_DESIGN, DOCUMENT_TYPE_LABELS } from '../lib/test-types';
-import { BookOpen, FileText, Home, Search, Trash2, Copy, Pencil, Plus, Layers } from 'lucide-react';
-
-// ── Templates ────────────────────────────────────────────────────────────────
-
-type Template = {
-  id: string;
-  title: string;
-  subtitle: string;
-  docType: DocumentType;
-  icon: React.ReactNode;
-  color: string;
-  design: Partial<DesignSettings>;
-};
-
-const TEMPLATES: Template[] = [
-  {
-    id: "kortprov",
-    title: "Kortprov",
-    subtitle: "Snabbt 15–30 min · kompakt layout",
-    docType: "test",
-    icon: <FileText size={15} />,
-    color: "#1E3A5F",
-    design: { density: "compact", numStyle: "plain", duration: "30 minuter" },
-  },
-  {
-    id: "nationellt",
-    title: "Nationellt prov-layout",
-    subtitle: "Spaciöst · tydliga sektioner · 2 kolumner",
-    docType: "test",
-    icon: <FileText size={15} />,
-    color: "#1E5F5C",
-    design: { density: "spacious", numStyle: "fraga", cardStyle: "framed", headerOrnament: "rule" },
-  },
-  {
-    id: "lasforstaelse",
-    title: "Läsförståelse",
-    subtitle: "Källtext + frågor · serifftypsnitt",
-    docType: "test",
-    icon: <BookOpen size={15} />,
-    color: "#A87F1A",
-    design: { headingFont: "newsreader", bodyFont: "newsreader", density: "comfortable", numStyle: "plain" },
-  },
-  {
-    id: "matematik",
-    title: "Matematikprov",
-    subtitle: "Formel- och räkneuppgifter · extra skrivlinjer",
-    docType: "test",
-    icon: <FileText size={15} />,
-    color: "#7A1F2B",
-    design: { density: "comfortable", numStyle: "display", footerStyle: "minimal" },
-  },
-  {
-    id: "hafteSO",
-    title: "SO-häfte",
-    subtitle: "Historia / Geografi / Samhällskunskap",
-    docType: "workbook",
-    icon: <BookOpen size={15} />,
-    color: "#5C2A5C",
-    design: { headingFont: "newsreader", primaryColor: "#5C2A5C", density: "comfortable" },
-  },
-  {
-    id: "laxa",
-    title: "Läxa",
-    subtitle: "Hemuppgift · kompakt · klara sektioner",
-    docType: "homework",
-    icon: <Home size={15} />,
-    color: "#2D5A3D",
-    design: { density: "compact", numStyle: "chip", footerStyle: "minimal" },
-  },
-];
+import type { DocumentType } from '../lib/test-types';
+import { DOCUMENT_TYPE_LABELS } from '../lib/test-types';
+import { BookOpen, FileText, Home, Search, Trash2, Copy, Pencil, Plus } from 'lucide-react';
 
 type Props = {
   onOpen: (docId: string) => void;
@@ -109,15 +40,6 @@ export default function HomePage({ onOpen, onNew, onBank }: Props) {
   function handleDuplicate(doc: LocalDocument) {
     documents.duplicate(doc.id);
     refresh();
-  }
-
-  function handleFromTemplate(tpl: Template) {
-    const doc = documents.create({
-      doc_type: tpl.docType,
-      title: tpl.title,
-      design_settings: { ...DEFAULT_DESIGN, ...tpl.design } as DesignSettings,
-    });
-    onOpen(doc.id);
   }
 
   const all = documents.list();
@@ -161,30 +83,6 @@ export default function HomePage({ onOpen, onNew, onBank }: Props) {
             <Plus size={15} />
             Nytt häfte
           </button>
-        </div>
-
-        {/* Templates */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Layers size={13} className="text-[var(--ps-ink-3)]" />
-            <span className="text-xs font-medium text-[var(--ps-ink-3)] uppercase tracking-wide">Mallar</span>
-          </div>
-          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-            {TEMPLATES.map(tpl => (
-              <button
-                key={tpl.id}
-                onClick={() => handleFromTemplate(tpl)}
-                className="ps-card text-left flex flex-col gap-1 px-3 py-3 hover:border-[var(--ps-rule-2)] transition-colors"
-                style={{ border: `1.5px solid ${tpl.color}22`, borderRadius: 10 }}
-              >
-                <div className="flex items-center gap-2">
-                  <span style={{ color: tpl.color }}>{tpl.icon}</span>
-                  <span className="font-medium text-sm text-[var(--ps-ink)]">{tpl.title}</span>
-                </div>
-                <span className="text-xs text-[var(--ps-ink-3)] leading-tight">{tpl.subtitle}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Search + filter */}

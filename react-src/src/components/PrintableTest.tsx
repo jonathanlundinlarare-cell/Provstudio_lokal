@@ -448,12 +448,13 @@ function PageHeader({ layout, title, subtitle, course, school, accent, headingFo
 
 /* ─── MetaBlock variants ─────────────────────────────────────────────── */
 
-function MetaBlock({ metaStyle, accent }: { metaStyle: string; accent: string }) {
-  const fields = [
+function MetaBlock({ metaStyle, accent, showDate = true, showTeacher = true }: { metaStyle: string; accent: string; showDate?: boolean; showTeacher?: boolean }) {
+  const baseFields: { label: string; flex: number }[] = [
     { label: "Namn", flex: 2 },
     { label: "Klass", flex: 1 },
-    { label: "Datum", flex: 1 },
+    ...(showDate ? [{ label: "Datum", flex: 1 }] : []),
   ];
+  const fields = baseFields;
 
   if (metaStyle === "underline" || metaStyle === "classic") {
     return (
@@ -508,16 +509,22 @@ function MetaBlock({ metaStyle, accent }: { metaStyle: string; accent: string })
               <div style={{ borderBottom: "1px solid #AAA", height: 18 }} />
             </td>
           </tr>
-          <tr>
-            <td style={{ padding: "8px 12px", borderRight: "1px solid #C8C2B5" }}>
-              <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Datum</div>
-              <div style={{ borderBottom: "1px solid #AAA", height: 18 }} />
-            </td>
-            <td style={{ padding: "8px 12px" }}>
-              <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Lärare</div>
-              <div style={{ borderBottom: "1px solid #AAA", height: 18 }} />
-            </td>
-          </tr>
+          {(showDate || showTeacher) && (
+            <tr>
+              {showDate && (
+                <td style={{ padding: "8px 12px", borderRight: showTeacher ? "1px solid #C8C2B5" : "none" }}>
+                  <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Datum</div>
+                  <div style={{ borderBottom: "1px solid #AAA", height: 18 }} />
+                </td>
+              )}
+              {showTeacher && (
+                <td style={{ padding: "8px 12px" }}>
+                  <div style={{ fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Lärare</div>
+                  <div style={{ borderBottom: "1px solid #AAA", height: 18 }} />
+                </td>
+              )}
+            </tr>
+          )}
         </tbody>
       </table>
     );
@@ -740,11 +747,27 @@ function DropCap({ char, dropCap, accent }: { char: string; dropCap: DesignSetti
 
 /* ─── Points display ─────────────────────────────────────────────────── */
 
-function PointsDisplay({ points, style: pStyle, accent }: {
+function PointsDisplay({ points, style: pStyle, accent, format = "plain" }: {
   points: string;
   style: DesignSettings["pointsStyle"];
   accent: string;
+  format?: DesignSettings["pointsFormat"];
 }) {
+  // Format the points text based on format setting
+  let displayText = `${points} p`;
+  if (format === "blank") {
+    displayText = `___ / ${points} p`;
+  } else if (format === "grades") {
+    const boxStyle: React.CSSProperties = { display: "inline-block", width: 14, height: 14, border: "1px solid currentColor", borderRadius: 2, verticalAlign: "middle", marginLeft: 2 };
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--points-size, 10pt)", color: "#444" }}>
+        <span>E<span style={boxStyle} /></span>
+        <span>C<span style={boxStyle} /></span>
+        <span>A<span style={boxStyle} /></span>
+      </span>
+    );
+  }
+
   if (pStyle === "pill") {
     return (
       <span style={{
@@ -752,7 +775,7 @@ function PointsDisplay({ points, style: pStyle, accent }: {
         fontWeight: 600, color: accent, background: `${accent}18`,
         borderRadius: 999, padding: "0.5mm 3mm", whiteSpace: "nowrap",
       }}>
-        {points} p
+        {displayText}
       </span>
     );
   }
@@ -763,11 +786,13 @@ function PointsDisplay({ points, style: pStyle, accent }: {
         fontWeight: 600, border: `1px solid ${accent}`,
         borderRadius: "1mm", padding: "0.5mm 2.5mm", whiteSpace: "nowrap",
       }}>
-        {points} p
+        {displayText}
       </span>
     );
   }
   if (pStyle === "stamp") {
+    // For stamp: use plain "3p" without space for plain format
+    const stampText = format === "plain" ? `${points}p` : displayText;
     return (
       <span style={{
         display: "inline-block", fontSize: "var(--points-size, 10pt)",
@@ -775,14 +800,14 @@ function PointsDisplay({ points, style: pStyle, accent }: {
         borderRadius: 2, padding: "0.5mm 2.5mm", whiteSpace: "nowrap",
         textTransform: "uppercase", letterSpacing: "0.06em",
       }}>
-        {points}p
+        {stampText}
       </span>
     );
   }
   // italic (default)
   return (
     <span style={{ fontSize: "var(--points-size, 10pt)", color: "#555", fontStyle: "italic", whiteSpace: "nowrap" }}>
-      ({points} p)
+      ({displayText})
     </span>
   );
 }
@@ -1349,6 +1374,8 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
   const sectionItalic = design.sectionItalic ?? false;
   const density      = design.density ?? "comfortable";
 
+  const pFormat = design.pointsFormat;
+
   const inner = (
     <>
       {block.sectionStart && (
@@ -1365,45 +1392,76 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
         </>
       )}
       <div data-qid={block.lead.id} style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-          <div style={{ flexShrink: 0, fontSize: bodySize }}>
-            <NumLabel
-              label={numLabel}
-              numStyle={numStyle}
-              accent={accent}
-              numColor={numColor}
-              bodySize={bodySize}
-            />
-          </div>
-          {showPoints && block.lead.points && !hasSubs && (
-            <div style={{ marginLeft: "auto", flexShrink: 0 }}>
-              <PointsDisplay points={block.lead.points} style={pStyle} accent={accent} />
-            </div>
-          )}
-        </div>
         {all.map((q, i) => {
           const text = (q.content as { text?: string }).text || "";
           const firstChar = text.trim()[0] ?? "";
+          const isLead = i === 0;
           return (
             <div key={q.id + i} style={{ marginBottom: i < all.length - 1 ? 8 : 0 }}>
-              {hasSubs && (
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontWeight: 600, color: "#777", minWidth: 16 }}>{SUB_LETTERS[i]})</span>
-                  {showPoints && q.points && (
-                    <span style={{ marginLeft: "auto" }}>
-                      <PointsDisplay points={q.points} style={pStyle} accent={accent} />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                {/* Number / sub-letter */}
+                <div style={{ flexShrink: 0, marginTop: 1 }}>
+                  {isLead && !hasSubs ? (
+                    <span style={{ fontSize: bodySize }}>
+                      <NumLabel label={numLabel} numStyle={numStyle} accent={accent} numColor={numColor} bodySize={bodySize} />
                     </span>
+                  ) : isLead && hasSubs ? (
+                    <span style={{ fontSize: bodySize }}>
+                      <NumLabel label={numLabel} numStyle={numStyle} accent={accent} numColor={numColor} bodySize={bodySize} />
+                    </span>
+                  ) : (
+                    <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[i - 1]})</span>
                   )}
                 </div>
-              )}
-              <div style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>
-                {!hasSubs && i === 0 && dropCapStyle !== "off" && firstChar && (
-                  <DropCap char={firstChar} dropCap={dropCapStyle} accent={accent} />
+                {/* Question text + body */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>
+                    {!hasSubs && isLead && dropCapStyle !== "off" && firstChar && (
+                      <DropCap char={firstChar} dropCap={dropCapStyle} accent={accent} />
+                    )}
+                    <QuestionText q={q} />
+                  </div>
+                  <QuestionBody q={q} design={design} accent={accent} />
+                  {/* Inline group subs */}
+                  {isLead && q.type === "group" && (() => {
+                    const gc = q.content as { subs?: Array<{ text: string; lines?: number; points?: string }> };
+                    const gsubs = gc.subs ?? [];
+                    const lineH = design.lineHeight ?? design.lineSpacing ?? 22;
+                    const borderStyle = (design.lineStyle ?? "solid") as React.CSSProperties["borderBottomStyle"];
+                    return gsubs.length > 0 ? (
+                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {gsubs.map((sub, si) => (
+                          <div key={si}>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 3 }}>
+                              <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[si]})</span>
+                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>{sub.text}</span>
+                              {showPoints && sub.points && (
+                                <span style={{ marginLeft: "auto" }}>
+                                  <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} />
+                                </span>
+                              )}
+                            </div>
+                            {(sub.lines ?? 0) > 0 && (
+                              <div className="write-lines" style={{ marginLeft: 26 }}>
+                                {Array.from({ length: sub.lines! }).map((_, j) => (
+                                  <div className="line" key={j} style={{ borderBottomStyle: borderStyle, height: lineH }} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
+                </div>
+                {/* Points on the right */}
+                {showPoints && q.points && (isLead ? !hasSubs : true) && (
+                  <div style={{ flexShrink: 0, marginTop: 2 }}>
+                    <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} />
+                  </div>
                 )}
-                <QuestionText q={q} />
               </div>
-              <QuestionBody q={q} design={design} accent={accent} />
-              {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
             </div>
           );
         })}
@@ -1623,7 +1681,7 @@ export function PrintableTest({
           />
 
           {showMeta && (
-            <MetaBlock metaStyle={variant.metaStyle} accent={accent} />
+            <MetaBlock metaStyle={variant.metaStyle} accent={accent} showDate={design.showDate !== false} showTeacher={design.showTeacher !== false} />
           )}
 
           {/* Default meta row for non-meta layouts */}
@@ -1637,11 +1695,54 @@ export function PrintableTest({
 
           <CoverMeta design={design} totalPoints={totalPoints} accent={accent} />
 
-          {design.coverImageUrl && (
-            <div className="cover-image">
-              <img src={design.coverImageUrl} alt="" />
-            </div>
-          )}
+          {/* Cover image — absolute, bottom of page, with fade */}
+          {(() => {
+            const ci = design.coverImage;
+            const imgSrc = (ci?.enabled && ci.src) ? ci.src : design.coverImageUrl ?? null;
+            if (!imgSrc) return null;
+            const height  = ci?.enabled ? (ci.height ?? 130)   : 130;
+            const fadeY   = ci?.enabled ? (ci.fadeY ?? 22)      : 22;
+            const fadeX   = ci?.enabled ? (ci.fadeX ?? 12)      : 0;
+            const opacity = ci?.enabled ? (ci.opacity ?? 0.95)  : 0.95;
+            const paperBg = PAPER_STYLES[design.paperStyle ?? "white"]?.bg ?? "#FFFFFF";
+
+            return (
+              <div style={{
+                position: "absolute",
+                bottom: 0, left: 0, right: 0,
+                height: `${height}mm`,
+                overflow: "hidden",
+                zIndex: 0,
+              }}>
+                <img
+                  src={imgSrc}
+                  alt=""
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center top",
+                    opacity,
+                    display: "block",
+                  }}
+                />
+                {/* Top fade overlay */}
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: `linear-gradient(to bottom, ${paperBg} 0%, transparent ${fadeY}%)`,
+                  pointerEvents: "none",
+                }} />
+                {/* Side fades overlay */}
+                {fadeX > 0 && (
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: `linear-gradient(to right, ${paperBg} 0%, transparent ${fadeX}%, transparent ${100 - fadeX}%, ${paperBg} 100%)`,
+                    pointerEvents: "none",
+                  }} />
+                )}
+              </div>
+            );
+          })()}
         </>,
         1
       )}

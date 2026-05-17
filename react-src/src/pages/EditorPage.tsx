@@ -32,6 +32,7 @@ import {
   Eye,
   Flag,
   GripVertical,
+  ImagePlus,
   Plus,
   Printer,
   Trash2,
@@ -1445,41 +1446,6 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-      {/* 0. Rytm & täthet */}
-      <PsGroup title="Rytm &amp; täthet">
-        {/* Density presets */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
-          {([
-            { id: "compact",     label: "Kompakt",  margin: 16, bodySize: 11,   lineHeight: 20 },
-            { id: "comfortable", label: "Normal",   margin: 22, bodySize: 12,   lineHeight: 22 },
-            { id: "spacious",    label: "Luftig",   margin: 28, bodySize: 13,   lineHeight: 26 },
-          ] as const).map(p => (
-            <button key={p.id} onClick={() => setD({ density: p.id, margin: p.margin, bodySize: p.bodySize, lineHeight: p.lineHeight })} style={{
-              padding: "7px 5px 8px", borderRadius: 7,
-              border: "1.5px solid",
-              borderColor: (design.density ?? "comfortable") === p.id ? "var(--ps-ink)" : "var(--ps-rule-2)",
-              background: (design.density ?? "comfortable") === p.id ? "var(--ps-paper)" : "transparent",
-              cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 11.5, fontWeight: (design.density ?? "comfortable") === p.id ? 600 : 400,
-              color: "var(--ps-ink-2)",
-            }}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <PsSlider
-          label="Marginal"
-          value={design.margin ?? 22}
-          min={10} max={36} step={1} suffix="mm"
-          onChange={v => setD({ margin: v })}
-        />
-        <PsSlider
-          label="Brödtext"
-          value={design.bodySize ?? 12}
-          min={9} max={16} step={0.5} suffix="px"
-          onChange={v => setD({ bodySize: v })}
-        />
-      </PsGroup>
-
       {/* 1. Förinställning */}
       <PsGroup title="Förinställning">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5 }}>
@@ -1726,6 +1692,14 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
 
       {/* 13. Poäng-stil */}
       <PsGroup title="Poäng-stil">
+        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Poängformat</span>
+          <Segmented
+            value={design.pointsFormat ?? "plain"}
+            onChange={v => setD({ pointsFormat: v as DesignSettings["pointsFormat"] })}
+            options={[{ v: "plain", label: "3p" }, { v: "blank", label: "_/3p" }, { v: "grades", label: "E/C/A" }]}
+          />
+        </label>
         <Segmented
           value={design.pointsStyle ?? "italic"}
           onChange={v => setD({ pointsStyle: v as DesignSettings["pointsStyle"] })}
@@ -1799,9 +1773,136 @@ function LayoutPanel({ design, setD }: { design: DesignSettings; setD: (p: Parti
         <PsToggle label="Instruktionstext" on={design.showInstructions !== false} onChange={v => setD({ showInstructions: v })} />
         <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
         <PsToggle label="Meta-info vid fråga" on={design.showMeta ?? false} onChange={v => setD({ showMeta: v })} />
+        <PsToggle label="Datum-fält" on={design.showDate !== false} onChange={v => setD({ showDate: v })} />
+        <PsToggle label="Lärare-fält" on={design.showTeacher !== false} onChange={v => setD({ showTeacher: v })} />
       </PsGroup>
 
+      {/* 18. Försättsbild */}
+      <CoverImagePanel design={design} setD={setD} />
+
     </div>
+  );
+}
+
+/* ─── CoverImagePanel ────────────────────────────────────────────────────── */
+
+function CoverImagePanel({ design, setD }: { design: DesignSettings; setD: (p: Partial<DesignSettings>) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const ci = design.coverImage ?? { enabled: false, kind: "painting", height: 130, fadeY: 22, fadeX: 12, opacity: 0.95, src: null };
+  const enabled = ci.enabled;
+
+  function setCi(patch: Partial<typeof ci>) {
+    setD({ coverImage: { ...ci, ...patch } });
+  }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCi({ src: reader.result as string, enabled: true });
+    };
+    reader.readAsDataURL(file);
+    // Reset so same file can be re-selected
+    e.target.value = "";
+  }
+
+  function clearImage() {
+    setCi({ src: null });
+    if (!ci.kind) setCi({ src: null, enabled: false });
+  }
+
+  return (
+    <PsGroup title="Försättsbild">
+      <PsToggle label="Visa bild på framsidan" on={enabled} onChange={v => setCi({ enabled: v })} />
+      {enabled && (
+        <>
+          {/* Upload area */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleFile}
+          />
+          {ci.src ? (
+            <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", border: "1px solid var(--ps-rule-2)" }}>
+              <img
+                src={ci.src}
+                alt="Försättsbild"
+                style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }}
+              />
+              <button
+                onClick={clearImage}
+                title="Ta bort bild"
+                style={{
+                  position: "absolute", top: 5, right: 5,
+                  width: 22, height: 22, borderRadius: 99,
+                  background: "rgba(0,0,0,0.55)", border: "none",
+                  color: "white", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <X size={12} />
+              </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  position: "absolute", bottom: 5, right: 5,
+                  padding: "3px 8px", borderRadius: 6,
+                  background: "rgba(0,0,0,0.55)", border: "none",
+                  color: "white", cursor: "pointer", fontSize: 10.5,
+                  fontFamily: "var(--ps-ui)",
+                }}
+              >
+                Byt bild
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              style={{
+                width: "100%", padding: "18px 12px",
+                borderRadius: 8, border: "1.5px dashed var(--ps-rule-2)",
+                background: "var(--ps-bg-soft)", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)",
+              }}
+            >
+              <ImagePlus size={20} />
+              <span style={{ fontSize: 12 }}>Välj bild från datorn</span>
+              <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)" }}>JPG, PNG, WebP</span>
+            </button>
+          )}
+
+          {/* Sliders */}
+          <PsSlider
+            label="Höjd"
+            value={ci.height}
+            min={60} max={220} step={5} suffix=" mm"
+            onChange={v => setCi({ height: v })}
+          />
+          <PsSlider
+            label="Toningszon (uppåt)"
+            value={ci.fadeY}
+            min={0} max={80} step={2} suffix=" %"
+            onChange={v => setCi({ fadeY: v })}
+          />
+          <PsSlider
+            label="Sidtoning"
+            value={ci.fadeX}
+            min={0} max={40} step={2} suffix=" %"
+            onChange={v => setCi({ fadeX: v })}
+          />
+          <PsSlider
+            label="Opacitet"
+            value={Math.round(ci.opacity * 100)}
+            min={20} max={100} step={5} suffix=" %"
+            onChange={v => setCi({ opacity: v / 100 })}
+          />
+        </>
+      )}
+    </PsGroup>
   );
 }
 

@@ -922,20 +922,103 @@ function TypeSpecificFields({
     }
 
     case "group": {
+      type GroupSub = { text: string; lines?: number; points?: string };
+      const subs: GroupSub[] = Array.isArray(c.subs) ? (c.subs as GroupSub[]) : [];
+      const title = (c.title as string) ?? "";
+      const instructions = (c.instructions as string) ?? "";
+
+      function setSubs(next: GroupSub[]) { patchContent({ subs: next }); }
+      function addSub() { setSubs([...subs, { text: "", lines: 3 }]); }
+      function removeSub(i: number) { setSubs(subs.filter((_, j) => j !== i)); }
+      function patchSub(i: number, patch: Partial<GroupSub>) {
+        setSubs(subs.map((s, j) => j === i ? { ...s, ...patch } : s));
+      }
+
       return (
-        <Collapser title="Delfrågor">
-          <div style={{
-            padding: "10px 12px",
-            background: "var(--ps-bg-soft)",
-            borderRadius: 6,
-            fontSize: 12,
-            color: "var(--ps-ink-3)",
-            lineHeight: 1.55,
-          }}>
-            Delfrågor hanteras som separata frågor i dokumentordningen. Markera varje delfråga med{" "}
-            <strong>Tillhör grupp</strong> i sidopanelen för att koppla den till den här frågan.
-          </div>
-        </Collapser>
+        <>
+          <Collapser title="Grupptitel och instruktion">
+            <ModalField label="Titel / grupprubrik">
+              <input
+                value={title}
+                onChange={e => patchContent({ title: e.target.value })}
+                placeholder="t.ex. Läs texten och svara på frågorna"
+                style={psInput}
+              />
+            </ModalField>
+            <ModalField label="Instruktion (valfri)">
+              <textarea
+                value={instructions}
+                onChange={e => patchContent({ instructions: e.target.value })}
+                rows={2}
+                style={{ ...psInput, resize: "vertical" }}
+              />
+            </ModalField>
+          </Collapser>
+          <Collapser title={`Delfrågor (${subs.length})`} defaultOpen>
+            {subs.map((sub, i) => (
+              <div key={i} style={{
+                border: "1px solid var(--ps-rule)",
+                borderRadius: 8,
+                padding: "10px 12px",
+                marginBottom: 8,
+                background: "var(--ps-paper)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ps-ink-3)", minWidth: 20 }}>{String.fromCharCode(96 + i + 1)})</span>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => removeSub(i)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ps-red, #dc2626)", padding: 2 }}
+                    title="Ta bort delfråga"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                <ModalField label="Frågetext">
+                  <input
+                    value={sub.text}
+                    onChange={e => patchSub(i, { text: e.target.value })}
+                    placeholder={`Delfråga ${i + 1}`}
+                    style={psInput}
+                  />
+                </ModalField>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <ModalField label="Skrivlinjer">
+                    <input
+                      type="number"
+                      value={sub.lines ?? 3}
+                      min={0}
+                      max={20}
+                      onChange={e => patchSub(i, { lines: parseInt(e.target.value) || 0 })}
+                      style={{ ...psInput, width: "100%" }}
+                    />
+                  </ModalField>
+                  <ModalField label="Poäng">
+                    <input
+                      value={sub.points ?? ""}
+                      onChange={e => patchSub(i, { points: e.target.value })}
+                      placeholder="t.ex. 2"
+                      style={{ ...psInput, width: "100%" }}
+                    />
+                  </ModalField>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={addSub}
+              style={{
+                width: "100%", padding: "7px 12px", borderRadius: 6,
+                border: "1.5px dashed var(--ps-rule-2)",
+                background: "transparent", cursor: "pointer",
+                fontFamily: "var(--ps-ui)", fontSize: 12,
+                color: "var(--ps-ink-3)", display: "flex", alignItems: "center",
+                justifyContent: "center", gap: 5,
+              }}
+            >
+              + Lägg till delfråga
+            </button>
+          </Collapser>
+        </>
       );
     }
 
