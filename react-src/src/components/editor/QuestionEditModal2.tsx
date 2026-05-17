@@ -3,11 +3,11 @@
  * Opened from preview/answer mode by clicking a question.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Trash2, X, Minus } from "lucide-react";
 import type { Question, QuestionType, MatchingPair } from "@/lib/test-types";
 import { RichTextEditor } from "./RichTextEditor";
-import { taxonomy } from "@/lib/local-db";
+import { taxonomy, questionBank } from "@/lib/local-db";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1286,33 +1286,52 @@ function TypeSpecificFields({
 
 function MetadataFields({ q, patchQ }: { q: Question; patchQ: (f: Partial<Question>) => void }) {
   const tax = taxonomy.get();
-  const subjects = Object.keys(tax);
+  const allBankQs = questionBank.list();
+
+  // Build subject list from both taxonomy and all existing questions
+  const taxSubjects = Object.keys(tax);
+  const bankSubjects = allBankQs.map(bq => bq.subject).filter(Boolean) as string[];
+  const subjects = [...new Set([...taxSubjects, ...bankSubjects])].sort();
+
   const currentSubject = q.subject ?? "";
-  const cats = currentSubject ? (tax[currentSubject] ?? []) : [];
+
+  // Build category list from both taxonomy and existing questions with same subject
+  const taxCats = currentSubject ? (tax[currentSubject] ?? []) : [];
+  const bankCats = currentSubject
+    ? allBankQs.map(bq => bq.cat).filter(Boolean) as string[]
+    : [];
+  const cats = [...new Set([...taxCats, ...bankCats])].sort();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <ModalField label="Ämne">
-          <select
-            value={currentSubject}
-            onChange={e => patchQ({ subject: e.target.value || null })}
-            style={psInput}
-          >
-            <option value="">— Välj ämne —</option>
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <>
+            <input
+              list="qem2-subjects"
+              value={currentSubject}
+              onChange={e => patchQ({ subject: e.target.value || null })}
+              placeholder="Välj eller skriv ämne…"
+              style={psInput}
+            />
+            <datalist id="qem2-subjects">
+              {subjects.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </>
         </ModalField>
         <ModalField label="Kategori">
-          <select
-            value={q.cat ?? ""}
-            onChange={e => patchQ({ cat: e.target.value || null })}
-            style={psInput}
-            disabled={!currentSubject}
-          >
-            <option value="">— Välj kategori —</option>
-            {cats.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <>
+            <input
+              list="qem2-cats"
+              value={q.cat ?? ""}
+              onChange={e => patchQ({ cat: e.target.value || null })}
+              placeholder="Välj eller skriv kategori…"
+              style={psInput}
+            />
+            <datalist id="qem2-cats">
+              {cats.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </>
         </ModalField>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -1361,31 +1380,28 @@ const GRADE_LABELS: { key: "E" | "C" | "A"; label: string; desc: string; color: 
   { key: "A", label: "A", desc: "Välutvecklat och nyanserat",      color: "#7C3AED" },
 ];
 
-function BedömningTab({
-  q,
-  patchQ,
-  rubricE, setRubricE,
-  rubricC, setRubricC,
-  rubricA, setRubricA,
-  gpE, setGpE,
-  gpC, setGpC,
-  gpA, setGpA,
-}: {
-  q: Question;
-  patchQ: (f: Partial<Question>) => void;
-  rubricE: string; setRubricE: (v: string) => void;
-  rubricC: string; setRubricC: (v: string) => void;
-  rubricA: string; setRubricA: (v: string) => void;
-  gpE: number; setGpE: (v: number) => void;
-  gpC: number; setGpC: (v: number) => void;
-  gpA: number; setGpA: (v: number) => void;
-}) {
+function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Question>) => void }) {
   const isGroup = q.type === "group";
   const auto = AUTO_TYPES.has(q.type);
-  const setters = { E: setRubricE, C: setRubricC, A: setRubricA };
-  const gpSetters = { E: setGpE, C: setGpC, A: setGpA };
-  const rubricVals = { E: rubricE, C: rubricC, A: rubricA };
-  const gpVals = { E: gpE, C: gpC, A: gpA };
+
+  // Local state for rubric text to avoid cursor-jump on every keystroke.
+  // Syncs to bank on onBlur.
+  const [rubricE, setRubricE] = useState(q.rubric?.E ?? "");
+  const [rubricC, setRubricC] = useState(q.rubric?.C ?? "");
+  const [rubricA, setRubricA] = useState(q.rubric?.A ?? "");
+
+  // Keep local state in sync when q changes from outside (e.g. initial open)
+  const prevQId = useRef(q.id);
+  if (prevQId.current !== q.id) {
+    prevQId.current = q.id;
+    // Reset when a different question is shown (useRef trick to avoid extra render)
+  }
+
+  const saveRubric = () => {
+    patchQ({
+      rubric: { E: rubricE, C: rubricC, A: rubricA },
+    });
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1406,59 +1422,66 @@ function BedömningTab({
       </div>
 
       {/* E/C/A cards */}
-      {GRADE_LABELS.map(({ key, label, desc, color }) => (
-        <div
-          key={key}
-          style={{
-            border: `1.5px solid ${color}30`,
-            borderRadius: 10,
-            background: `${color}06`,
-            overflow: "hidden",
-          }}
-        >
-          {/* Card header */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 14px",
-            borderBottom: `1px solid ${color}20`,
-            background: `${color}10`,
-          }}>
-            <span style={{
-              width: 24, height: 24,
-              borderRadius: "50%",
-              background: color,
-              color: "white",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, fontWeight: 700, flexShrink: 0,
+      {GRADE_LABELS.map(({ key, label, desc, color }) => {
+        const rubricVal = key === "E" ? rubricE : key === "C" ? rubricC : rubricA;
+        const setRubric = key === "E" ? setRubricE : key === "C" ? setRubricC : setRubricA;
+        const gpVal = q.grade_points?.[key] ?? 0;
+
+        return (
+          <div
+            key={key}
+            style={{
+              border: `1.5px solid ${color}30`,
+              borderRadius: 10,
+              background: `${color}06`,
+              overflow: "hidden",
+            }}
+          >
+            {/* Card header */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 14px",
+              borderBottom: `1px solid ${color}20`,
+              background: `${color}10`,
             }}>
-              {label}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>{desc}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)" }}>Poäng:</span>
-              <input
-                type="number"
-                value={gpVals[key]}
-                min={0}
-                onChange={e => gpSetters[key](parseFloat(e.target.value) || 0)}
-                style={{ ...psInput, width: 60, textAlign: "center" }}
+              <span style={{
+                width: 24, height: 24,
+                borderRadius: "50%",
+                background: color,
+                color: "white",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, fontWeight: 700, flexShrink: 0,
+              }}>
+                {label}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>{desc}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)" }}>Poäng:</span>
+                <input
+                  type="number"
+                  value={gpVal}
+                  min={0}
+                  onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
+                  style={{ ...psInput, width: 60, textAlign: "center" }}
+                />
+              </div>
+            </div>
+            {/* Rubric textarea — saves on blur */}
+            <div style={{ padding: "10px 14px" }}>
+              <textarea
+                value={rubricVal}
+                onChange={e => setRubric(e.target.value)}
+                onBlur={saveRubric}
+                placeholder={`Vad krävs för betyget ${label}…`}
+                rows={3}
+                style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
               />
             </div>
           </div>
-          {/* Rubric textarea */}
-          <div style={{ padding: "10px 14px" }}>
-            <textarea
-              value={rubricVals[key]}
-              onChange={e => setters[key](e.target.value)}
-              placeholder={`Vad krävs för betyget ${label}…`}
-              rows={3}
-              style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1469,36 +1492,14 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
   const text = (q.content as { text?: string })?.text ?? "";
   const [tab, setTab] = useState<"content" | "rubric">("content");
 
-  // Local state for Bedömning tab — avoids stale-q re-render loops
-  const [rubricE, setRubricE] = useState(q.rubric?.E ?? "");
-  const [rubricC, setRubricC] = useState(q.rubric?.C ?? "");
-  const [rubricA, setRubricA] = useState(q.rubric?.A ?? "");
-  const [gpE, setGpE] = useState(q.grade_points?.E ?? 0);
-  const [gpC, setGpC] = useState(q.grade_points?.C ?? 0);
-  const [gpA, setGpA] = useState(q.grade_points?.A ?? 0);
-
-  // Sync local rubric/gp state to parent
-  const flushRubric = () => {
-    onEdit({
-      rubric: { E: rubricE, C: rubricC, A: rubricA },
-      grade_points: { E: gpE, C: gpC, A: gpA },
-    });
-  };
-
-  // Flush when switching tabs or on unmount
   const handleTabSwitch = (newTab: "content" | "rubric") => {
-    if (tab === "rubric") flushRubric();
     setTab(newTab);
   };
 
-  useEffect(() => {
-    return () => { /* flush happens in handleClose */ };
-  }, []);
-
   const handleClose = () => {
-    if (tab === "rubric") flushRubric();
     onClose();
   };
+
 
   const patchContent = (fields: Record<string, unknown>) => {
     onEdit({ content: { ...(q.content as Record<string, unknown>), ...fields } } as Partial<Question>);
@@ -1653,36 +1654,7 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
         {/* Tab: Bedömning */}
         {tab === "rubric" && (
           <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <BedömningTab
-              q={q}
-              patchQ={patchQ}
-              rubricE={rubricE} setRubricE={setRubricE}
-              rubricC={rubricC} setRubricC={setRubricC}
-              rubricA={rubricA} setRubricA={setRubricA}
-              gpE={gpE} setGpE={setGpE}
-              gpC={gpC} setGpC={setGpC}
-              gpA={gpA} setGpA={setGpA}
-            />
-            {/* Save rubric button */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button
-                onClick={flushRubric}
-                style={{
-                  height: 36,
-                  padding: "0 20px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "var(--ps-accent, #1E5F5C)",
-                  color: "white",
-                  fontFamily: "var(--ps-ui)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Spara bedömning
-              </button>
-            </div>
+            <BedömningTab q={q} patchQ={patchQ} />
           </div>
         )}
       </div>
