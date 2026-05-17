@@ -26,25 +26,32 @@ function cmd(command: string, value?: string) {
 }
 
 /**
- * Apply a font-size in px to the current selection.
- * Uses the "fontSize=7" trick then replaces <font size="7"> with inline span.
+ * Apply a font-size in px to the current selection using the Range API.
+ * Extracts selected content and wraps it in <span style="font-size: Xpx">.
  */
 function applyFontSize(px: number) {
-  // Save the selection range
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
 
-  // Insert a temporary marker so we can find the <font> elements
-  document.execCommand("fontSize", false, "7");
+  // Extract the selected content and wrap in a span with the desired font-size
+  const contents = range.extractContents();
+  const span = document.createElement("span");
+  span.style.fontSize = `${px}px`;
+  span.appendChild(contents);
+  range.insertNode(span);
 
-  // Find and replace all <font size="7"> inserted by execCommand
-  const fontEls = document.querySelectorAll<HTMLFontElement>("font[size='7']");
-  fontEls.forEach(el => {
-    const span = document.createElement("span");
-    span.style.fontSize = `${px}px`;
-    span.innerHTML = el.innerHTML;
-    el.parentNode?.replaceChild(span, el);
-  });
+  // Re-select the inserted span so the user can keep adjusting
+  sel.removeAllRanges();
+  const newRange = document.createRange();
+  newRange.selectNodeContents(span);
+  sel.addRange(newRange);
+
+  // Notify the contenteditable so Editable.tsx saves the change on blur
+  span.closest("[contenteditable]")?.dispatchEvent(
+    new Event("input", { bubbles: true })
+  );
 }
 
 export function RichTextToolbar({ rect, onClose }: Props) {
