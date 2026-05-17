@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { documents, questionBank, taxonomy } from "../lib/local-db";
 import { isQuestionRef } from "@/lib/test-types";
+import { SO_TAXONOMY, SO_SUBJECTS } from "@/lib/so-taxonomy";
 import type { Question, QuestionType, Difficulty, OpenContent, MultipleChoiceContent, MatchingContent, ImageContent, TableContent, RankingContent, DrawingContent, QuestionStatus } from "@/lib/test-types";
 import {
   Plus, Upload, Edit2, List, CheckSquare, Type,
   Link2, Image, Table, AlignJustify, Pencil, Trash2, X, ChevronDown,
-  ChevronRight, ArrowLeft, Search, User, Clock, Copy, Eye,
+  ChevronRight, ArrowLeft, Search, Clock, Copy, Eye,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -42,36 +43,7 @@ const STATUS: Record<QuestionStatus, { label: string; short: string; color: stri
   archived: { label: "Arkiverad", short: "−", color: "#9A9286", bg: "var(--ps-bg-soft)" },
 };
 
-const DIFFICULTY_LABELS: Record<string, string> = { easy: "Lätt", medium: "Medel", hard: "Svår" };
-
-// ── SO Taxonomy ───────────────────────────────────────────────────────────────
-
-const SO_TAXONOMY: Record<string, string[]> = {
-  "Historia": [
-    "Forntiden och antiken", "Medeltiden", "Nya tidens Europa",
-    "Industrialiseringen", "Demokratins framväxt", "Första världskriget",
-    "Andra världskriget", "Kalla kriget", "Sverige under 1900-talet",
-    "Historisk källkritik och metod",
-  ],
-  "Geografi": [
-    "Endogena och exogena krafter", "Klimat och klimatzoner",
-    "Befolkning och migration", "Hållbar utveckling",
-    "Naturresurser och energi", "Kartor och rumslig orientering",
-    "Stadsgeografi", "Geopolitik och världsdelar",
-  ],
-  "Samhällskunskap": [
-    "Demokrati och mänskliga rättigheter", "Sveriges politiska system",
-    "EU och internationella organisationer", "Rättsväsendet och lagar",
-    "Ekonomi och arbetsmarknad", "Media och källkritik",
-    "Konsumentkunskap", "Identitet och normer",
-  ],
-  "Religion": [
-    "Kristendomen", "Islam", "Judendomen", "Hinduismen", "Buddhismen",
-    "Livsåskådningar och sekulära rörelser", "Etik och moral", "Riter och högtider",
-  ],
-};
-
-const SO_SUBJECTS = Object.keys(SO_TAXONOMY);
+// SO_TAXONOMY and SO_SUBJECTS are now imported from @/lib/so-taxonomy
 
 // ── Tree helpers ──────────────────────────────────────────────────────────────
 
@@ -406,11 +378,9 @@ function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc, use
           )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14, fontSize: 11, color: "var(--ps-ink-3)", flexWrap: "wrap" }}>
-            {q.author && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><User size={11} /> {q.author}</span>}
             {q.updated && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={11} /> {q.updated}</span>}
             {q.used_in !== undefined && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Copy size={11} /> använd i {q.used_in} prov</span>}
             <span className="ps-chip" style={{ fontSize: 10.5 }}>{TYPE_LABELS[q.type] ?? q.type}</span>
-            {q.difficulty && <span className="ps-chip" style={{ fontSize: 10.5 }}>{DIFFICULTY_LABELS[q.difficulty] ?? q.difficulty}</span>}
           </div>
         </div>
 

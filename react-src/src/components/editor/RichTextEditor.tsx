@@ -85,7 +85,21 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
   }, [value]);
 
   const exec = (cmd: string, arg?: string) => {
-    editorRef.current?.focus();
+    // Save current selection range before focus (focus can collapse caret)
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+    const editorEl = editorRef.current;
+    if (!editorEl) return;
+    editorEl.focus();
+    // Restore selection if it was inside the editor
+    if (range && editorEl.contains(range.commonAncestorContainer)) {
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    // formatBlock needs <tagname> with angle brackets in Chromium for headings
+    if (cmd === "formatBlock" && arg && !arg.startsWith("<")) {
+      arg = `<${arg}>`;
+    }
     document.execCommand(cmd, false, arg);
     updateActive();
     emitChange();
@@ -160,7 +174,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
         <select
           title="Styckeformat"
           onMouseDown={e => e.preventDefault()}
-          onChange={e => { exec("formatBlock", e.target.value); e.target.value = ""; }}
+          onChange={e => { if (e.target.value) exec("formatBlock", e.target.value); e.target.value = ""; }}
           defaultValue=""
           style={{ height: 28, border: "1px solid var(--ps-rule-2)", borderRadius: 5, background: "var(--ps-bg-soft)", color: "var(--ps-ink-2)", fontSize: 11, fontFamily: "var(--ps-ui)", cursor: "pointer", padding: "0 4px" }}
         >
@@ -244,6 +258,14 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
         [contenteditable] h3 { font-size: 1.1em; font-weight: 600; margin: 6px 0 3px; }
         [contenteditable] h4 { font-size: 1em; font-weight: 600; margin: 4px 0 2px; }
         [contenteditable] a { color: var(--ps-accent); text-decoration: underline; }
+        [contenteditable] [style*="text-align: center"],
+        [contenteditable] [align="center"] { text-align: center; }
+        [contenteditable] [style*="text-align: right"],
+        [contenteditable] [align="right"] { text-align: right; }
+        [contenteditable] [style*="text-align: left"],
+        [contenteditable] [align="left"] { text-align: left; }
+        [contenteditable] [style*="text-align: justify"],
+        [contenteditable] [align="justify"] { text-align: justify; }
       `}</style>
     </div>
   );

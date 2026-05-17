@@ -247,6 +247,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
   const [newQOpen, setNewQOpen]       = useState(false);
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [docSubject, setDocSubject]         = useState<string>("");
 
   const setD = (patch: Partial<DesignSettings>) => setDesign(d => ({ ...d, ...patch }));
 
@@ -258,6 +259,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
     setDesign({ ...DEFAULT_DESIGN, ...(doc.design_settings ?? {}) });
     setOrder(doc.question_order ?? []);
     setDocType(doc.doc_type ?? "test");
+    setDocSubject(doc.subject ?? "");
     setBank(questionBank.list());
     setLoading(false);
   }, [documentId]);
@@ -364,13 +366,13 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
       content: defaults[type] ? { text: (defaults[type] as { text: string }).text } : { text: "Ny fråga" },
       points: String((defaults[type] as { points?: number })?.points ?? 1),
       user_id: "local",
-      subject: null, tags: null, difficulty: null,
+      subject: docSubject || null, tags: null, difficulty: null,
     } as Partial<Question>);
     setOrder(o => [...o, { question_id: q.id } as TestQuestionRef]);
     setBank(b => [...b, q]);
     setNewQOpen(false);
     setEditingQ(q);
-  }, []);
+  }, [docSubject]);
 
   const handleDownload = async () => {
     const el = document.getElementById("printable-root");
@@ -563,6 +565,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
         <BankPickerModal
           bank={bank}
           inDocument={new Set(order.filter(isQuestionRef).map(r => r.question_id))}
+          defaultSubject={docSubject || undefined}
           onAdd={(qId) => {
             setOrder(o => [...o, { question_id: qId } as TestQuestionRef]);
           }}

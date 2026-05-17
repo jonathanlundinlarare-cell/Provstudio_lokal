@@ -33,16 +33,18 @@ export interface BankPickerModalProps {
   onAdd: (questionId: string) => void;
   onRemove: (questionId: string) => void;
   onClose: () => void;
+  /** If set, bank auto-filters to this subject and hides the subject dropdown */
+  defaultSubject?: string;
 }
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, "");
 }
 
-export function BankPickerModal({ bank, inDocument, onAdd, onRemove, onClose }: BankPickerModalProps) {
+export function BankPickerModal({ bank, inDocument, onAdd, onRemove, onClose, defaultSubject }: BankPickerModalProps) {
   const [search, setSearch]           = useState("");
   const [typeFilter, setTypeFilter]   = useState("");
-  const [subjectFilter, setSubjectFilter] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState(defaultSubject ?? "");
 
   /* Collect unique subjects for the filter dropdown */
   const subjects = useMemo(() => {
@@ -161,22 +163,36 @@ export function BankPickerModal({ bank, inDocument, onAdd, onRemove, onClose }: 
               <option key={t} value={t}>{QUESTION_TYPE_LABELS[t as keyof typeof QUESTION_TYPE_LABELS] ?? t}</option>
             ))}
           </select>
-          <select
-            value={subjectFilter}
-            onChange={e => setSubjectFilter(e.target.value)}
-            style={{
-              width: 160, height: 32, padding: "0 8px",
+          {defaultSubject ? (
+            <div style={{
+              height: 32, padding: "0 12px",
               borderRadius: 7, border: "1px solid var(--ps-rule-2, #d6d0c8)",
               background: "var(--ps-bg-soft, #f5f3ef)",
               fontFamily: "var(--ps-ui, system-ui)", fontSize: 12.5,
-              color: "var(--ps-ink, #14110d)", cursor: "pointer",
-            }}
-          >
-            <option value="">Alla ämnen</option>
-            {subjects.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+              color: "var(--ps-ink-2, #3d3930)",
+              display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
+            }}>
+              <span style={{ fontSize: 10, color: "var(--ps-ink-4)" }}>Ämne:</span>
+              <strong>{defaultSubject}</strong>
+            </div>
+          ) : (
+            <select
+              value={subjectFilter}
+              onChange={e => setSubjectFilter(e.target.value)}
+              style={{
+                width: 160, height: 32, padding: "0 8px",
+                borderRadius: 7, border: "1px solid var(--ps-rule-2, #d6d0c8)",
+                background: "var(--ps-bg-soft, #f5f3ef)",
+                fontFamily: "var(--ps-ui, system-ui)", fontSize: 12.5,
+                color: "var(--ps-ink, #14110d)", cursor: "pointer",
+              }}
+            >
+              <option value="">Alla ämnen</option>
+              {subjects.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Question list */}

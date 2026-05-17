@@ -8,6 +8,7 @@ import { Trash2, X, Minus } from "lucide-react";
 import type { Question, QuestionType, MatchingPair } from "@/lib/test-types";
 import { RichTextEditor } from "./RichTextEditor";
 import { taxonomy, questionBank } from "@/lib/local-db";
+import { SO_TAXONOMY } from "@/lib/so-taxonomy";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1288,19 +1289,21 @@ function MetadataFields({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questi
   const tax = taxonomy.get();
   const allBankQs = questionBank.list();
 
-  // Build subject list from both taxonomy and all existing questions
-  const taxSubjects = Object.keys(tax);
+  // Build subject list: SO subjects + custom taxonomy + subjects already used in bank
+  const soSubjects = Object.keys(SO_TAXONOMY);
+  const taxSubjects = Object.keys(tax).filter(s => !soSubjects.includes(s));
   const bankSubjects = allBankQs.map(bq => bq.subject).filter(Boolean) as string[];
-  const subjects = [...new Set([...taxSubjects, ...bankSubjects])].sort();
+  const subjects = [...new Set([...soSubjects, ...taxSubjects, ...bankSubjects])].sort();
 
   const currentSubject = q.subject ?? "";
 
-  // Build category list from both taxonomy and existing questions with same subject
+  // Build category list: SO cats + custom taxonomy cats + bank cats — all filtered by current subject
+  const soCats = currentSubject ? (SO_TAXONOMY[currentSubject] ?? []) : [];
   const taxCats = currentSubject ? (tax[currentSubject] ?? []) : [];
   const bankCats = currentSubject
-    ? allBankQs.map(bq => bq.cat).filter(Boolean) as string[]
+    ? allBankQs.filter(bq => bq.subject === currentSubject).map(bq => bq.cat).filter(Boolean) as string[]
     : [];
-  const cats = [...new Set([...taxCats, ...bankCats])].sort();
+  const cats = [...new Set([...soCats, ...taxCats, ...bankCats])].sort();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1334,40 +1337,18 @@ function MetadataFields({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questi
           </>
         </ModalField>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <ModalField label="Svårighetsgrad">
-          <select
-            value={q.difficulty ?? ""}
-            onChange={e => patchQ({ difficulty: (e.target.value || null) as Question["difficulty"] })}
-            style={psInput}
-          >
-            <option value="">—</option>
-            <option value="easy">Lätt</option>
-            <option value="medium">Medel</option>
-            <option value="hard">Svår</option>
-          </select>
-        </ModalField>
-        <ModalField label="Status">
-          <select
-            value={q.status ?? "draft"}
-            onChange={e => patchQ({ status: e.target.value as Question["status"] })}
-            style={psInput}
-          >
-            <option value="draft">Utkast</option>
-            <option value="review">Granska</option>
-            <option value="approved">Godkänd</option>
-            <option value="archived">Arkiverad</option>
-          </select>
-        </ModalField>
-        <ModalField label="Författare">
-          <input
-            value={q.author ?? ""}
-            onChange={e => patchQ({ author: e.target.value || undefined })}
-            placeholder="Ditt namn"
-            style={psInput}
-          />
-        </ModalField>
-      </div>
+      <ModalField label="Status">
+        <select
+          value={q.status ?? "draft"}
+          onChange={e => patchQ({ status: e.target.value as Question["status"] })}
+          style={{ ...psInput, maxWidth: "50%" }}
+        >
+          <option value="draft">Utkast</option>
+          <option value="review">Granska</option>
+          <option value="approved">Godkänd</option>
+          <option value="archived">Arkiverad</option>
+        </select>
+      </ModalField>
     </div>
   );
 }

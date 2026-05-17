@@ -6,9 +6,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAutosave } from "@/hooks/useAutosave";
 import { v4 as uuidv4 } from "uuid";
 import {
-  BookOpen, FileText, Files, Sparkles, Library, Check, Download,
+  BookOpen, Files, Sparkles, Library, Check, Download,
   User, Users, Info, PenLine, Type, Image as ImageIcon, Flag, Bell,
-  CheckCircle, Minus, Copy, ChevronDown, Palette,
+  CheckCircle, Minus, Copy, ChevronDown, Palette, Lock, Unlock, Plus,
   ChevronLeft, Trash2, type LucideIcon,
 } from "lucide-react";
 import { documents, questionBank, scheduleSave } from "@/lib/local-db";
@@ -19,9 +19,13 @@ import {
   type ContentBlockType,
   type DesignSettings,
   type Question,
+  type AttachedCallout,
 } from "@/lib/test-types";
 import { BankPickerModal } from "@/components/BankPickerModal";
 import { getQuestionText } from "@/lib/question-utils";
+import { WorkbookBlockEditModal } from "@/components/editor/WorkbookBlockEditModal";
+import { NewBlockDialog } from "@/components/editor/NewBlockDialog";
+import { PaperCover } from "@/components/editor/PaperCover";
 
 /* ── Block library ─────────────────────────────────────────────────────────── */
 const WORKBOOK_BLOCKS: Array<{ type: ContentBlockType; icon: LucideIcon; label: string; color: string }> = [
@@ -35,8 +39,12 @@ const WORKBOOK_BLOCKS: Array<{ type: ContentBlockType; icon: LucideIcon; label: 
   { type: "quote",      icon: Flag,         label: "Citat",        color: "#A87F1A" },
   { type: "marginNote", icon: Bell,         label: "Marginalnot",  color: "#B7791F" },
   { type: "checklist",  icon: CheckCircle,  label: "Checklista",   color: "#1E3A5F" },
-  { type: "divider",    icon: Minus,        label: "Avdelare",     color: "#6B6459" },
-  { type: "pageBreak",  icon: Files,        label: "Sidbrytning",  color: "#6B6459" },
+  { type: "divider",     icon: Minus,        label: "Avdelare",       color: "#6B6459" },
+  { type: "pageBreak",   icon: Files,        label: "Sidbrytning",    color: "#6B6459" },
+  { type: "wb_open",     icon: PenLine,      label: "Öppen fråga",    color: "#2D5A3D" },
+  { type: "wb_choice",   icon: CheckCircle,  label: "Flervalsfråga",  color: "#1E3A5F" },
+  { type: "wb_truefalse",icon: Check,        label: "Sant/Falskt",    color: "#7A1F2B" },
+  { type: "wb_matching", icon: BookOpen,     label: "Para ihop",      color: "#A87F1A" },
 ];
 
 /* ── Accent palette ─────────────────────────────────────────────────────────── */
@@ -57,8 +65,13 @@ function defaultWorkbookBlockContent(type: ContentBlockType): Record<string, unk
     case "image":       return { caption: "", placeholder: "Bild" };
     case "checklist":   return { title: "Att göra", items: ["Punkt 1"] };
     case "marginNote":  return { text: "Marginalnot…" };
+    case "callout":     return { text: "Skriv din pratbubbla här…", color: "yellow" };
     case "divider":     return {};
     case "pageBreak":   return {};
+    case "wb_open":     return { text: "Öppen fråga…", lines: 4 };
+    case "wb_choice":   return { text: "Flervalsfråga…", options: ["Alternativ A", "Alternativ B", "Alternativ C", "Alternativ D"], multi: false };
+    case "wb_truefalse":return { text: "Påstående som ska bedömas som sant eller falskt…" };
+    case "wb_matching": return { text: "Para ihop begreppen med rätt beskrivning.", pairs: [{ left: "Begrepp 1", right: "Beskrivning 1" }, { left: "Begrepp 2", right: "Beskrivning 2" }] };
     default:            return {};
   }
 }
@@ -92,6 +105,58 @@ const actionBtnStyle: React.CSSProperties = {
   border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)", cursor: "pointer",
   display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ps-ink-2)",
 };
+
+/* ── Callout bubble component ─────────────────────────────────────────────── */
+
+const CALLOUT_BG: Record<string, string> = {
+  yellow: "#FEF3C7",
+  blue:   "#DBEAFE",
+  green:  "#D1FAE5",
+  pink:   "#FCE7F3",
+  purple: "#EDE9FE",
+};
+const CALLOUT_BORDER: Record<string, string> = {
+  yellow: "#F59E0B",
+  blue:   "#3B82F6",
+  green:  "#10B981",
+  pink:   "#EC4899",
+  purple: "#8B5CF6",
+};
+
+function CalloutBubble({ callout }: { callout: AttachedCallout }) {
+  const bg = CALLOUT_BG[callout.color] ?? "#FEF3C7";
+  const border = CALLOUT_BORDER[callout.color] ?? "#F59E0B";
+
+  // Absolute position relative to its block wrapper (parent has position:relative)
+  const sidePos: React.CSSProperties =
+    callout.side === "left"   ? { right: "100%", top: 8, marginRight: 10 } :
+    callout.side === "right"  ? { left: "100%",  top: 8, marginLeft: 10 } :
+    callout.side === "top"    ? { left: "50%", bottom: "100%", marginBottom: 10, transform: "translateX(-50%)" } :
+                                { left: "50%", top: "100%",    marginTop: 10,    transform: "translateX(-50%)" };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        ...sidePos,
+        maxWidth: 180,
+        padding: "8px 12px",
+        background: bg,
+        border: `1.5px solid ${border}`,
+        borderRadius: 10,
+        fontSize: 12,
+        color: "#1A1814",
+        fontFamily: "var(--ps-ui)",
+        lineHeight: 1.4,
+        boxShadow: "0 2px 6px rgba(20,17,13,0.08)",
+        zIndex: 4,
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      {callout.text}
+    </div>
+  );
+}
 
 /* ── Block inspector ──────────────────────────────────────────────────────── */
 function WorkbookBlockInspector({
@@ -278,6 +343,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     course: string; weekRange: string; chapter: string;
     primaryColor?: string; fontFamily?: string; subtitle?: string;
     distDigital?: boolean; distPeriodic?: boolean; distTeacherVersion?: boolean;
+    showCover?: boolean; coverImageUrl?: string; coverSubtitle?: string;
   }>({ accent: "#1E5F5C", font: "serif", showMarginNotes: true, twoColumn: true, course: "", weekRange: "", chapter: "" });
   const [blocks, setBlocks]     = useState<ContentBlockRef[]>([]);
   const [teacherView, setTeacherView] = useState(false);
@@ -288,6 +354,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   const [bank, setBank]               = useState<Question[]>([]);
   const [subtitle, setSubtitle]       = useState("");
   const [docType, setDocType]         = useState<"test" | "workbook" | "homework">("workbook");
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [newBlockDialogOpen, setNewBlockDialogOpen] = useState(false);
+  const [freeForm, setFreeForm]       = useState(false);
 
   // helper to patch design
   const setD = useCallback((patch: Partial<typeof design>) => {
@@ -303,14 +372,21 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     // Load design settings from doc
     const ds = doc.design_settings;
     if (ds) {
+      const extra = ds as unknown as {
+        weekRange?: string; chapter?: string;
+        showCover?: boolean; coverImageUrl?: string; coverSubtitle?: string;
+      };
       setDesign({
         accent: ds.primaryColor ?? "#1E5F5C",
         font: ds.fontFamily === "humanist" ? "humanist" : "serif",
         showMarginNotes: true,
         twoColumn: true,
         course: ds.course ?? "",
-        weekRange: (ds as unknown as { weekRange?: string }).weekRange ?? "",
-        chapter: (ds as unknown as { chapter?: string }).chapter ?? "",
+        weekRange: extra.weekRange ?? "",
+        chapter: extra.chapter ?? "",
+        showCover: extra.showCover ?? false,
+        coverImageUrl: extra.coverImageUrl,
+        coverSubtitle: extra.coverSubtitle,
       });
     }
     if (doc.doc_type) {
@@ -337,6 +413,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           course: design.course,
           weekRange: design.weekRange,
           chapter: design.chapter,
+          showCover: design.showCover,
+          coverImageUrl: design.coverImageUrl,
+          coverSubtitle: design.coverSubtitle,
         } as unknown as DesignSettings,
       });
       scheduleSave();
@@ -356,6 +435,20 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
 
   const editBlock = useCallback((id: string, patch: Record<string, unknown>) => {
     setBlocks(b => b.map(r => r.block_id === id ? { ...r, content: { ...r.content, ...patch } } : r));
+  }, []);
+
+  /** Modal-style patch: write content AND top-level fields (callout, layout) at once. */
+  const editBlockRef = useCallback((id: string, patch: Partial<ContentBlockRef>) => {
+    setBlocks(b => b.map(r => {
+      if (r.block_id !== id) return r;
+      const next: ContentBlockRef = { ...r };
+      if ("content" in patch && patch.content !== undefined) {
+        next.content = patch.content as ContentBlockRef["content"];
+      }
+      if ("callout" in patch) next.callout = patch.callout as AttachedCallout | null;
+      if ("layout"  in patch) next.layout  = patch.layout;
+      return next;
+    }));
   }, []);
 
   const deleteBlock = useCallback((id: string) => {
@@ -430,6 +523,30 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   const accent = design.accent;
   const totalBlocks = blocks.filter(b => b.block_type !== "pageBreak" && b.block_type !== "divider").length;
 
+  /* ── Free-form drag handler ── */
+  const startDrag = (blockId: string, e: React.MouseEvent) => {
+    if (!freeForm) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = blocks.find(b => b.block_id === blockId);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLayout = block?.layout ?? { x: 0, y: 0, w: 0, h: 0 };
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      setBlocks(bb => bb.map(r => r.block_id === blockId
+        ? { ...r, layout: { x: startLayout.x + dx, y: startLayout.y + dy, w: startLayout.w, h: startLayout.h } }
+        : r));
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   /* ── Block renderer ── */
   const renderBlock = (b: ContentBlockRef, onClick: () => void, isSelected: boolean, exerciseNum: number) => {
     const c = b.content as Record<string, unknown>;
@@ -437,7 +554,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
       borderRadius: 6,
       outline: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
       outlineOffset: 2,
-      cursor: "pointer",
+      cursor: freeForm ? "grab" : "pointer",
       marginBottom: 10,
       position: "relative",
     };
@@ -465,30 +582,27 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
       }
 
       case "intro": {
-        const rawText = String(c.text || "");
-        const first = rawText.charAt(0);
-        const rest = rawText.slice(1);
+        const introHtml = String(c.text || "");
         return (
           <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
-            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#222", margin: "0 0 14px", padding: "10px 0 0", fontFamily: "Newsreader, serif" }}>
-              {first && (
-                <span style={{ float: "left", fontSize: 38, lineHeight: 0.9, color: accent, marginRight: 6, fontWeight: 600, fontStyle: "italic" }}>
-                  {first}
-                </span>
-              )}
-              {rest || rawText}
-            </p>
+            <div
+              style={{ fontSize: 12, lineHeight: 1.7, color: "#222", margin: "0 0 14px", padding: "10px 0 0", fontFamily: "Newsreader, serif" }}
+              dangerouslySetInnerHTML={{ __html: introHtml || "<em>(Inledningstext…)</em>" }}
+            />
           </div>
         );
       }
 
       case "instruction": {
-        const text = String(c.text || "");
+        const instrHtml = String(c.text || "");
         return (
           <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
             <div style={{ display: "flex", gap: 10, margin: "8px 0", padding: "10px 12px", background: accent + "0f", borderLeft: `3px solid ${accent}`, borderRadius: "0 4px 4px 0" }}>
               <Info size={13} style={{ color: accent, marginTop: 2, flexShrink: 0 }} />
-              <div style={{ fontSize: 11, lineHeight: 1.55, color: "#333", fontStyle: "italic" }}>{text || "(Instruktionstext)"}</div>
+              <div
+                style={{ fontSize: 11, lineHeight: 1.55, color: "#333", fontStyle: "italic" }}
+                dangerouslySetInnerHTML={{ __html: instrHtml || "<em>(Instruktionstext)</em>" }}
+              />
             </div>
           </div>
         );
@@ -502,16 +616,18 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
               <div style={{ position: "absolute", top: -7, left: 12, background: "#FBF8F1", padding: "0 6px", fontSize: 8.5, color: "#A87F1A", letterSpacing: "0.14em", fontWeight: 600 }}>
                 KÄLLA{s.title ? ` · ${s.title.toUpperCase()}` : ""}
               </div>
-              <div style={{ fontSize: 11, lineHeight: 1.65, fontStyle: "italic", color: "#333", fontFamily: "Newsreader, serif" }}>
-                {s.text ? `"${s.text}"` : "(Källtext)"}
-              </div>
+              <div
+                style={{ fontSize: 11, lineHeight: 1.65, fontStyle: "italic", color: "#333", fontFamily: "Newsreader, serif" }}
+                dangerouslySetInnerHTML={{ __html: s.text || "<em>(Källtext)</em>" }}
+              />
               {s.attribution && (
                 <div style={{ fontSize: 9, color: "#888", marginTop: 6, textAlign: "right" }}>— {s.attribution}</div>
               )}
               {teacherView && s.note && (
-                <div style={{ marginTop: 8, padding: "6px 8px", background: "#FEF9C3", borderRadius: 5, fontSize: 11, color: "#78350f", fontFamily }}>
-                  Lärarnot: {s.note}
-                </div>
+                <div
+                  style={{ marginTop: 8, padding: "6px 8px", background: "#FEF9C3", borderRadius: 5, fontSize: 11, color: "#78350f", fontFamily }}
+                  dangerouslySetInnerHTML={{ __html: `<strong>Lärarnot:</strong> ${s.note}` }}
+                />
               )}
             </div>
           </div>
@@ -528,7 +644,10 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <div style={{ flex: 1, height: 1, background: "#7A1F2B", opacity: 0.3 }} />
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#7A1F2B", fontFamily: "Newsreader, serif" }}>{v.word || "Ord"}</div>
-              <div style={{ fontSize: 10.5, color: "#333", lineHeight: 1.55, marginTop: 4 }}>{v.definition || "(Definition)"}</div>
+              <div
+                style={{ fontSize: 10.5, color: "#333", lineHeight: 1.55, marginTop: 4 }}
+                dangerouslySetInnerHTML={{ __html: v.definition || "(Definition)" }}
+              />
               {v.related && v.related.length > 0 && (
                 <div style={{ marginTop: 6, fontSize: 9, color: "#888", fontStyle: "italic" }}>
                   Se även: {v.related.join(", ")}
@@ -548,7 +667,10 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <span style={{ width: 22, height: 22, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 600, fontFamily: "Newsreader, serif" }}>
                   {exerciseNum}
                 </span>
-                <div style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}>{ex.text || "(Uppgiftstext)"}</div>
+                <div
+                  style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}
+                  dangerouslySetInnerHTML={{ __html: ex.text || "(Uppgiftstext)" }}
+                />
               </div>
               <div style={{ marginTop: 6, marginLeft: 30 }}>
                 {Array.from({ length: ex.lines ?? 3 }).map((_, i) => (
@@ -565,9 +687,10 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
         return (
           <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
             <div style={{ margin: "14px 0", padding: "10px 14px 10px 18px", borderLeft: `3px solid ${accent}`, fontFamily: "Newsreader, serif" }}>
-              <div style={{ fontSize: 14, fontStyle: "italic", lineHeight: 1.5, color: "#222" }}>
-                {q.text ? `"${q.text}"` : "(Citat)"}
-              </div>
+              <div
+                style={{ fontSize: 14, fontStyle: "italic", lineHeight: 1.5, color: "#222" }}
+                dangerouslySetInnerHTML={{ __html: q.text || "(Citat)" }}
+              />
               {q.attribution && <div style={{ fontSize: 9.5, color: "#888", marginTop: 4 }}>— {q.attribution}</div>}
             </div>
           </div>
@@ -630,7 +753,9 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
             <div style={{ margin: "8px 0", padding: "8px 10px", background: accent + "14", border: `1px dashed ${accent}`, borderRadius: 4, fontSize: 10.5, color: "#333", display: "flex", gap: 6 }}>
               <Bell size={12} style={{ color: accent, marginTop: 1, flexShrink: 0 }} />
-              <div><strong style={{ fontSize: 9.5 }}>Lärarnot:</strong> {mn.text || "(Marginalnot)"}</div>
+              <div
+                dangerouslySetInnerHTML={{ __html: `<strong style="font-size:9.5px">Lärarnot:</strong> ${mn.text || "(Marginalnot)"}` }}
+              />
             </div>
           </div>
         );
@@ -646,6 +771,146 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
       case "pageBreak":
         return null;
 
+      case "callout": {
+        const cc = c as { text?: string; color?: string };
+        const color = (cc.color && CALLOUT_BG[cc.color]) ? cc.color : "yellow";
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div
+              style={{
+                display: "inline-block",
+                padding: "10px 14px",
+                background: CALLOUT_BG[color] ?? "#FEF3C7",
+                border: `1.5px solid ${CALLOUT_BORDER[color] ?? "#F59E0B"}`,
+                borderRadius: 12,
+                fontSize: 13,
+                color: "#1A1814",
+                lineHeight: 1.45,
+                maxWidth: "100%",
+              }}
+              dangerouslySetInnerHTML={{ __html: cc.text || "Pratbubbla" }}
+            />
+          </div>
+        );
+      }
+
+      // ── Häftets egna frågetyper ────────────────────────────────────────────
+
+      case "wb_open": {
+        const wo = c as { text?: string; lines?: number };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{ width: 20, height: 20, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, fontWeight: 700, marginTop: 1 }}>
+                  {exerciseNum}
+                </span>
+                <div
+                  style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}
+                  dangerouslySetInnerHTML={{ __html: wo.text || "(Frågetext)" }}
+                />
+              </div>
+              <div style={{ marginTop: 6, marginLeft: 28 }}>
+                {Array.from({ length: wo.lines ?? 4 }).map((_, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid #C8C2B5", height: 22 }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "wb_choice": {
+        const wc = c as { text?: string; options?: string[]; multi?: boolean };
+        const opts = wc.options ?? ["Alternativ A", "Alternativ B", "Alternativ C", "Alternativ D"];
+        const letters = ["A", "B", "C", "D", "E", "F"];
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, fontWeight: 700, marginTop: 1 }}>
+                  {exerciseNum}
+                </span>
+                <div
+                  style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}
+                  dangerouslySetInnerHTML={{ __html: wc.text || "(Frågetext)" }}
+                />
+              </div>
+              <div style={{ marginLeft: 28, display: "flex", flexDirection: "column", gap: 5 }}>
+                {opts.map((opt, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: wc.multi ? 3 : 99, border: `1.5px solid ${accent}`, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: accent, fontWeight: 700 }}>
+                      {letters[i]}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#333" }}>{opt}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "wb_truefalse": {
+        const wtf = c as { text?: string };
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, fontWeight: 700, marginTop: 1 }}>
+                  {exerciseNum}
+                </span>
+                <div
+                  style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}
+                  dangerouslySetInnerHTML={{ __html: wtf.text || "(Påstående)" }}
+                />
+              </div>
+              <div style={{ marginLeft: 28, display: "flex", gap: 10 }}>
+                {["Sant", "Falskt"].map(label => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 14px", border: `1.5px solid ${accent}`, borderRadius: 20, fontSize: 11, color: accent, fontWeight: 500 }}>
+                    <span style={{ width: 12, height: 12, borderRadius: 99, border: `1.5px solid ${accent}`, display: "inline-block" }} />
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case "wb_matching": {
+        const wm = c as { text?: string; pairs?: { left: string; right: string }[] };
+        const pairs = wm.pairs ?? [{ left: "Term A", right: "Definition A" }, { left: "Term B", right: "Definition B" }];
+        // Shuffle right column for print
+        const rightShuffled = [...pairs.map(p => p.right)].sort(() => 0.5 - 0.5);
+        return (
+          <div key={b.block_id} style={wrapperStyle} onClick={onClick}>
+            <div style={{ margin: "10px 0" }}>
+              {wm.text && (
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 99, background: accent, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, fontWeight: 700, marginTop: 1 }}>
+                    {exerciseNum}
+                  </span>
+                  <div
+                    style={{ flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "#14110D" }}
+                    dangerouslySetInnerHTML={{ __html: wm.text }}
+                  />
+                </div>
+              )}
+              <div style={{ marginLeft: wm.text ? 28 : 0, display: "grid", gridTemplateColumns: "1fr 32px 1fr", gap: "4px 0", alignItems: "center" }}>
+                {pairs.map((pair, i) => (
+                  <React.Fragment key={i}>
+                    <div style={{ padding: "5px 8px", background: "#F5F0E8", border: "1px solid #DDD5C0", borderRadius: 3, fontSize: 10.5, color: "#333" }}>{pair.left}</div>
+                    <div style={{ textAlign: "center", fontSize: 10, color: "#999" }}>→</div>
+                    <div style={{ padding: "5px 8px", background: "#EEF4FF", border: "1px dashed #93C5FD", borderRadius: 3, fontSize: 10.5, color: "#666" }}>{rightShuffled[i]}</div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -658,101 +923,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   );
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 320px", height: "100vh", overflow: "hidden", fontFamily: "var(--ps-ui)" }}>
-
-      {/* ── LEFT panel ── */}
-      <aside style={{ width: 240, borderRight: "1px solid var(--ps-rule)", background: "var(--ps-bg)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
-
-        {/* Header */}
-        <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--ps-rule)", flexShrink: 0 }}>
-          <button
-            onClick={onBack}
-            style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12, fontFamily: "var(--ps-ui)", padding: 0, marginBottom: 6 }}
-          >
-            <ChevronLeft size={14} /> Mina dokument
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <BookOpen size={14} style={{ color: "var(--ps-accent)" }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ps-accent)", fontFamily: "var(--ps-ui)" }}>Arbetshäfte</span>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: "-0.01em", fontFamily: "var(--ps-ui)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {title || "Namnlöst häfte"}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--ps-ink-3)", fontFamily: "var(--ps-ui)", marginTop: 2 }}>
-            {[design.course, design.weekRange, `${pages.length * 2} sidor`].filter(Boolean).join(" · ")}
-          </div>
-        </div>
-
-        {/* Document type switcher */}
-        <div style={{ padding: "12px 14px 8px", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "var(--ps-ui)" }}>
-            Dokumenttyp
-          </div>
-          <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
-            {([
-              { id: "test"     as const, Icon: FileText,  label: "Prov"  },
-              { id: "workbook" as const, Icon: BookOpen,  label: "Häfte" },
-              { id: "homework" as const, Icon: Files,     label: "Läxa"  },
-            ]).map(t => (
-              <button key={t.id} onClick={() => setDocType(t.id)} style={{
-                flex: 1, height: 26, padding: "0 6px", borderRadius: 6, border: "none",
-                background: docType === t.id ? "var(--ps-paper)" : "transparent",
-                color: docType === t.id ? "var(--ps-ink)" : "var(--ps-ink-3)",
-                fontFamily: "var(--ps-ui)", fontSize: 10.5, fontWeight: docType === t.id ? 500 : 400,
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                boxShadow: docType === t.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-              }}>
-                <t.Icon size={11} /> {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Block library */}
-        <div style={{ padding: "8px 14px 12px", flex: 1, overflow: "auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "6px 0 8px" }}>
-            <span style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--ps-ui)" }}>Block</span>
-            <span style={{ fontSize: 10, color: "var(--ps-ink-4)", fontFamily: "var(--ps-ui)" }}>Dra till sidan</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-            {WORKBOOK_BLOCKS.map(blockDef => (
-              <button key={blockDef.type} onClick={() => addBlock(blockDef.type as ContentBlockType)}
-                style={{
-                  padding: "8px 8px", borderRadius: 6, border: "1px solid var(--ps-rule)",
-                  background: "var(--ps-paper)", cursor: "pointer", fontFamily: "var(--ps-ui)",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                  fontSize: 10.5, color: "var(--ps-ink-2)", transition: "border-color 0.1s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = blockDef.color; e.currentTarget.style.background = blockDef.color + "0c"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--ps-rule)"; e.currentTarget.style.background = "var(--ps-paper)"; }}
-              >
-                <blockDef.icon size={14} style={{ color: blockDef.color }} />
-                {blockDef.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Bank reuse */}
-          <div style={{ marginTop: 16, padding: 10, background: "var(--ps-accent)0f", borderRadius: 8, border: "1px solid var(--ps-accent)33" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <Sparkles size={12} style={{ color: "var(--ps-accent)" }} />
-              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--ps-ui)" }}>Återbruk från frågebanken</span>
-            </div>
-            <p style={{ fontSize: 10.5, color: "var(--ps-ink-3)", margin: 0, lineHeight: 1.45, fontFamily: "var(--ps-ui)" }}>
-              Dra in övningar från ditt provarkiv. Ändringar propagerar mellan dokument.
-            </p>
-            <button
-              onClick={() => setBankPickerOpen(true)}
-              style={{ marginTop: 8, width: "100%", height: 26, borderRadius: 6, fontSize: 11,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                border: "1px solid var(--ps-rule-2)", background: "transparent", cursor: "pointer",
-                fontFamily: "var(--ps-ui)", color: "var(--ps-ink-2)" }}
-            >
-              <Library size={11} /> Öppna frågebanken
-            </button>
-          </div>
-        </div>
-      </aside>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", height: "100vh", overflow: "hidden", fontFamily: "var(--ps-ui)" }}>
 
       {/* ── CENTER ── */}
       <main style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--ps-bg-soft)" }}>
@@ -761,17 +932,41 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           background: "var(--ps-bg)", borderBottom: "1px solid var(--ps-rule)",
           padding: "9px 20px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
         }}>
+          {/* Back button + title */}
+          <button
+            onClick={onBack}
+            title="Tillbaka till Mina dokument"
+            style={{
+              display: "flex", alignItems: "center", gap: 4, background: "none", border: "none",
+              cursor: "pointer", color: "var(--ps-ink-3)", fontSize: 12, fontFamily: "var(--ps-ui)",
+              padding: "4px 8px", borderRadius: 6,
+            }}
+          >
+            <ChevronLeft size={14} /> Mina dokument
+          </button>
+          <div style={{ width: 1, height: 22, background: "var(--ps-rule)" }} />
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ps-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>
+              {title || "Namnlöst häfte"}
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)" }}>
+              {[design.course, design.weekRange, `${pages.length * 2} sidor`].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
           {/* Mode tabs */}
           <div style={{ display: "flex", padding: 2, background: "var(--ps-bg-soft)", borderRadius: 8, gap: 1 }}>
             {([
-              { id: false, label: "Elevversion", Icon: User },
-              { id: true,  label: "Lärarversion", Icon: Users },
+              { id: false, label: "Elev", Icon: User },
+              { id: true,  label: "Lärare", Icon: Users },
             ] as const).map(m => (
               <button
                 key={String(m.id)}
                 onClick={() => setTeacherView(m.id)}
                 style={{
-                  height: 27, padding: "0 10px", borderRadius: 6, border: "none",
+                  height: 26, padding: "0 9px", borderRadius: 6, border: "none",
                   background: teacherView === m.id ? "var(--ps-paper)" : "transparent",
                   color: teacherView === m.id ? "var(--ps-ink)" : "var(--ps-ink-3)",
                   fontFamily: "var(--ps-ui)", fontSize: 12, fontWeight: teacherView === m.id ? 500 : 400,
@@ -785,13 +980,37 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
             ))}
           </div>
 
-          <div style={{ flex: 1 }} />
+          {/* Free-form toggle */}
+          <button
+            onClick={() => setFreeForm(f => !f)}
+            title={freeForm ? "Lås layout" : "Free-form (dra block fritt)"}
+            style={{
+              height: 28, padding: "0 10px", borderRadius: 6,
+              border: "1px solid",
+              borderColor: freeForm ? "var(--ps-accent, #1E5F5C)" : "var(--ps-rule-2)",
+              background: freeForm ? "var(--ps-accent, #1E5F5C)" : "transparent",
+              color: freeForm ? "white" : "var(--ps-ink-2)",
+              fontFamily: "var(--ps-ui)", fontSize: 12, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 5,
+            }}
+          >
+            {freeForm ? <Unlock size={12} /> : <Lock size={12} />}
+            {freeForm ? "Free-form" : "Låst"}
+          </button>
 
+          {/* Save indicator */}
           <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--ps-ui)" }}>
             {saveState === "saved" && <Check size={11} style={{ color: "#16a34a" }} />}
-            {saveState === "saving" ? "Sparar…" : saveState === "saved" ? `Sparat just nu · ${totalBlocks} block` : `${totalBlocks} block`}
+            {saveState === "saving" ? "Sparar…" : saveState === "saved" ? `Sparat · ${totalBlocks} block` : `${totalBlocks} block`}
           </span>
 
+          <button
+            className="ps-btn ps-btn-outline ps-btn-sm"
+            onClick={() => setBankPickerOpen(true)}
+            title="Återbruk från frågebanken"
+          >
+            <Library size={12} /> Bank
+          </button>
           <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={() => window.print()}>
             Skriv ut
           </button>
@@ -802,6 +1021,22 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
 
         {/* Spread canvas */}
         <div id="workbook-print-root" style={{ flex: 1, overflowY: "auto", padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          {/* Cover page */}
+          {design.showCover && (
+            <div style={{ marginBottom: 48, background: "rgba(20,17,13,0.06)", padding: 4, borderRadius: 6 }}>
+              <PaperCover
+                title={title || "Namnlöst häfte"}
+                subtitle={design.coverSubtitle ?? subtitle}
+                imageSrc={design.coverImageUrl}
+                accent={accent}
+                headingFont={fontFamily}
+                bodyFont={fontFamily}
+                pageWidth={480}
+                pageHeight={678}
+                margin={36}
+              />
+            </div>
+          )}
           {spreads.map(([left, right], spreadIdx) => {
             // Calculate exercise offset for this spread
             let exCounter = 0;
@@ -814,11 +1049,39 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
               let localEx = startExNum;
               return pageBlocks.map(b => {
                 if (b.block_type === "exercise") localEx++;
-                return renderBlock(
+                const hasFreePos = !!b.layout && (b.layout.x !== 0 || b.layout.y !== 0);
+                const onBlockClick = () => {
+                  if (freeForm) return;  // In free-form, click is drag-start only
+                  setSelectedId(b.block_id);
+                  setRightTab("block");
+                  setEditingBlockId(b.block_id);
+                };
+                const inner = renderBlock(
                   b,
-                  () => { setSelectedId(b.block_id); setRightTab("block"); },
+                  onBlockClick,
                   selectedId === b.block_id,
                   b.block_type === "exercise" ? localEx : 0,
+                );
+                return (
+                  <div
+                    key={b.block_id}
+                    onMouseDown={freeForm ? (e) => startDrag(b.block_id, e) : undefined}
+                    onDoubleClick={freeForm ? () => {
+                      setSelectedId(b.block_id);
+                      setEditingBlockId(b.block_id);
+                    } : undefined}
+                    style={hasFreePos ? {
+                      position: "absolute",
+                      left: b.layout!.x,
+                      top: b.layout!.y,
+                      zIndex: 5,
+                    } : undefined}
+                  >
+                    <div style={{ position: "relative" }}>
+                      {inner}
+                      {b.callout && <CalloutBubble callout={b.callout} />}
+                    </div>
+                  </div>
                 );
               });
             };
@@ -833,7 +1096,8 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <div style={{ width: 480, minHeight: 678, background: "white",
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
                   padding: "28px 32px", fontFamily, color: "#14110D",
-                  display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+                  display: "flex", flexDirection: "column", boxSizing: "border-box",
+                  position: "relative" }}>
                   {renderPageBlocks(left, leftExStart)}
                   <PageFooter pageNum={spreadIdx * 2 + 1} course={design.course ?? ""} chapter={design.chapter ?? ""} side="left" />
                 </div>
@@ -841,7 +1105,8 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 <div style={{ width: 480, minHeight: 678, background: "white",
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
                   padding: "28px 32px", fontFamily, color: "#14110D",
-                  display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+                  display: "flex", flexDirection: "column", boxSizing: "border-box",
+                  position: "relative" }}>
                   {renderPageBlocks(right, rightExStart)}
                   <PageFooter pageNum={spreadIdx * 2 + 2} course={design.course ?? ""} chapter={design.chapter ?? ""} side="right" />
                 </div>
@@ -849,17 +1114,33 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
             );
           })}
 
-          {/* Add spread button */}
-          <button
-            onClick={() => addBlock("pageBreak")}
-            style={{
-              marginTop: 8, padding: "10px 24px",
-              borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent",
-              cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 13, color: "var(--ps-ink-3)",
-            }}
-          >
-            + Nytt uppslag
-          </button>
+          {/* Add new block / new spread */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button
+              onClick={() => setNewBlockDialogOpen(true)}
+              style={{
+                padding: "12px 28px",
+                borderRadius: 8, border: "none",
+                background: "var(--ps-ink, #14110D)",
+                color: "white",
+                cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 13, fontWeight: 500,
+                display: "flex", alignItems: "center", gap: 6,
+                boxShadow: "0 2px 8px rgba(20,17,13,0.18)",
+              }}
+            >
+              <Plus size={14} /> Nytt block
+            </button>
+            <button
+              onClick={() => addBlock("pageBreak")}
+              style={{
+                padding: "12px 20px",
+                borderRadius: 8, border: "1px dashed var(--ps-rule-2)", background: "transparent",
+                cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 13, color: "var(--ps-ink-3)",
+              }}
+            >
+              + Nytt uppslag
+            </button>
+          </div>
         </div>
       </main>
 
@@ -1003,6 +1284,45 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                 </label>
               </div>
 
+              {/* Cover page */}
+              <div style={{ marginTop: 12, borderTop: "1px solid var(--ps-rule)", paddingTop: 12 }}>
+                <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Försättsblad</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={design.showCover ?? false}
+                    onChange={e => setD({ showCover: e.target.checked })}
+                    style={{ accentColor: "var(--ps-accent)", width: 14, height: 14 }}
+                  />
+                  <span style={{ fontSize: 12, color: "var(--ps-ink-2)" }}>Inkludera försättsblad</span>
+                </label>
+                {design.showCover && (
+                  <>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Cover-undertitel (valfri)</span>
+                      <input
+                        type="text"
+                        value={design.coverSubtitle ?? ""}
+                        onChange={e => setD({ coverSubtitle: e.target.value })}
+                        className="ps-input"
+                        style={{ fontSize: 12 }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Bild-URL</span>
+                      <input
+                        type="text"
+                        value={design.coverImageUrl ?? ""}
+                        onChange={e => setD({ coverImageUrl: e.target.value })}
+                        placeholder="https://… eller data:image/…"
+                        className="ps-input"
+                        style={{ fontSize: 12 }}
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+
               {/* Distribution */}
               <div style={{ marginTop: 12, borderTop: "1px solid var(--ps-rule)", paddingTop: 12 }}>
                 <div style={{ fontSize: 10, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Distribution</div>
@@ -1026,6 +1346,28 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
           )}
         </div>
       </aside>
+
+      {/* ── Block edit modal (click-to-edit) ── */}
+      {editingBlockId && (() => {
+        const editingBlock = blocks.find(b => b.block_id === editingBlockId);
+        if (!editingBlock) return null;
+        return (
+          <WorkbookBlockEditModal
+            block={editingBlock}
+            onEdit={patch => editBlockRef(editingBlock.block_id, patch)}
+            onDelete={() => { deleteBlock(editingBlock.block_id); setEditingBlockId(null); }}
+            onClose={() => setEditingBlockId(null)}
+          />
+        );
+      })()}
+
+      {/* ── New-block dialog (+ Nytt block) ── */}
+      {newBlockDialogOpen && (
+        <NewBlockDialog
+          onClose={() => setNewBlockDialogOpen(false)}
+          onSelect={(type) => addBlock(type)}
+        />
+      )}
 
       {/* ── BankPickerModal ── */}
       {bankPickerOpen && (

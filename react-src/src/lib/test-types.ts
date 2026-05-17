@@ -269,7 +269,24 @@ export type ContentBlockType =
   | "pageBreak"     // Tvingad sidbrytning
   | "divider"       // Horisontell separator
   | "heading"       // Kapitelrubrik + underrubrik
-  | "exercise";     // Numrerad övningsuppgift med skrivlinjer (häften)
+  | "exercise"      // Numrerad övningsuppgift med skrivlinjer (häften)
+  // Frågetyper för häften (utan bedömning, fristående från frågebanken)
+  | "wb_open"       // Öppen fråga med skrivlinjer
+  | "wb_choice"     // Flervalsfråga (A/B/C/D)
+  | "wb_truefalse"  // Sant/Falskt-påstående
+  | "wb_matching";  // Para ihop (kolumner)
+
+/** Färg på pratbubbla (callout) som kan fästas vid ett block. */
+export type CalloutColor = "yellow" | "blue" | "green" | "pink" | "purple";
+/** Sida som pratbubblan visas på, relativt sitt block. */
+export type CalloutSide = "left" | "right" | "top" | "bottom";
+
+/** Bunden pratbubbla — fästs vid ett block, flyttas med det. */
+export type AttachedCallout = {
+  text: string;
+  color: CalloutColor;
+  side: CalloutSide;
+};
 
 export type ContentBlock = {
   id: string;
@@ -278,6 +295,8 @@ export type ContentBlock = {
   content: ContentBlockContent;
   /** v2: Freeform-position. null = linjärt läge. */
   layout?: BlockLayout | null;
+  /** v3: Bunden pratbubbla — visas bredvid blocket. */
+  callout?: AttachedCallout | null;
 };
 
 // Per-typ content-shapes (dokumenterade för editor/renderer)
@@ -294,6 +313,12 @@ export type PageBreakBlockContent  = Record<string, never>;
 export type DividerBlockContent    = Record<string, never>;
 export type HeadingBlockContent    = { title: string; subtitle?: string; chapterLabel?: string; chapter?: string };
 
+// Häftets egna frågetyper (utan bedömning)
+export type WbOpenBlockContent      = { text: string; lines: number };
+export type WbChoiceBlockContent    = { text: string; options: string[]; multi?: boolean };
+export type WbTrueFalseBlockContent = { text: string };
+export type WbMatchingBlockContent  = { text?: string; pairs: { left: string; right: string }[] };
+
 export type ContentBlockContent =
   | IntroBlockContent
   | InstructionBlockContent
@@ -307,22 +332,30 @@ export type ContentBlockContent =
   | PageBreakBlockContent
   | DividerBlockContent
   | HeadingBlockContent
+  | WbOpenBlockContent
+  | WbChoiceBlockContent
+  | WbTrueFalseBlockContent
+  | WbMatchingBlockContent
   | Record<string, unknown>; // fallback för okända block
 
 export const CONTENT_BLOCK_TYPE_LABELS: Record<ContentBlockType, string> = {
-  intro:       "Introduktion",
-  instruction: "Instruktion",
-  source:      "Källa",
-  vocab:       "Ordlista",
-  quote:       "Citat",
-  callout:     "Informationsruta",
-  image:       "Bild",
-  checklist:   "Checklista",
-  marginNote:  "Lärarnotering",
-  pageBreak:   "Sidbrytning",
-  divider:     "Avdelare",
-  heading:     "Rubrik",
-  exercise:    "Övning",
+  intro:        "Introduktion",
+  instruction:  "Instruktion",
+  source:       "Källa",
+  vocab:        "Ordlista",
+  quote:        "Citat",
+  callout:      "Informationsruta",
+  image:        "Bild",
+  checklist:    "Checklista",
+  marginNote:   "Lärarnotering",
+  pageBreak:    "Sidbrytning",
+  divider:      "Avdelare",
+  heading:      "Rubrik",
+  exercise:     "Övning",
+  wb_open:      "Öppen fråga",
+  wb_choice:    "Flervalsfråga",
+  wb_truefalse: "Sant/Falskt",
+  wb_matching:  "Para ihop",
 };
 
 // ---------------------------------------------------------------------------
@@ -353,6 +386,8 @@ export type ContentBlockRef = {
   block_type: ContentBlockType;
   content: ContentBlockContent;
   layout?: BlockLayout | null;
+  /** v3: Bunden pratbubbla — visas bredvid blocket. */
+  callout?: AttachedCallout | null;
 };
 
 /** Type-guard: är detta en fråge-ref? */
