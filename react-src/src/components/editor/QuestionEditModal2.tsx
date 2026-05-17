@@ -5,7 +5,8 @@
 
 import React, { useState, useRef } from "react";
 import { Trash2, X, Minus } from "lucide-react";
-import type { Question, QuestionType, MatchingPair } from "@/lib/test-types";
+import type { Question, QuestionType, MatchingPair, WordSearchEntry } from "@/lib/test-types";
+import { generateWordSearch } from "@/lib/wordsearch-gen";
 import { RichTextEditor } from "./RichTextEditor";
 import { taxonomy, questionBank } from "@/lib/local-db";
 import { SO_TAXONOMY } from "@/lib/so-taxonomy";
@@ -41,6 +42,7 @@ const QUESTION_TYPE_NAMES: Record<string, string> = {
   diagram_label: "Diagramnamn",
   two_column: "Jämför kolumner",
   drawing: "Rityta",
+  wordsearch: "Wordsearch",
 };
 
 const AUTO_TYPES = new Set([
@@ -1277,6 +1279,121 @@ function TypeSpecificFields({
           </ModalField>
         </Collapser>
       );
+
+    case "wordsearch": {
+      const entries: WordSearchEntry[] = Array.isArray(c.entries)
+        ? (c.entries as WordSearchEntry[])
+        : [];
+      const gridSize: number = (c.gridSize as number) ?? 16;
+      const hasGrid = Array.isArray(c.grid) && (c.grid as string[][]).length > 0;
+
+      function setEntries(next: WordSearchEntry[]) {
+        patchContent({ entries: next });
+      }
+
+      function handleGenerate() {
+        const valid = entries.filter(e => e.word.trim().length > 0);
+        if (valid.length === 0) return;
+        const { grid, solution } = generateWordSearch(valid, gridSize);
+        patchContent({ grid, solution, entries: valid });
+      }
+
+      return (
+        <>
+          <Collapser title={`Ord och ledtrådar (${entries.length})`} defaultOpen>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {entries.map((e, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 6, alignItems: "center" }}>
+                  <input
+                    value={e.word}
+                    onChange={(ev) => {
+                      const next = [...entries];
+                      next[i] = { ...e, word: ev.target.value.toUpperCase() };
+                      setEntries(next);
+                    }}
+                    placeholder="ORD"
+                    style={{ ...psInput, textTransform: "uppercase", fontFamily: "monospace", fontWeight: 600 }}
+                  />
+                  <input
+                    value={e.clue}
+                    onChange={(ev) => {
+                      const next = [...entries];
+                      next[i] = { ...e, clue: ev.target.value };
+                      setEntries(next);
+                    }}
+                    placeholder="Ledtråd / förklaring…"
+                    style={psInput}
+                  />
+                  <button
+                    onClick={() => setEntries(entries.filter((_, j) => j !== i))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-4)", padding: 4 }}
+                    title="Ta bort ord"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <AddRowBtn onClick={() => setEntries([...entries, { word: "", clue: "" }])}>
+                Lägg till ord
+              </AddRowBtn>
+            </div>
+          </Collapser>
+
+          <Collapser title="Rutnät" defaultOpen>
+            <ModalField label="Storlek">
+              <select
+                value={gridSize}
+                onChange={(e) => patchContent({ gridSize: parseInt(e.target.value), grid: undefined, solution: undefined })}
+                style={{ ...psInput, width: 120 }}
+              >
+                {[12, 14, 16, 18, 20].map(s => (
+                  <option key={s} value={s}>{s}×{s}</option>
+                ))}
+              </select>
+            </ModalField>
+            <button
+              onClick={handleGenerate}
+              disabled={entries.filter(e => e.word.trim()).length === 0}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "var(--ps-accent, #1E5F5C)",
+                color: "white",
+                fontFamily: "var(--ps-ui)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: entries.filter(e => e.word.trim()).length === 0 ? "not-allowed" : "pointer",
+                opacity: entries.filter(e => e.word.trim()).length === 0 ? 0.5 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              🔀 Generera rutnät
+            </button>
+            {hasGrid && (
+              <div style={{ fontSize: 11, color: "var(--ps-ink-3)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ color: "var(--ps-green, #16a34a)" }}>✓</span>
+                Rutnät genererat ({entries.filter(e => e.word.trim()).length} ord placerade)
+              </div>
+            )}
+          </Collapser>
+
+          <Collapser title="Instruktion" defaultOpen={false}>
+            <ModalField label="Instruktionstext">
+              <textarea
+                value={(c.instructions as string) ?? ""}
+                onChange={(e) => patchContent({ instructions: e.target.value })}
+                rows={2}
+                placeholder="t.ex. Leta upp orden i rutnätet och ringa in dem."
+                style={{ ...psInput, resize: "vertical" }}
+              />
+            </ModalField>
+          </Collapser>
+        </>
+      );
+    }
 
     default:
       return null;

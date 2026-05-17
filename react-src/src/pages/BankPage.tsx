@@ -522,8 +522,9 @@ export default function BankPage({ onBack, onAddQuestion }: {
             <div style={{
               position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50,
               background: "var(--ps-paper)", border: "1px solid var(--ps-rule)", borderRadius: 10,
-              padding: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              padding: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, width: 280,
+              maxHeight: "80vh", overflowY: "auto",
             }}>
               {ALL_TYPES.map(t => {
                 const Icon = TYPE_ICONS[t] ?? Edit2;
@@ -576,7 +577,7 @@ export default function BankPage({ onBack, onAddQuestion }: {
         {/* Main content */}
         <div style={{ overflow: "auto", padding: "20px 24px 40px", background: "var(--ps-bg)", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Header card */}
-          <div className="ps-card" style={{ padding: "18px 22px", display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="ps-card" style={{ padding: "18px 22px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontFamily: "var(--ps-ui)", fontSize: 22, margin: 0, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--ps-ink)" }}>
                 {parentNode ? (() => { const parts = parentNode.label.split("::"); return parts[parts.length - 1] ?? parentNode.label; })() : (activeNode?.label ?? "Alla ämnen")}
@@ -590,7 +591,7 @@ export default function BankPage({ onBack, onAddQuestion }: {
               </div>
             </div>
             {/* Search */}
-            <div style={{ position: "relative", width: 240, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 200, flexShrink: 0 }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ps-ink-4)" }} />
               <input type="text" placeholder="Sök i uppgifter…" value={search} onChange={e => setSearch(e.target.value)}
                 className="ps-input" style={{ width: "100%", paddingLeft: 32, height: 36, fontSize: 13 }} />

@@ -63,7 +63,6 @@ import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import { useAutosave } from "@/hooks/useAutosave";
 import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
 import { BankPickerModal } from "@/components/BankPickerModal";
-import { CoverPicker } from "@/components/editor/CoverPicker";
 import type { CoverDoc, CoverTemplateId } from "@/components/editor/CoverTemplates";
 
 /* ─── Route ────────────────────────────────────────────────────────────── */
@@ -1759,19 +1758,7 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
         />
       </PsGroup>
 
-      {/* 17. Försättsblad — mall-väljare */}
-      <PsGroup title="Försättsblad">
-        <CoverPicker
-          selected={(design.coverTemplate ?? (design.showCover === false ? "none" : "official")) as CoverTemplateId}
-          onSelect={(id) => setD({ coverTemplate: id, showCover: id !== "none" })}
-          doc={buildCoverDoc(design, title)}
-          accent={accent}
-          instructions={design.coverInstructions ?? ""}
-          onInstructionsChange={(text) => setD({ coverInstructions: text })}
-        />
-      </PsGroup>
-
-      {/* 18. Sidoinställningar — kvarvarande togglar som inte hör till cover */}
+      {/* 17. Sidoinställningar — kvarvarande togglar som inte hör till cover */}
       <PsGroup title="Sidoinställningar">
         <PsToggle label="Innehållsförteckning" on={design.showToc ?? false} onChange={v => setD({ showToc: v })} />
         <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
@@ -1802,7 +1789,9 @@ function buildCoverDoc(design: DesignSettings, title: string): CoverDoc {
     duration:      design.duration ?? "",
     points:        0,
     questionCount: 0,
-    examNumber:    design.chapter ?? "1",
+    examNumber:    design.chapter ?? "",
+    termLabel:     design.termLabel ?? "",
+    examMeta:      design.examMeta ?? "",
     instructions:  design.coverInstructions ?? "",
     coverImageUrl: design.coverImage?.src ?? design.coverImageUrl ?? "",
   };

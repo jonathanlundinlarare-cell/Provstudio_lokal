@@ -32,6 +32,10 @@ export interface CoverDoc {
   points: number;
   questionCount: number;
   examNumber: string;
+  /** Läsårsetikett, t.ex. "VT 26". */
+  termLabel: string;
+  /** Provtyp-etikett, t.ex. "Skriftligt prov · Individuellt". */
+  examMeta: string;
   /** Optional instruction line that some templates render. */
   instructions?: string;
   /** Optional uploaded image URL — only used by `imagery` template. */
@@ -51,6 +55,8 @@ export interface CoverProps {
   doc: CoverDoc;
   accent?: string;
   onChange?: (patch: Partial<CoverDoc>) => void;
+  /** Bubbled up from richText Editables so the parent can show a floating toolbar. */
+  onSelectionChange?: (active: boolean, rect: DOMRect | null) => void;
 }
 
 /* Helper: produce a patcher for a single field */
@@ -67,7 +73,7 @@ function fieldPatcher<K extends keyof CoverDoc>(onChange: CoverProps["onChange"]
 }
 
 /* ─────────── 01 · EDITORIAL INDEX ─────────── */
-export const CoverEditorialIndex: React.FC<CoverProps> = ({ doc, accent = "#1E5F5C", onChange }) => (
+export const CoverEditorialIndex: React.FC<CoverProps> = ({ doc, accent = "#1E5F5C", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: PAPER, color: INK,
@@ -84,8 +90,9 @@ export const CoverEditorialIndex: React.FC<CoverProps> = ({ doc, accent = "#1E5F
       <Editable tag="span" value={doc.school} onChange={fieldPatcher(onChange, "school")} />
       <Editable tag="span" value={doc.course} onChange={fieldPatcher(onChange, "course")} style={{ color: accent }} />
       <span>Prov nr.&nbsp;
-        <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} />
-        &nbsp;/ VT 26
+        <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} placeholder="nr" />
+        &nbsp;/&nbsp;
+        <Editable tag="span" value={doc.termLabel} onChange={fieldPatcher(onChange, "termLabel")} placeholder="VT 26" />
       </span>
     </div>
 
@@ -94,12 +101,14 @@ export const CoverEditorialIndex: React.FC<CoverProps> = ({ doc, accent = "#1E5F
       <div style={{ fontFamily: "'Geist Mono', ui-monospace, monospace", fontSize: 11,
                     letterSpacing: "0.16em", color: accent,
                     textTransform: "uppercase", marginBottom: 18 }}>
-        Skriftligt prov · Individuellt
+        <Editable tag="span" value={doc.examMeta} onChange={fieldPatcher(onChange, "examMeta")} placeholder="Skriftligt prov · Individuellt" />
       </div>
       <Editable
         tag="h1"
         value={doc.title}
         onChange={fieldPatcher(onChange, "title")}
+        richText
+        onSelectionChange={onSelectionChange}
         style={{
           fontFamily: "'Instrument Serif', Georgia, serif",
           fontSize: 116, lineHeight: 0.92, margin: 0,
@@ -110,6 +119,9 @@ export const CoverEditorialIndex: React.FC<CoverProps> = ({ doc, accent = "#1E5F
         tag="p"
         value={doc.subtitle}
         onChange={fieldPatcher(onChange, "subtitle")}
+        richText
+        onSelectionChange={onSelectionChange}
+        placeholder="Undertitel…"
         style={{
           fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic",
           fontSize: 22, color: INK_2, lineHeight: 1.32,
@@ -144,7 +156,7 @@ const MetaCell: React.FC<{ label: string; value: string; onEdit?: (v: string) =>
 );
 
 /* ─────────── 02 · COLOR BLOCK ─────────── */
-export const CoverColorBlock: React.FC<CoverProps> = ({ doc, accent = "#7A1F2B", onChange }) => (
+export const CoverColorBlock: React.FC<CoverProps> = ({ doc, accent = "#7A1F2B", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: PAPER, color: INK,
@@ -171,8 +183,9 @@ export const CoverColorBlock: React.FC<CoverProps> = ({ doc, accent = "#7A1F2B",
         <div>
           <div style={{ fontSize: 11, color: INK_4, letterSpacing: "0.12em",
                         textTransform: "uppercase", marginBottom: 4 }}>
-            Prov · Kapitel&nbsp;
-            <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} />
+            <Editable tag="span" value={doc.examMeta} onChange={fieldPatcher(onChange, "examMeta")} placeholder="Prov" />
+            &nbsp;·&nbsp;Kapitel&nbsp;
+            <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} placeholder="nr" />
           </div>
           <Editable
             tag="div"
@@ -207,6 +220,8 @@ export const CoverColorBlock: React.FC<CoverProps> = ({ doc, accent = "#7A1F2B",
           tag="h1"
           value={doc.title}
           onChange={fieldPatcher(onChange, "title")}
+          richText
+          onSelectionChange={onSelectionChange}
           style={{
             fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 132,
             lineHeight: 0.92, margin: 0, letterSpacing: "-0.03em",
@@ -218,6 +233,8 @@ export const CoverColorBlock: React.FC<CoverProps> = ({ doc, accent = "#7A1F2B",
           tag="p"
           value={doc.instructions || "Läs varje fråga noggrant. Visa hur du tänker — det räcker inte med rätt svar."}
           onChange={fieldPatcher(onChange, "instructions")}
+          richText
+          onSelectionChange={onSelectionChange}
           style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic",
                    fontSize: 22, lineHeight: 1.4, marginTop: 22, opacity: 0.92,
                    maxWidth: 480, color: "white" }}
@@ -247,7 +264,7 @@ const StudentField: React.FC<{ l: string; v: string; onEdit?: (v: string) => voi
 );
 
 /* ─────────── 03 · SWISS GRID ─────────── */
-export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange }) => (
+export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: CREAM, color: INK,
@@ -270,7 +287,7 @@ export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onCh
                   letterSpacing: "0.16em", textTransform: "uppercase",
                   paddingBottom: 14, borderBottom: `1px solid ${INK_3}` }}>
       <Editable tag="span" value={doc.school} onChange={fieldPatcher(onChange, "school")} />
-      <span style={{ color: INK_3 }}>VT 2026</span>
+      <Editable tag="span" value={doc.termLabel} onChange={fieldPatcher(onChange, "termLabel")} placeholder="VT 2026" style={{ color: INK_3 }} />
     </div>
 
     <div style={{ marginTop: 72, display: "grid", gridTemplateColumns: "auto 1fr", gap: 36,
@@ -304,6 +321,8 @@ export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onCh
           tag="h1"
           value={doc.title}
           onChange={fieldPatcher(onChange, "title")}
+          richText
+          onSelectionChange={onSelectionChange}
           style={{ fontFamily: "'Geist', system-ui, sans-serif", fontSize: 64,
                    fontWeight: 500, lineHeight: 0.96, margin: 0,
                    letterSpacing: "-0.02em" }}
@@ -312,6 +331,9 @@ export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onCh
           tag="p"
           value={doc.subtitle}
           onChange={fieldPatcher(onChange, "subtitle")}
+          richText
+          onSelectionChange={onSelectionChange}
+          placeholder="Undertitel…"
           style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic",
                    fontSize: 20, color: INK_2, lineHeight: 1.35,
                    margin: "18px 0 0", maxWidth: 380 }}
@@ -321,10 +343,9 @@ export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onCh
 
     <div style={{ marginTop: "auto", border: `1px solid ${INK}` }}>
       {[
-        ["NAMN",   "",                          "KLASS",   doc.grade],
+        ["NAMN",   "",                          "KLASS",   ""],
         ["DATUM",  doc.date,                    "TID",     doc.duration],
         ["FRÅGOR", `${doc.questionCount} st`,   "POÄNG",   `${doc.points} p`],
-        ["LÄRARE", doc.teacher,                 "BETYG",   "E · C · A"],
       ].map((row, i, arr) => (
         <div key={i} style={{
           display: "grid", gridTemplateColumns: "100px 1fr 100px 1fr",
@@ -345,7 +366,7 @@ export const CoverSwiss: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onCh
 );
 
 /* ─────────── 04 · BRIEF ─────────── */
-export const CoverBrief: React.FC<CoverProps> = ({ doc, accent = "#A87F1A", onChange }) => (
+export const CoverBrief: React.FC<CoverProps> = ({ doc, accent = "#A87F1A", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: PAPER, color: INK,
@@ -369,7 +390,7 @@ export const CoverBrief: React.FC<CoverProps> = ({ doc, accent = "#A87F1A", onCh
                     letterSpacing: "0.32em", color: accent,
                     textTransform: "uppercase", marginBottom: 36 }}>
         — Kapitel&nbsp;
-        <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} />
+        <Editable tag="span" value={doc.examNumber} onChange={fieldPatcher(onChange, "examNumber")} placeholder="nr" />
         &nbsp;—
       </div>
 
@@ -377,6 +398,8 @@ export const CoverBrief: React.FC<CoverProps> = ({ doc, accent = "#A87F1A", onCh
         tag="h1"
         value={doc.title}
         onChange={fieldPatcher(onChange, "title")}
+        richText
+        onSelectionChange={onSelectionChange}
         style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic",
                  fontSize: 108, lineHeight: 0.96, margin: 0,
                  letterSpacing: "-0.025em", fontWeight: 400 }}
@@ -389,6 +412,9 @@ export const CoverBrief: React.FC<CoverProps> = ({ doc, accent = "#A87F1A", onCh
         tag="p"
         value={doc.subtitle}
         onChange={fieldPatcher(onChange, "subtitle")}
+        richText
+        onSelectionChange={onSelectionChange}
+        placeholder="Undertitel…"
         style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 19,
                  color: INK_2, lineHeight: 1.55, fontStyle: "italic",
                  margin: 0, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}
@@ -424,7 +450,7 @@ const SigField: React.FC<{ label: string }> = ({ label }) => (
 );
 
 /* ─────────── 05 · OFFICIELLT ─────────── */
-export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange }) => (
+export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: PAPER, color: INK,
@@ -445,7 +471,7 @@ export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", o
         <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Newsreader', Georgia, serif",
                       letterSpacing: 0, marginBottom: 2 }}>P</div>
         <div>{(doc.course || "").split(" ")[0]}</div>
-        <div>VT 26</div>
+        <Editable tag="div" value={doc.termLabel} onChange={fieldPatcher(onChange, "termLabel")} placeholder="VT 26" style={{ fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase" }} />
       </div>
       <div style={{ flex: 1, paddingTop: 4 }}>
         <div style={{ fontSize: 11, color: INK_3, letterSpacing: "0.14em",
@@ -459,6 +485,8 @@ export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", o
           tag="h1"
           value={doc.title}
           onChange={fieldPatcher(onChange, "title")}
+          richText
+          onSelectionChange={onSelectionChange}
           style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 38, margin: 0, lineHeight: 1.05,
                    letterSpacing: "0.01em", textTransform: "uppercase", fontWeight: 700 }}
         />
@@ -466,13 +494,16 @@ export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", o
           tag="div"
           value={doc.subtitle}
           onChange={fieldPatcher(onChange, "subtitle")}
+          richText
+          onSelectionChange={onSelectionChange}
+          placeholder="Undertitel…"
           style={{ fontSize: 14, color: INK_2, fontStyle: "italic", marginTop: 4,
                    fontFamily: "'Newsreader', Georgia, serif" }}
         />
       </div>
     </div>
 
-    {/* Meta table 2×2 */}
+    {/* Meta table */}
     <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 22, fontSize: 12 }}>
       <tbody>
         <tr>
@@ -484,8 +515,8 @@ export const CoverOfficial: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", o
         <tr>
           <td style={metaLabelTd}>DATUM</td>
           <td style={metaValTd}></td>
-          <td style={metaLabelTd}>LÄRARE</td>
-          <td style={metaValTd}></td>
+          <td style={metaLabelTd}>TID</td>
+          <td style={metaValTd}>{doc.duration || ""}</td>
         </tr>
       </tbody>
     </table>
@@ -539,7 +570,7 @@ const metaValTd: React.CSSProperties = {
 };
 
 /* ─────────── 06 · BILDMOTIV ─────────── */
-export const CoverImagery: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange }) => (
+export const CoverImagery: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", onChange, onSelectionChange }) => (
   <div style={{
     width: 794, height: 1123,
     background: PAPER, color: INK,
@@ -560,6 +591,8 @@ export const CoverImagery: React.FC<CoverProps> = ({ doc, accent = "#1E3A5F", on
         tag="h1"
         value={doc.title}
         onChange={fieldPatcher(onChange, "title")}
+        richText
+        onSelectionChange={onSelectionChange}
         style={{ fontFamily: "'Geist', system-ui, sans-serif", fontSize: 72, margin: 0,
                  lineHeight: 0.96, fontWeight: 800, letterSpacing: "-0.025em",
                  textTransform: "uppercase", wordBreak: "break-word" }}

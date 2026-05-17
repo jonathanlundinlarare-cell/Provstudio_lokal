@@ -151,6 +151,14 @@
 .ps-scroll-hide { scrollbar-width: none; }
 .ps-scroll-hide::-webkit-scrollbar { display: none; }
 
+/* Editable placeholder — visas när fältet är tomt */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.38;
+  pointer-events: none;
+  cursor: text;
+}
+
 /* ========================================================================
    PRINTABLE TEST — pixelperfekt A4-layout för utskrift och förhandsgranskning
    ======================================================================== */

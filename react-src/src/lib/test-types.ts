@@ -27,7 +27,8 @@ export type QuestionType =
   | "definition"        // Definiering av begrepp
   | "diagram_label"     // Bilddiagram med etikettrutor
   | "two_column"        // Jämförelsetabell (2 kolumner)
-  | "formula";          // Formeluppgift med variabler
+  | "formula"           // Formeluppgift med variabler
+  | "wordsearch";       // Wordsearch-pussel med ord och ledtrådar
 
 export type OpenContent = {
   text: string;
@@ -175,6 +176,28 @@ export type FormulaContent = {
   lines: number;
 };
 
+/** v5: Wordsearch-pussel */
+export type WordSearchEntry = {
+  word: string;   // Ord att hitta (t.ex. "STATSRELIGION")
+  clue: string;   // Ledtråd/beskrivning
+};
+
+export type WordSearchSolution = {
+  word: string;
+  row: number;
+  col: number;
+  dir: number;  // 0-7: E, SE, S, SW, W, NW, N, NE
+};
+
+export type WordSearchContent = {
+  text?: string;
+  instructions?: string;
+  entries: WordSearchEntry[];
+  gridSize?: number;        // Antal celler per sida, default 16
+  grid?: string[][];        // Genererat rutnät (raderna med bokstäver)
+  solution?: WordSearchSolution[];
+};
+
 export type QuestionContent =
   | OpenContent
   | MultipleChoiceContent
@@ -193,7 +216,8 @@ export type QuestionContent =
   | DefinitionContent
   | DiagramLabelContent
   | TwoColumnContent
-  | FormulaContent;
+  | FormulaContent
+  | WordSearchContent;
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -593,6 +617,10 @@ export type DesignSettings = {
   coverTemplate?: "editorial-index" | "color-block" | "swiss-grid" | "brief" | "official" | "imagery" | "none";
   /** v4: Fri instruktionstext som vissa cover-mallar visar. */
   coverInstructions?: string;
+  /** v5: Läsårsetikett på försättsblad (t.ex. "VT 26"). */
+  termLabel?: string;
+  /** v5: Provtyp-etikett (t.ex. "Skriftligt prov · Individuellt", "Prov"). */
+  examMeta?: string;
   /** Innehållsförteckning */
   showToc?: boolean;
   /** Instruktionstext */
@@ -777,6 +805,8 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   diagram_label:    "Diagram",
   two_column:       "Jämförelse",
   formula:          "Formel",
+  // v5
+  wordsearch:       "Wordsearch",
 };
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import type {
   Question,
   DesignSettings,
@@ -18,9 +18,11 @@ import type {
   DiagramLabelContent,
   TwoColumnContent,
   FormulaContent,
+  WordSearchContent,
   ContentBlockType,
 } from "@/lib/test-types";
 import { getCoverComponent, type CoverDoc, type CoverTemplateId } from "@/components/editor/CoverTemplates";
+import { RichTextToolbar } from "@/components/editor/RichTextToolbar";
 
 /** A question item in the printable list */
 export type PrintableQuestionItem = {
@@ -874,6 +876,10 @@ function QuestionText({ q }: { q: Question }) {
     return <ClozeText text={raw} />;
   }
   if (q.type === "group") return <RichText raw={(q.content as { title?: string }).title || "(Grupp)"} />;
+  if (q.type === "wordsearch") {
+    const raw = (q.content as WordSearchContent).text ?? "";
+    return raw ? <RichText raw={raw} /> : <></>;
+  }
   if (q.type === "definition") {
     const raw = (q.content as { term?: string; text?: string }).text || (q.content as { term?: string }).term || "(Definition)";
     return <RichText raw={raw} />;
@@ -883,7 +889,12 @@ function QuestionText({ q }: { q: Question }) {
 
 /* ─── Question body ──────────────────────────────────────────────────── */
 
-function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettings; accent: string }) {
+// 8-direction vectors for wordsearch: E, SE, S, SW, W, NW, N, NE
+const WS_DIRS: [number, number][] = [
+  [0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]
+];
+
+function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design: DesignSettings; accent: string; showAnswers?: boolean }) {
   const lineStyle   = design.lineStyle   ?? "solid";
   const mcMarker    = design.mcMarker    ?? "square";
   const lineHeight  = design.lineHeight  ?? design.lineSpacing ?? 22;
@@ -1143,6 +1154,93 @@ function QuestionBody({ q, design, accent }: { q: Question; design: DesignSettin
           ))}
         </tbody>
       </table>
+    );
+  }
+
+  if (q.type === "wordsearch") {
+    const c = q.content as WordSearchContent;
+    const N = c.gridSize ?? 16;
+    const grid = c.grid ?? [];
+    const solution = c.solution ?? [];
+    const cellSz = Math.max(5, Math.floor(140 / N)); // mm
+
+    // Build highlighted cells for answer-key mode
+    const highlightSet = new Set<string>();
+    if (showAnswers && solution.length > 0) {
+      for (const sol of solution) {
+        const [dr, dc] = WS_DIRS[sol.dir];
+        for (let k = 0; k < sol.word.length; k++) {
+          highlightSet.add(`${sol.row + dr * k},${sol.col + dc * k}`);
+        }
+      }
+    }
+
+    if (grid.length === 0) {
+      return (
+        <div style={{ padding: "4mm", border: "0.4mm dashed #ccc", borderRadius: "2mm", textAlign: "center", color: "#999", fontSize: "9pt", marginTop: "2mm" }}>
+          Rutnät inte genererat — öppna redigeraren och klicka "Generera rutnät".
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginTop: "2mm" }}>
+        {/* Instructions */}
+        {c.instructions && (
+          <p style={{ fontSize: "9pt", fontStyle: "italic", marginBottom: "3mm", color: "#555", margin: "0 0 3mm" }}>
+            {c.instructions}
+          </p>
+        )}
+
+        {/* Letter grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${N}, ${cellSz}mm)`,
+          border: `0.5mm solid ${accent}`,
+          width: "fit-content",
+          margin: "0 auto 5mm",
+        }}>
+          {grid.flat().map((letter, idx) => {
+            const row = Math.floor(idx / N);
+            const col = idx % N;
+            const isHL = highlightSet.has(`${row},${col}`);
+            return (
+              <div key={idx} style={{
+                width: `${cellSz}mm`,
+                height: `${cellSz}mm`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: `${Math.max(6, cellSz * 2.2)}pt`,
+                fontFamily: "'Courier New', Courier, monospace",
+                fontWeight: 700,
+                border: "0.15mm solid #ddd",
+                background: isHL ? `${accent}22` : "transparent",
+                color: isHL ? accent : "#14110D",
+              }}>
+                {letter}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Clue list — 2 columns */}
+        {c.entries && c.entries.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1mm 8mm" }}>
+            {c.entries.map((e, i) => (
+              <div key={i} style={{ fontSize: "9pt", display: "flex", gap: "2mm", alignItems: "baseline" }}>
+                <span style={{ fontWeight: 700, flexShrink: 0, color: accent, minWidth: "5mm" }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{e.clue}</span>
+                {showAnswers && (
+                  <span style={{ fontWeight: 700, color: accent, fontFamily: "monospace", fontSize: "8pt", flexShrink: 0 }}>
+                    {e.word}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -1451,7 +1549,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                     )}
                     <QuestionText q={q} />
                   </div>
-                  <QuestionBody q={q} design={design} accent={accent} />
+                  <QuestionBody q={q} design={design} accent={accent} showAnswers={showAnswers} />
                   {/* Inline group subs */}
                   {isLead && q.type === "group" && (() => {
                     const gc = q.content as { subs?: Array<{ text: string; lines?: number; points?: string }> };
@@ -1540,6 +1638,12 @@ export function PrintableTest({
   onTitleChange,
   onDesignChange,
 }: Props) {
+  const [richToolbarRect, setRichToolbarRect] = useState<DOMRect | null>(null);
+
+  const handleSelectionChange = useCallback((active: boolean, rect: DOMRect | null) => {
+    setRichToolbarRect(active && rect ? rect : null);
+  }, []);
+
   const accent       = accentProp ?? design.primaryColor ?? "#1E5F5C";
   const showCover    = design.showCover !== false && design.includeCover !== false;
   const pageItems    = buildPageItems(items);
@@ -1706,7 +1810,9 @@ export function PrintableTest({
           duration:      design.duration ?? "",
           points:        totalPoints,
           questionCount: chunks.flat().filter(p => p.kind === "qblock").length,
-          examNumber:    design.chapter ?? "1",
+          examNumber:    design.chapter ?? "",
+          termLabel:     design.termLabel ?? "",
+          examMeta:      design.examMeta ?? "",
           instructions:  design.coverInstructions ?? "",
           coverImageUrl: design.coverImage?.src ?? design.coverImageUrl ?? "",
         };
@@ -1722,6 +1828,8 @@ export function PrintableTest({
           if ("school" in patch)       designPatch.school             = patch.school ?? "";
           if ("duration" in patch)     designPatch.duration           = patch.duration ?? "";
           if ("examNumber" in patch)   designPatch.chapter            = patch.examNumber ?? "";
+          if ("termLabel" in patch)    designPatch.termLabel          = patch.termLabel ?? "";
+          if ("examMeta" in patch)     designPatch.examMeta           = patch.examMeta ?? "";
           if ("instructions" in patch) designPatch.coverInstructions  = patch.instructions ?? "";
           if (Object.keys(designPatch).length > 0) onDesignChange?.(designPatch);
         };
@@ -1745,7 +1853,7 @@ export function PrintableTest({
               transformOrigin: "top left",
               transform: "scale(1)",
             }}>
-              <CoverComp doc={coverDoc} accent={accent} onChange={handleCoverChange} />
+              <CoverComp doc={coverDoc} accent={accent} onChange={handleCoverChange} onSelectionChange={handleSelectionChange} />
             </div>
           </div>
         );
@@ -1757,6 +1865,11 @@ export function PrintableTest({
           Lägg till frågor för att fylla provet.
         </p>,
         1
+      )}
+
+      {/* ── Rich text toolbar (cover fields) ── */}
+      {richToolbarRect && (
+        <RichTextToolbar rect={richToolbarRect} onClose={() => setRichToolbarRect(null)} />
       )}
 
       {/* ── Question pages ── */}
