@@ -121,6 +121,44 @@ ipcMain.handle('open-print-window', (_event, docId) => {
   });
 });
 
+ipcMain.handle('export-pdf', async (_event, docId, suggestedTitle) => {
+  const win = new BrowserWindow({
+    width: 900, height: 1200, show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
+  win.loadURL(url);
+  await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
+  // Vänta på att React renderar klart
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  let pdfBuffer;
+  try {
+    pdfBuffer = await win.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      margins: { marginType: 'none' },
+    });
+  } finally {
+    win.destroy();
+  }
+
+  const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Spara PDF',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    defaultPath: `${(suggestedTitle || 'prov').replace(/[<>:"/\\|?*]/g, '_')}.pdf`,
+  });
+  if (!canceled && filePath && pdfBuffer) {
+    fs.writeFileSync(filePath, pdfBuffer);
+    return { success: true };
+  }
+  return { success: false };
+});
+
 ipcMain.handle('export-file', async (_event, data) => {
   const { filePath } = await dialog.showSaveDialog(mainWindow, {
     title: 'Exportera dokument',

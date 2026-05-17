@@ -10,6 +10,18 @@ import { generateWordSearch } from "@/lib/wordsearch-gen";
 import { RichTextEditor } from "./RichTextEditor";
 import { taxonomy, questionBank } from "@/lib/local-db";
 import { SO_TAXONOMY } from "@/lib/so-taxonomy";
+import { getLgr22ForSubject } from "@/lib/lgr22-so";
+import katex from "katex";
+
+/* ── KaTeX helper ────────────────────────────────────────────────────────── */
+function renderKatex(src: string): string {
+  if (!src.trim()) return "";
+  try {
+    return katex.renderToString(src, { throwOnError: false, displayMode: true });
+  } catch {
+    return `<code style="font-family:monospace">${src}</code>`;
+  }
+}
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1026,24 +1038,115 @@ function TypeSpecificFields({
       );
     }
 
-    case "formula":
+    case "formula": {
+      type VarEntry = { name: string; description: string };
+      const formulaVars = (c.variables as VarEntry[]) ?? [];
+      const formulaSrc  = (c.formula as string) ?? "";
       return (
         <>
           <Collapser title="Formel">
-            <ModalField label="Formeluttryck">
+            {/* KaTeX-förhandsgranskning */}
+            <div style={{
+              minHeight: 52, padding: "10px 14px", marginBottom: 8,
+              background: "#fafaf7", borderRadius: 6, border: "1px solid var(--ps-rule-2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "auto",
+            }}>
+              {formulaSrc ? (
+                <div dangerouslySetInnerHTML={{ __html: renderKatex(formulaSrc) }} />
+              ) : (
+                <span style={{ color: "var(--ps-ink-4)", fontSize: 12, fontStyle: "italic" }}>
+                  Förhandsgranskning visas här
+                </span>
+              )}
+            </div>
+
+            {/* Snabbknappar */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+              {([
+                { label: "x²",  ins: "^{2}" },
+                { label: "xⁿ",  ins: "^{n}" },
+                { label: "√",   ins: "\\sqrt{}" },
+                { label: "a/b", ins: "\\frac{a}{b}" },
+                { label: "·",   ins: "\\cdot " },
+                { label: "±",   ins: "\\pm " },
+                { label: "≤",   ins: "\\leq " },
+                { label: "≥",   ins: "\\geq " },
+                { label: "π",   ins: "\\pi " },
+                { label: "α",   ins: "\\alpha " },
+                { label: "β",   ins: "\\beta " },
+                { label: "Δ",   ins: "\\Delta " },
+              ] as const).map(btn => (
+                <button
+                  key={btn.label}
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); patchContent({ formula: formulaSrc + btn.ins }); }}
+                  style={{
+                    padding: "2px 7px", fontSize: 12,
+                    border: "1px solid var(--ps-rule-2)", borderRadius: 4,
+                    background: "var(--ps-bg-soft)", cursor: "pointer",
+                    fontFamily: "var(--ps-mono)",
+                  }}
+                >{btn.label}</button>
+              ))}
+            </div>
+
+            <ModalField label="LaTeX-uttryck">
               <input
-                value={(c.formula as string) ?? ""}
+                value={formulaSrc}
                 onChange={(e) => patchContent({ formula: e.target.value })}
-                placeholder="t.ex. F = ma"
-                style={psInput}
+                placeholder="t.ex. E = mc^{2} eller \frac{F}{m} = a"
+                style={{ ...psInput, fontFamily: "var(--ps-mono)" }}
               />
             </ModalField>
+
+            {/* Variabellista */}
+            <ModalField label="Variabler">
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {formulaVars.map((v, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "76px 1fr 26px", gap: 4 }}>
+                    <input
+                      value={v.name}
+                      onChange={e => {
+                        const vars = formulaVars.map((x, j) => j === i ? { ...x, name: e.target.value } : x);
+                        patchContent({ variables: vars });
+                      }}
+                      style={{ ...psInput, fontFamily: "var(--ps-mono)" }}
+                      placeholder="t.ex. F"
+                    />
+                    <input
+                      value={v.description}
+                      onChange={e => {
+                        const vars = formulaVars.map((x, j) => j === i ? { ...x, description: e.target.value } : x);
+                        patchContent({ variables: vars });
+                      }}
+                      style={psInput}
+                      placeholder="kraft (N)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => patchContent({ variables: formulaVars.filter((_, j) => j !== i) })}
+                      style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ps-ink-4)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => patchContent({ variables: [...formulaVars, { name: "", description: "" }] })}
+                  style={{ fontSize: 11.5, color: "var(--ps-ink-3)", background: "none", border: "1px dashed var(--ps-rule-2)", borderRadius: 5, padding: "4px 8px", cursor: "pointer", textAlign: "left" }}
+                >
+                  + Lägg till variabel
+                </button>
+              </div>
+            </ModalField>
+
             <ModalField label="Antal skrivlinjer">
               <input
                 type="number"
                 value={(c.lines as number) ?? 5}
-                min={1}
-                max={30}
+                min={1} max={30}
                 onChange={(e) => patchContent({ lines: parseInt(e.target.value) || 5 })}
                 style={{ ...psInput, width: 80 }}
               />
@@ -1061,6 +1164,7 @@ function TypeSpecificFields({
           </Collapser>
         </>
       );
+    }
 
     case "image":
       return (
@@ -1466,6 +1570,38 @@ function MetadataFields({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questi
           <option value="archived">Arkiverad</option>
         </select>
       </ModalField>
+
+      {/* Lgr22-koder — visas om ämnet har SO-mappning */}
+      {getLgr22ForSubject(currentSubject).length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ps-ink-3)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 5 }}>
+            Lgr22 — {currentSubject} ({(q.lgr22 ?? []).length} valda)
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto", paddingRight: 2 }}>
+            {getLgr22ForSubject(currentSubject).map(e => {
+              const checked = (q.lgr22 ?? []).includes(e.code);
+              return (
+                <label key={e.code} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11.5, cursor: "pointer", padding: "2px 0" }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      const current = q.lgr22 ?? [];
+                      const next = checked ? current.filter(c => c !== e.code) : [...current, e.code];
+                      patchQ({ lgr22: next.length ? next : null });
+                    }}
+                    style={{ marginTop: 2, flexShrink: 0, accentColor: "var(--ps-accent)" }}
+                  />
+                  <span>
+                    <span style={{ color: "var(--ps-ink-4)", fontSize: 10.5 }}>{e.category} · </span>
+                    <span style={{ color: "var(--ps-ink-2)" }}>{e.label}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

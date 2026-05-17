@@ -24,6 +24,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { documents, questionBank, scheduleSave } from "@/lib/local-db";
+import { getLgr22Label, getLgr22ForSubject } from "@/lib/lgr22-so";
+import type { LocalDocument } from "@/lib/local-db";
 import { toast } from "sonner";
 import {
   CheckSquare,
@@ -35,6 +37,7 @@ import {
   ImagePlus,
   Plus,
   Printer,
+  Shuffle,
   Trash2,
   X,
 } from "lucide-react";
@@ -393,19 +396,44 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   }, [docSubject]);
 
   const handleDownload = async () => {
-    const el = document.getElementById("printable-root");
-    if (!el) return;
-    toast.info("Skapar PDF…");
-    const html2pdf = (await import("html2pdf.js")).default as unknown as (opts?: unknown) => {
-      from: (el: HTMLElement) => { set: (o: unknown) => { save: () => Promise<void> } }
-    };
-    await html2pdf().from(el).set({
-      margin: 0, filename: `${title || "dokument"}.pdf`,
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    }).save();
+    if (window.localAPI?.exportPdf) {
+      toast.info("Skapar PDF…");
+      const result = await window.localAPI.exportPdf(documentId, stripHtml(title));
+      if (result?.success) toast.success("PDF sparad!");
+      else toast.info("PDF-export avbruten.");
+    } else {
+      // Fallback för webbläsarläge
+      const el = document.getElementById("printable-root");
+      if (!el) return;
+      toast.info("Skapar PDF…");
+      const html2pdf = (await import("html2pdf.js")).default as unknown as (opts?: unknown) => {
+        from: (el: HTMLElement) => { set: (o: unknown) => { save: () => Promise<void> } }
+      };
+      await html2pdf().from(el).set({
+        margin: 0, filename: `${title || "dokument"}.pdf`,
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] },
+      }).save();
+    }
   };
+
+  function createVersionB() {
+    const shuffled = [...order];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const copy = documents.duplicate(documentId);
+    if (!copy) return;
+    documents.update(copy.id, {
+      title: `${stripHtml(title)} — Version B`,
+      question_order: shuffled,
+    } as Partial<LocalDocument>);
+    scheduleSave();
+    toast.success("Version B skapad! Öppnas nu…");
+    setTimeout(() => onBack(), 100);
+  }
 
   /* ── Loading state ── */
   if (loading) return (
@@ -462,6 +490,13 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
             onClick={() => setBankPickerOpen(true)}
           >
             Frågebank
+          </button>
+          <button
+            className="ps-btn ps-btn-outline ps-btn-sm"
+            onClick={createVersionB}
+            title="Skapa en kopia med slumpad frågeordning"
+          >
+            <Shuffle size={12} /> Version B
           </button>
           <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={() => window.print()}>
             <Printer size={12} /> Skriv ut
@@ -553,7 +588,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
               onBankPick={() => setBankPickerOpen(true)}
             />
           )}
-          {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} />}
+          {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} bank={bank} questionOrder={order} />}
           {rightTab === "versions" && (
             <VersionsPanel documentId={documentId} />
           )}
@@ -1934,7 +1969,28 @@ function CoverImagePanel({ design, setD }: { design: DesignSettings; setD: (p: P
 
 /* ─── DocPanel ───────────────────────────────────────────────────────────── */
 
-function DocPanel({ design, setD, title, setTitle }: { design: DesignSettings; setD: (p: Partial<DesignSettings>) => void; title: string; setTitle: (v: string) => void }) {
+function DocPanel({
+  design, setD, title, setTitle, bank, questionOrder,
+}: {
+  design: DesignSettings;
+  setD: (p: Partial<DesignSettings>) => void;
+  title: string;
+  setTitle: (v: string) => void;
+  bank: Question[];
+  questionOrder: QuestionOrderItem[];
+}) {
+  // Beräkna täckta Lgr22-koder
+  const coveredCodes = useMemo(() => {
+    const codes = new Set<string>();
+    questionOrder.forEach(ref => {
+      if (!isContentBlockRef(ref)) {
+        const q = bank.find(b => b.id === (ref as { question_id: string }).question_id);
+        q?.lgr22?.forEach(c => codes.add(c));
+      }
+    });
+    return codes;
+  }, [questionOrder, bank]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <DocField label="Titel" value={title} onChange={setTitle} />
@@ -1946,6 +2002,23 @@ function DocPanel({ design, setD, title, setTitle }: { design: DesignSettings; s
         <DocField label="Hjälpmedel" value={design.aids ?? ""} onChange={v => setD({ aids: v })} placeholder="t.ex. Inga" />
       </div>
       <DocField label="Sidfot" value={design.footerText ?? ""} onChange={v => setD({ footerText: v })} />
+
+      {/* Lgr22-täckning */}
+      {coveredCodes.size > 0 && (
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ps-ink-3)", marginBottom: 6 }}>
+            Lgr22-täckning ({coveredCodes.size})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {[...coveredCodes].map(code => (
+              <div key={code} style={{ fontSize: 11, color: "var(--ps-ink-2)", background: "var(--ps-bg-soft)", borderRadius: 4, padding: "2px 6px", display: "flex", gap: 5, alignItems: "flex-start" }}>
+                <span style={{ color: "var(--ps-accent)", fontWeight: 600, flexShrink: 0 }}>{code}</span>
+                <span>{getLgr22Label(code)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

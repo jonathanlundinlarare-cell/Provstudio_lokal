@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('localAPI', {
   saveImage:     (id, b64)       => ipcRenderer.invoke('save-image', id, b64),
   readImage:     (id)            => ipcRenderer.invoke('read-image', id),
   openPrint:     (docId)         => ipcRenderer.invoke('open-print-window', docId),
+  exportPdf:     (docId, title)  => ipcRenderer.invoke('export-pdf', docId, title),
   exportFile:    (data)          => ipcRenderer.invoke('export-file', data),
   importFile:    ()              => ipcRenderer.invoke('import-file'),
   fetchUpdate:   (url)           => ipcRenderer.invoke('fetch-update', url),

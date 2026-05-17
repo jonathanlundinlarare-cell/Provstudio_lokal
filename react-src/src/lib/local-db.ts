@@ -43,6 +43,7 @@ declare global {
       saveImage: (id: string, b64: string) => Promise<void>;
       readImage: (id: string) => Promise<string | null>;
       openPrint: (docId: string) => Promise<void>;
+      exportPdf: (docId: string, title?: string) => Promise<{ success: boolean }>;
       exportFile: (data: unknown) => Promise<{ success: boolean }>;
       importFile: () => Promise<unknown>;
       fetchUpdate: (url: string) => Promise<string>;

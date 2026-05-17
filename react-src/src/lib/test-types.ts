@@ -274,6 +274,8 @@ export type Question = {
   author?: string;
   /** Senast uppdaterad (läsbar sträng) */
   updated?: string;
+  /** Lgr22 centralt innehåll — koder från lgr22-so.ts (t.ex. ["hi-3", "sh-1"]) */
+  lgr22?: string[] | null;
 };
 
 // ---------------------------------------------------------------------------

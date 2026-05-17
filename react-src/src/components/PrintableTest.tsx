@@ -1,4 +1,14 @@
 import React, { useState, useCallback } from "react";
+import katex from "katex";
+
+function renderKatex(src: string): string {
+  if (!src.trim()) return "";
+  try {
+    return katex.renderToString(src, { throwOnError: false, displayMode: true });
+  } catch {
+    return `<code style="font-family:monospace">${src}</code>`;
+  }
+}
 import type {
   Question,
   DesignSettings,
@@ -1250,8 +1260,8 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
     return (
       <div>
         {c.formula && (
-          <div style={{ margin: "2mm 0 3mm", padding: "2mm 4mm", background: `${accent}10`, border: `0.4mm solid ${accent}40`, borderRadius: "1.5mm", fontFamily: "monospace", fontSize: "11pt", textAlign: "center" }}>
-            {c.formula}
+          <div style={{ margin: "2mm 0 3mm", padding: "3mm 5mm", background: `${accent}10`, border: `0.4mm solid ${accent}40`, borderRadius: "1.5mm", textAlign: "center", overflow: "hidden" }}>
+            <div dangerouslySetInnerHTML={{ __html: renderKatex(c.formula) }} />
           </div>
         )}
         {c.variables && c.variables.length > 0 && (

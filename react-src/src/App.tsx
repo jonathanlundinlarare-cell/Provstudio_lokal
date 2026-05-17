@@ -50,6 +50,12 @@ export default function App() {
   useEffect(() => {
     initStore().then(async () => {
       setReady(true);
+      // Hantera ?print=docId — öppnat av Electron för utskrift/PDF-export
+      const params = new URLSearchParams(window.location.search);
+      const printDocId = params.get('print');
+      if (printDocId && documents.get(printDocId)) {
+        setPage({ name: 'editor', documentId: printDocId });
+      }
       if (window.localAPI) {
         const v = await window.localAPI.getVersion();
         setCurrentVersion(v);
