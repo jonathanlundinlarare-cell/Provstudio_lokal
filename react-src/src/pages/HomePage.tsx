@@ -3,7 +3,7 @@ import { documents } from '../lib/local-db';
 import type { LocalDocument } from '../lib/local-db';
 import type { DocumentType } from '../lib/test-types';
 import { DOCUMENT_TYPE_LABELS } from '../lib/test-types';
-import { BookOpen, FileText, Home, Search, Trash2, Copy, Pencil, Plus } from 'lucide-react';
+import { BookOpen, FileText, Home, Search, Trash2, Copy, Pencil, Plus, Grid2x2 } from 'lucide-react';
 
 type Props = {
   onOpen: (docId: string) => void;
@@ -12,15 +12,17 @@ type Props = {
 };
 
 const TYPE_ICONS: Record<DocumentType, React.ReactNode> = {
-  test:     <FileText size={14} />,
-  workbook: <BookOpen size={14} />,
-  homework: <Home size={14} />,
+  test:       <FileText size={14} />,
+  workbook:   <BookOpen size={14} />,
+  homework:   <Home size={14} />,
+  wordsearch: <Grid2x2 size={14} />,
 };
 
 const TYPE_CHIP_CLASS: Record<DocumentType, string> = {
-  test:     'ps-chip ps-chip-blue',
-  workbook: 'ps-chip ps-chip-green',
-  homework: 'ps-chip ps-chip-amber',
+  test:       'ps-chip ps-chip-blue',
+  workbook:   'ps-chip ps-chip-green',
+  homework:   'ps-chip ps-chip-amber',
+  wordsearch: 'ps-chip ps-chip-purple',
 };
 
 export default function HomePage({ onOpen, onNew, onBank }: Props) {
@@ -83,6 +85,10 @@ export default function HomePage({ onOpen, onNew, onBank }: Props) {
             <Plus size={15} />
             Nytt häfte
           </button>
+          <button className="ps-btn ps-btn-outline" onClick={() => onNew('wordsearch')}>
+            <Grid2x2 size={15} />
+            Nytt ordpussel
+          </button>
         </div>
 
         {/* Search + filter */}
@@ -97,7 +103,7 @@ export default function HomePage({ onOpen, onNew, onBank }: Props) {
             />
           </div>
           <div className="flex gap-1">
-            {(['all', 'test', 'workbook', 'homework'] as const).map((t) => (
+            {(['all', 'test', 'workbook', 'homework', 'wordsearch'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilterType(t)}

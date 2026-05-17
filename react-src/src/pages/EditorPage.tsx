@@ -204,16 +204,18 @@ const COVER_KINDS: Array<{ id: string; name: string }> = [
 
 /* Question types available per doc type */
 const Q_TYPES_BY_DOC: Record<DocumentType, QuestionType[]> = {
-  test:     ["open","short_answer","numeric","multiple_choice","true_false","cloze","matching","ranking","table","image","drawing","source_critique","essay","group","definition","diagram_label","two_column","formula"],
-  workbook: ["open","short_answer","numeric","multiple_choice","true_false","cloze","matching","ranking","table","image","drawing","source_critique","essay","definition","two_column"],
-  homework: ["open","short_answer","numeric","multiple_choice","true_false","cloze","essay"],
+  test:       ["open","short_answer","numeric","multiple_choice","true_false","cloze","matching","ranking","table","image","drawing","source_critique","essay","group","definition","diagram_label","two_column","formula"],
+  workbook:   ["open","short_answer","numeric","multiple_choice","true_false","cloze","matching","ranking","table","image","drawing","source_critique","essay","definition","two_column"],
+  homework:   ["open","short_answer","numeric","multiple_choice","true_false","cloze","essay"],
+  wordsearch: [], // Ordpussel har inga frågetyper — redigeras i WordsearchPage
 };
 
 /* Content block types available per doc type */
 const B_TYPES_BY_DOC: Record<DocumentType, ContentBlockType[]> = {
-  test:     ["heading","instruction","source","image","pageBreak","divider"],
-  workbook: ["intro","instruction","source","vocab","quote","callout","image","checklist","marginNote","heading","pageBreak","divider"],
-  homework: ["intro","instruction","vocab","checklist","heading","divider"],
+  test:       ["heading","instruction","source","image","pageBreak","divider"],
+  workbook:   ["intro","instruction","source","vocab","quote","callout","image","checklist","marginNote","heading","pageBreak","divider"],
+  homework:   ["intro","instruction","vocab","checklist","heading","divider"],
+  wordsearch: [],
 };
 
 /* Default content for new content blocks */

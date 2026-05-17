@@ -132,6 +132,7 @@
 .ps-chip-red { color: var(--ps-red); background: #FDECEA; }
 .ps-chip-blue { color: var(--ps-blue); background: #EBF0FA; }
 .ps-chip-primary { color: var(--ps-accent-ink); background: var(--ps-accent-soft); }
+.ps-chip-purple { color: #6D28D9; background: #EDE9FE; }
 
 .ps-body :focus-visible { outline: 2px solid var(--ps-accent); outline-offset: 2px; border-radius: 4px; }
 

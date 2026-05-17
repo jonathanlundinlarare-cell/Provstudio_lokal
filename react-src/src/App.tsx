@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import BankPage from './pages/BankPage';
 import EditorPage from './pages/EditorPage';
 import WorkbookPage from './pages/WorkbookPage';
+import WordsearchPage from './pages/WordsearchPage';
 import { SO_SUBJECTS } from './lib/so-taxonomy';
 import type { DocumentType } from './lib/test-types';
 
@@ -16,7 +17,8 @@ type Page =
   | { name: 'home' }
   | { name: 'bank' }
   | { name: 'editor'; documentId: string }
-  | { name: 'workbook'; documentId: string };
+  | { name: 'workbook'; documentId: string }
+  | { name: 'wordsearch'; documentId: string };
 
 type UpdateState =
   | { phase: 'idle' }
@@ -122,6 +124,8 @@ export default function App() {
     const doc = documents.get(docId);
     if (doc?.doc_type === 'workbook') {
       setPage({ name: 'workbook', documentId: docId });
+    } else if (doc?.doc_type === 'wordsearch') {
+      setPage({ name: 'wordsearch', documentId: docId });
     } else {
       setPage({ name: 'editor', documentId: docId });
     }
@@ -360,6 +364,12 @@ export default function App() {
         )}
         {page.name === 'workbook' && (
           <WorkbookPage
+            documentId={page.documentId}
+            onBack={() => setPage({ name: 'home' })}
+          />
+        )}
+        {page.name === 'wordsearch' && (
+          <WordsearchPage
             documentId={page.documentId}
             onBack={() => setPage({ name: 'home' })}
           />

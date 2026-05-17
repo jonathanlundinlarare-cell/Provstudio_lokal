@@ -386,13 +386,25 @@ export const CONTENT_BLOCK_TYPE_LABELS: Record<ContentBlockType, string> = {
 // Dokument-typ + question_order (v2)
 // ---------------------------------------------------------------------------
 
-/** v2: Typ av dokument — prov, arbetshäfte eller läxa. */
-export type DocumentType = "test" | "workbook" | "homework";
+/** v2: Typ av dokument — prov, arbetshäfte, läxa eller ordpussel. */
+export type DocumentType = "test" | "workbook" | "homework" | "wordsearch";
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  test:     "Prov",
-  workbook: "Häfte",
-  homework: "Läxa",
+  test:       "Prov",
+  workbook:   "Häfte",
+  homework:   "Läxa",
+  wordsearch: "Ordpussel",
+};
+
+/** Innehåll för ett fristående ordpussel-dokument. */
+export type WordsearchDocContent = {
+  title?: string;
+  subtitle?: string;
+  instructions?: string;
+  entries: WordSearchEntry[];
+  gridSize?: number;
+  grid?: string[][];
+  solution?: WordSearchSolution[];
 };
 
 /**

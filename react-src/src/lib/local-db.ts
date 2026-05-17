@@ -12,6 +12,8 @@ export type LocalDocument = {
   design_settings: DesignSettings;
   question_order: QuestionOrderItem[];
   versions?: DocumentVersion[];
+  /** Fristående ordpussel-innehåll (endast doc_type === "wordsearch") */
+  wordsearch_content?: import("./test-types").WordsearchDocContent;
   created_at: string;
   updated_at: string;
 };
