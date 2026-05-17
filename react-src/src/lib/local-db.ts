@@ -44,7 +44,7 @@ declare global {
       exportFile: (data: unknown) => Promise<{ success: boolean }>;
       importFile: () => Promise<unknown>;
       fetchUpdate: (url: string) => Promise<string>;
-      saveIndexHtml: (html: string) => Promise<void>;
+      saveIndexHtml: (html: string, version?: string) => Promise<void>;
       getVersion: () => Promise<string>;
     };
   }

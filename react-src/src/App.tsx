@@ -96,9 +96,10 @@ export default function App() {
   async function installUpdate() {
     if (update.phase !== 'available' || !window.localAPI) return;
     const html = update.html;
+    const version = update.remoteVersion;
     setInstalling(true);
     try {
-      await window.localAPI.saveIndexHtml(html);
+      await window.localAPI.saveIndexHtml(html, version);
       // Electron relaunches automatically — if it doesn't, reset state after 10 s
       setTimeout(() => setInstalling(false), 10_000);
     } catch {

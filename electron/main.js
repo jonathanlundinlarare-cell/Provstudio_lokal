@@ -14,6 +14,41 @@ function ensureDirs() {
 
 let mainWindow;
 
+/**
+ * Resolves which index.html to load. After a self-update we have a fresh HTML
+ * in userData/ which we prefer over the bundled one (the latter is read-only
+ * when installed via NSIS to Program Files).
+ */
+function resolveIndexHtmlPath() {
+  try {
+    const userDataHtml = path.join(app.getPath('userData'), 'index.html');
+    if (fs.existsSync(userDataHtml)) {
+      return userDataHtml;
+    }
+  } catch {
+    // app may not be ready yet when first called — fall through
+  }
+  return path.join(__dirname, 'index.html');
+}
+
+/**
+ * Returns the active version. After a self-update, version.json lives next to
+ * index.html in userData/ and overrides app.getVersion() (which still reports
+ * the version baked into package.json at install time).
+ */
+function getActiveVersion() {
+  try {
+    const verFile = path.join(app.getPath('userData'), 'version.json');
+    if (fs.existsSync(verFile)) {
+      const parsed = JSON.parse(fs.readFileSync(verFile, 'utf-8'));
+      if (parsed && typeof parsed.version === 'string') return parsed.version;
+    }
+  } catch {
+    // fall through to bundled version
+  }
+  return app.getVersion();
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -27,7 +62,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.loadFile(resolveIndexHtmlPath());
 }
 
 app.whenReady().then(() => {
@@ -79,7 +114,7 @@ ipcMain.handle('open-print-window', (_event, docId) => {
       nodeIntegration: false,
     },
   });
-  const url = `file://${path.join(__dirname, 'index.html')}?print=${docId}`;
+  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
   win.loadURL(url);
   win.webContents.once('did-finish-load', () => {
     win.webContents.executeJavaScript('window.print()');
@@ -131,11 +166,23 @@ ipcMain.handle('fetch-update', async (_event, url) => {
   });
 });
 
-ipcMain.handle('save-index-html', (_event, html) => {
-  const dest = path.join(app.getAppPath(), 'index.html');
-  fs.writeFileSync(dest, html, 'utf-8');
+ipcMain.handle('save-index-html', (_event, html, version) => {
+  // Write to userData (always writable) — app.getAppPath() points to the
+  // installed location which is read-only (Program Files / asar).
+  const userDataDir = app.getPath('userData');
+  if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir, { recursive: true });
+
+  const htmlDest = path.join(userDataDir, 'index.html');
+  fs.writeFileSync(htmlDest, html, 'utf-8');
+
+  // Sidecar with new version so getActiveVersion() picks it up after relaunch
+  if (typeof version === 'string' && version) {
+    const verDest = path.join(userDataDir, 'version.json');
+    fs.writeFileSync(verDest, JSON.stringify({ version }, null, 2), 'utf-8');
+  }
+
   app.relaunch();
   app.exit(0);
 });
 
-ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('get-app-version', () => getActiveVersion());

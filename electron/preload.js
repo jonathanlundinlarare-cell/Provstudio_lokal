@@ -9,6 +9,6 @@ contextBridge.exposeInMainWorld('localAPI', {
   exportFile:    (data)          => ipcRenderer.invoke('export-file', data),
   importFile:    ()              => ipcRenderer.invoke('import-file'),
   fetchUpdate:   (url)           => ipcRenderer.invoke('fetch-update', url),
-  saveIndexHtml: (html)          => ipcRenderer.invoke('save-index-html', html),
+  saveIndexHtml: (html, version) => ipcRenderer.invoke('save-index-html', html, version),
   getVersion:    ()              => ipcRenderer.invoke('get-app-version'),
 });
