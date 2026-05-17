@@ -365,12 +365,17 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
 
   const addQuestion = useCallback((type: QuestionType | "info") => {
     const defaults: Record<string, unknown> = {
-      info: { text: "Skriv informationen här. Detta block visar text för eleven — inget svar krävs.", points: 0 },
+      info:       { text: "Skriv informationen här. Detta block visar text för eleven — inget svar krävs.", points: 0 },
+      wordsearch: { entries: [], gridSize: 16, instructions: "Leta upp orden i rutnätet och ringa in dem.", points: 0 },
     };
+    const defaultContent = defaults[type];
+    const content = defaultContent
+      ? (type === "wordsearch" ? defaultContent : { text: (defaultContent as { text: string }).text })
+      : { text: "Ny fråga" };
     const q = questionBank.create({
       type: type as QuestionType,
-      content: defaults[type] ? { text: (defaults[type] as { text: string }).text } : { text: "Ny fråga" },
-      points: String((defaults[type] as { points?: number })?.points ?? 1),
+      content,
+      points: String((defaultContent as { points?: number })?.points ?? 1),
       user_id: "local",
       subject: docSubject || null, tags: null, difficulty: null,
     } as Partial<Question>);
@@ -757,14 +762,15 @@ function SortableOutlineItem({
 /* ─── InlineAddRow ────────────────────────────────────────────────────────── */
 
 const INLINE_QUICK_TYPES: { type: QuestionType; label: string; icon: string; auto?: boolean }[] = [
-  { type: "open",            label: "Fritext",   icon: "≡" },
-  { type: "multiple_choice", label: "Flerval",   icon: "☑",  auto: true },
-  { type: "short_answer",    label: "Kortsvar",  icon: "—" },
+  { type: "open",            label: "Fritext",     icon: "≡" },
+  { type: "multiple_choice", label: "Flerval",     icon: "☑",  auto: true },
+  { type: "short_answer",    label: "Kortsvar",    icon: "—" },
   { type: "cloze",           label: "Fyll luckor", icon: "[ ]", auto: true },
-  { type: "matching",        label: "Matcha",    icon: "⇌",  auto: true },
-  { type: "ranking",         label: "Rangordna", icon: "⊞" },
+  { type: "matching",        label: "Matcha",      icon: "⇌",  auto: true },
+  { type: "ranking",         label: "Rangordna",   icon: "⊞" },
   { type: "essay",           label: "Resonerande", icon: "¶" },
-  { type: "image",           label: "Bildfråga", icon: "🖼" },
+  { type: "image",           label: "Bildfråga",   icon: "🖼" },
+  { type: "wordsearch",      label: "Wordsearch",  icon: "🔤" },
 ];
 
 function InlineAddRow({ afterIdx, onPick }: { afterIdx: number; onPick: (idx: number, type: QuestionType) => void }) {
@@ -2421,6 +2427,26 @@ const NEW_Q_GROUPS: Array<{ title: string; types: QCardDef[] }> = [
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <rect x="8" y="12" width="10" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
             <rect x="22" y="12" width="10" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          </svg>
+        ),
+      },
+      {
+        type: "wordsearch",
+        label: "Wordsearch",
+        icon: (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            {[0,1,2,3].map(r => [0,1,2,3].map(c => (
+              <text key={`${r}-${c}`} x={9 + c * 6} y={15 + r * 7}
+                style={{ fontSize: 6 }} fill="currentColor" fontFamily="monospace" fontWeight="600">
+                {[["S","T","A","T"],["R","E","A","C"],["O","I","K","E"],["L","G","E","N"]][r][c]}
+              </text>
+            )))}
+            <rect x="8" y="8" width="24" height="24" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+            <line x1="8" y1="15" x2="32" y2="15" stroke="currentColor" strokeWidth="0.5" opacity="0.4"/>
+            <line x1="8" y1="22" x2="32" y2="22" stroke="currentColor" strokeWidth="0.5" opacity="0.4"/>
+            <line x1="14" y1="8" x2="14" y2="32" stroke="currentColor" strokeWidth="0.5" opacity="0.4"/>
+            <line x1="20" y1="8" x2="20" y2="32" stroke="currentColor" strokeWidth="0.5" opacity="0.4"/>
+            <line x1="26" y1="8" x2="26" y2="32" stroke="currentColor" strokeWidth="0.5" opacity="0.4"/>
           </svg>
         ),
       },
