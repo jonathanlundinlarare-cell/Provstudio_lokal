@@ -481,6 +481,8 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
                 design={design}
                 items={printItems}
                 showAnswers={centerMode === "answer"}
+                onTitleChange={setTitle}
+                onDesignChange={setD}
               />
             </div>
           </div>

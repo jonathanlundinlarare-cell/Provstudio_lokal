@@ -54,6 +54,9 @@ type Props = {
   accent?: string;
   /** When true, renders correct answers inline (facit/answer key mode) */
   showAnswers?: boolean;
+  /** v4: Called when Editable fields on the cover are edited. */
+  onTitleChange?: (next: string) => void;
+  onDesignChange?: (patch: Partial<DesignSettings>) => void;
 };
 
 const SUB_LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
@@ -1534,6 +1537,8 @@ export function PrintableTest({
   blocksPerPage = 3,
   accent: accentProp,
   showAnswers = false,
+  onTitleChange,
+  onDesignChange,
 }: Props) {
   const accent       = accentProp ?? design.primaryColor ?? "#1E5F5C";
   const showCover    = design.showCover !== false && design.includeCover !== false;
@@ -1705,6 +1710,22 @@ export function PrintableTest({
           instructions:  design.coverInstructions ?? "",
           coverImageUrl: design.coverImage?.src ?? design.coverImageUrl ?? "",
         };
+
+        // Translate cover-doc patches back to title + design fields
+        const handleCoverChange = (patch: Partial<CoverDoc>) => {
+          if ("title" in patch && typeof patch.title === "string") {
+            onTitleChange?.(patch.title);
+          }
+          const designPatch: Partial<DesignSettings> = {};
+          if ("subtitle" in patch)     designPatch.subtitle           = patch.subtitle ?? "";
+          if ("course" in patch)       designPatch.course             = patch.course ?? "";
+          if ("school" in patch)       designPatch.school             = patch.school ?? "";
+          if ("duration" in patch)     designPatch.duration           = patch.duration ?? "";
+          if ("examNumber" in patch)   designPatch.chapter            = patch.examNumber ?? "";
+          if ("instructions" in patch) designPatch.coverInstructions  = patch.instructions ?? "";
+          if (Object.keys(designPatch).length > 0) onDesignChange?.(designPatch);
+        };
+
         return (
           <div className="paper-page" style={{
             width: "210mm",
@@ -1724,7 +1745,7 @@ export function PrintableTest({
               transformOrigin: "top left",
               transform: "scale(1)",
             }}>
-              <CoverComp doc={coverDoc} accent={accent} />
+              <CoverComp doc={coverDoc} accent={accent} onChange={handleCoverChange} />
             </div>
           </div>
         );
