@@ -1093,17 +1093,39 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
 
   if (q.type === "definition") {
     const c = q.content as DefinitionContent;
-    // Multi-term format (from modal editor)
+    // Multi-term format (from modal editor) — term box left, write lines right
     if (c.terms && c.terms.length > 0) {
       return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4mm" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2.5mm" }}>
           {c.terms.map((t, idx) => (
-            <div key={idx}>
-              <div style={{ fontSize: "10pt", fontWeight: 600, color: accent, marginBottom: "1.5mm" }}>
-                {t.term || `Begrepp ${idx + 1}`}
+            <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "4mm" }}>
+              {/* Term box */}
+              <div style={{
+                minWidth: "36mm", maxWidth: "52mm",
+                border: `0.4mm solid ${accent}55`,
+                borderRadius: "1mm",
+                padding: "1.5mm 3mm",
+                background: `${accent}0d`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "3mm",
+                flexShrink: 0,
+              }}>
+                <span style={{ fontWeight: 700, fontSize: "9pt", color: "#1a1613", wordBreak: "break-word" }}>
+                  {t.term || `Begrepp ${idx + 1}`}
+                </span>
+                <span style={{
+                  fontSize: "8pt", fontWeight: 700,
+                  color: accent, opacity: 0.7,
+                  flexShrink: 0,
+                }}>
+                  {idx + 1}
+                </span>
               </div>
-              <div className="write-lines">
-                {Array.from({ length: 3 }).map((_, i) => (
+              {/* Write lines */}
+              <div className="write-lines" style={{ flex: 1, paddingTop: "1mm" }}>
+                {Array.from({ length: 2 }).map((_, i) => (
                   <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
                 ))}
               </div>

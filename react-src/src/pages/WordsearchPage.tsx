@@ -28,10 +28,15 @@ const A4_H = A4_H_MM * MM_TO_PX;
 function useA4Scale(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [scale, setScale] = useState<number | null>(null);
   useEffect(() => {
+    let rafId: number;
     function update() {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
-      if (width === 0 || height === 0) return;
+      if (width === 0 || height === 0) {
+        // Retry on next frame — layout may not be stable yet
+        rafId = requestAnimationFrame(update);
+        return;
+      }
       const sw = width  / A4_W;
       const sh = height / A4_H;
       setScale(Math.min(sw, sh, 1) * 0.97);
@@ -39,7 +44,7 @@ function useA4Scale(containerRef: React.RefObject<HTMLDivElement | null>) {
     update();
     const ro = new ResizeObserver(update);
     if (containerRef.current) ro.observe(containerRef.current);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); cancelAnimationFrame(rafId); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return scale;

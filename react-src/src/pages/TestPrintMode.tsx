@@ -41,6 +41,12 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
       }
       @page { size: A4 portrait; margin: 0; }
       .paper-page {
+        margin: 0 !important;
+        box-shadow: none !important;
+        height: 1122px !important;
+        min-height: 1122px !important;
+        max-height: 1122px !important;
+        overflow: hidden !important;
         page-break-after: always !important;
         break-after: page !important;
       }
