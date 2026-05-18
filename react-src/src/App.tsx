@@ -28,7 +28,14 @@ type UpdateState =
   | { phase: 'error'; message: string };
 
 export default function App() {
-  const [page, setPage] = useState<Page>({ name: 'home' });
+  // I print-läge: sätt page direkt från URL så att TestPrintMode alltid renderas,
+  // oavsett om documents.get() lyckas i print-fönstret. Uppdateras till 'wordsearch'
+  // i useEffect om doc_type visar sig vara wordsearch.
+  const [page, setPage] = useState<Page>(() => {
+    const printDocId = new URLSearchParams(window.location.search).get('print');
+    if (printDocId) return { name: 'editor', documentId: printDocId };
+    return { name: 'home' };
+  });
   const [ready, setReady] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [update, setUpdate] = useState<UpdateState>({ phase: 'idle' });
@@ -52,18 +59,18 @@ export default function App() {
   useEffect(() => {
     initStore().then(async () => {
       setReady(true);
-      // Hantera ?print=docId — öppnat av Electron för utskrift/PDF-export
+      // Hantera ?print=docId — öppnat av Electron för utskrift/PDF-export.
+      // page är redan satt till 'editor' via state-initialiseraren om printDocId finns.
+      // Här uppgraderar vi bara till 'wordsearch' om doc_type är wordsearch.
       const params = new URLSearchParams(window.location.search);
       const printDocId = params.get('print');
       if (printDocId) {
         const printDoc = documents.get(printDocId);
-        if (printDoc) {
-          if (printDoc.doc_type === 'wordsearch') {
-            setPage({ name: 'wordsearch', documentId: printDocId });
-          } else {
-            setPage({ name: 'editor', documentId: printDocId });
-          }
+        if (printDoc?.doc_type === 'wordsearch') {
+          setPage({ name: 'wordsearch', documentId: printDocId });
         }
+        // editor/workbook/homework: page är redan 'editor' (satt i initialiseraren)
+        // doc inte hittat: page är redan 'editor' — TestPrintMode hanterar tom rendering
       }
       if (window.localAPI) {
         const v = await window.localAPI.getVersion();
