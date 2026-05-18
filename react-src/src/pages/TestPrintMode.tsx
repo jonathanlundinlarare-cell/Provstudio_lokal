@@ -129,6 +129,7 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
       showAnswers={false}
       onTitleChange={() => { /* read-only in print mode */ }}
       onDesignChange={() => { /* read-only in print mode */ }}
+      printMode
     />
   );
 }

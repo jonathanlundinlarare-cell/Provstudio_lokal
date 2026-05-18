@@ -69,6 +69,12 @@ type Props = {
   /** v4: Called when Editable fields on the cover are edited. */
   onTitleChange?: (next: string) => void;
   onDesignChange?: (patch: Partial<DesignSettings>) => void;
+  /**
+   * v5: When true, renders without the on-screen .printable-test chrome
+   * (beige bg, padding, gap between pages, cover shadow/margin). Used by
+   * TestPrintMode → Electron printToPDF so the PDF contains ONLY the paper.
+   */
+  printMode?: boolean;
 };
 
 const SUB_LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
@@ -1669,6 +1675,7 @@ export function PrintableTest({
   showAnswers = false,
   onTitleChange,
   onDesignChange,
+  printMode = false,
 }: Props) {
   const [richToolbarRect, setRichToolbarRect] = useState<DOMRect | null>(null);
 
@@ -1759,12 +1766,17 @@ export function PrintableTest({
         className="paper-page"
         style={{
           width: 794,
-          minHeight: 1100,
+          // I print: lås exakt A4 (297mm) så printToPDF mappar 1:1 utan spill.
+          // På skärm: minHeight 1100 så pappret växer med innehållet i editorn.
+          ...(printMode
+            ? { height: "297mm", minHeight: "297mm", maxHeight: "297mm" }
+            : { minHeight: 1100 }),
           position: "relative",
           background: paperInfo.bg,
           overflow: "hidden",
           padding: marginStr,
           boxSizing: "border-box",
+          ...(printMode ? { pageBreakAfter: "always" as const, breakAfter: "page" as const } : {}),
           ["--paper-margin" as never]: marginStr,
         }}
       >
@@ -1808,9 +1820,10 @@ export function PrintableTest({
   };
 
   const outerStyle: React.CSSProperties = {
-    padding: "32px 24px 64px",
-    gap: 24,
-    background: "var(--ps-bg-soft, #EFEBE2)",
+    // Skärm: beige chrome runt papperna. Print: ingen chrome.
+    padding:    printMode ? 0     : "32px 24px 64px",
+    gap:        printMode ? 0     : 24,
+    background: printMode ? "#fff" : "var(--ps-bg-soft, #EFEBE2)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1871,8 +1884,8 @@ export function PrintableTest({
             width: "210mm",
             minHeight: "297mm",
             background: "white",
-            margin: "0 auto 24px",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.08)",
+            margin: printMode ? 0 : "0 auto 24px",
+            boxShadow: printMode ? "none" : "0 6px 24px rgba(0,0,0,0.08)",
             position: "relative",
             overflow: "hidden",
             pageBreakAfter: "always",
