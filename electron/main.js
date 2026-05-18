@@ -112,10 +112,10 @@ ipcMain.handle('open-print-window', (_event, docId) => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      partition: `print-${Date.now()}`,
     },
   });
-  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
-  win.loadURL(url);
+  win.loadFile(resolveIndexHtmlPath(), { query: { print: docId } });
   win.webContents.once('did-finish-load', () => {
     win.webContents.executeJavaScript('window.print()');
   });
@@ -125,16 +125,19 @@ ipcMain.handle('export-pdf', async (_event, docId, suggestedTitle) => {
   // 794px = exakt A4-bredd vid 96dpi — inget skalsteg från webbläsaren.
   // 12000px höjd rymmer ~10 A4-sidor utan clipping; TestPrintMode renderas
   // utanför App-chromen så overflow:hidden i App-roten påverkar inte längre.
+  // Unik partition = fri in-memory session, ingen stale cache från föregående anrop.
   const win = new BrowserWindow({
     width: 794, height: 12000, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      partition: `print-${Date.now()}`,
     },
   });
-  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
-  win.loadURL(url);
+  // Använd loadFile() (inte loadURL) — hanterar Windows-sökvägar korrekt
+  // (bakstreck, mellanslag, enhetsbokstav) utan att behöva konstruera file://-URL.
+  win.loadFile(resolveIndexHtmlPath(), { query: { print: docId } });
   await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
   // Vänta på att React renderar klart (cover-bild, KaTeX etc.)
   await new Promise(resolve => setTimeout(resolve, 2000));
@@ -185,10 +188,10 @@ ipcMain.handle('export-pdf-wordsearch', async (_event, docId, suggestedTitle) =>
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false,
+      partition: `print-${Date.now()}`,
     },
   });
-  const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
-  win.loadURL(url);
+  win.loadFile(resolveIndexHtmlPath(), { query: { print: docId } });
   await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
   await new Promise(resolve => setTimeout(resolve, 2500));
 

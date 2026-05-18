@@ -321,9 +321,7 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
   const handlePrint = useCallback(async () => {
     if (window.localAPI?.exportPdfWordsearch) {
       toast.info("Skapar PDF…");
-      // Cache-buster — se kommentar i EditorPage.tsx (samma trick).
-      const cacheBusted = `${documentId}&_cb=${Date.now()}`;
-      const res = await window.localAPI.exportPdfWordsearch(cacheBusted, docTitle);
+      const res = await window.localAPI.exportPdfWordsearch(documentId, docTitle);
       if (res?.success) toast.success("PDF sparad! (pussel + facit)");
       else toast.info("PDF-export avbruten.");
     } else {
