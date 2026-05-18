@@ -1837,8 +1837,8 @@ export function PrintableTest({
 
   return (
     <div className="printable-test" style={outerStyle}>
-      {/* DEBUG v1.0.33: stor synlig banner som verifierar att printMode-prop tagits emot. */}
-      {printMode && (
+      {/* DEBUG-banner borttagen — printMode bekräftad fungerande (v1.0.35). */}
+      {false && printMode && (
         <div style={{
           background: "#ff0000",
           color: "#ffffff",
