@@ -40,6 +40,13 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
         background: #fff !important;
       }
       @page { size: A4 portrait; margin: 0; }
+      /* Tvätta ytterwrappern — det är den som genererar beige bakgrund + gap mellan sidor */
+      .printable-test {
+        background: #fff !important;
+        padding: 0 !important;
+        gap: 0 !important;
+      }
+      /* En paper-page == en PDF-sida, exakt */
       .paper-page {
         margin: 0 !important;
         box-shadow: none !important;

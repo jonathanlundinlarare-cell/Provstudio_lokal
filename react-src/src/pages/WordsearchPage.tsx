@@ -5,6 +5,7 @@
  * Stödjer printMode (rendrerar only print-view för PDF-export).
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
+// (useRef behålls för cleanupRef i useA4Scale)
 import { ChevronLeft, Plus, Trash2, RefreshCw, Printer } from "lucide-react";
 import { documents, scheduleSave } from "@/lib/local-db";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -25,29 +26,42 @@ const MM_TO_PX = 3.7795275591; // 1mm = ~3.78px at 96dpi
 const A4_W = A4_W_MM * MM_TO_PX;
 const A4_H = A4_H_MM * MM_TO_PX;
 
-function useA4Scale(containerRef: React.RefObject<HTMLDivElement | null>) {
+/**
+ * Callback-ref-baserad scaling-hook.
+ *
+ * Tidigare implementation använde useRef + useEffect med tom deps-array — den
+ * körde bara ENDA gången, vid mount. Om komponenten returnerar tidigt under
+ * laddning (canvas-divven finns inte i DOM då) så blev observern aldrig
+ * kopplad till noden, och `scale` förblev `null`.
+ *
+ * Callback-refs anropas av React EXAKT när DOM-noden mountas/avmountas.
+ * Det fungerar oavsett om noden dyker upp på första rendret eller senare
+ * (efter att `loading` blivit false).
+ */
+function useA4Scale() {
   const [scale, setScale] = useState<number | null>(null);
-  useEffect(() => {
-    let rafId: number;
-    function update() {
-      if (!containerRef.current) return;
-      const { width, height } = containerRef.current.getBoundingClientRect();
-      if (width === 0 || height === 0) {
-        // Retry on next frame — layout may not be stable yet
-        rafId = requestAnimationFrame(update);
-        return;
-      }
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  const setRef = useCallback((node: HTMLDivElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    if (!node) return;
+
+    const update = () => {
+      const { width, height } = node.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
       const sw = width  / A4_W;
       const sh = height / A4_H;
       setScale(Math.min(sw, sh, 1) * 0.97);
-    }
+    };
+
     update();
     const ro = new ResizeObserver(update);
-    if (containerRef.current) ro.observe(containerRef.current);
-    return () => { ro.disconnect(); cancelAnimationFrame(rafId); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    ro.observe(node);
+    cleanupRef.current = () => ro.disconnect();
   }, []);
-  return scale;
+
+  return { setRef, scale };
 }
 
 /* ── Direction vectors (E SE S SW W NW N NE) ───────────────────────────── */
@@ -245,8 +259,7 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
   const [generated, setGenerated] = useState(false);
   const [viewMode, setViewMode]   = useState<"puzzle"|"facit">("puzzle");
 
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const scale = useA4Scale(canvasContainerRef);
+  const { setRef: setCanvasRef, scale } = useA4Scale();
 
   /* ── Load ── */
   useEffect(() => {
@@ -456,7 +469,7 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
 
           {/* A4 scaled canvas */}
           <div
-            ref={canvasContainerRef}
+            ref={setCanvasRef}
             style={{
               flex: 1,
               overflow: "hidden",
