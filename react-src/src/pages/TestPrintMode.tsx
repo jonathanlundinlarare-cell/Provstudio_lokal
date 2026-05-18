@@ -3,7 +3,7 @@
  * Renderas när App.tsx ser ?print=docId och docType !== 'wordsearch'.
  * Ingen app-chrome, ingen overflow-constraint — full sida levereras till printToPDF.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { documents, questionBank } from "@/lib/local-db";
 import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import {
@@ -22,6 +22,28 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
   const [order,   setOrder]   = useState<QuestionOrderItem[]>([]);
   const [bank,    setBank]    = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Force html+body to exactly 794px = A4 at 96 dpi.
+  // Without this, Chromium maps viewport-width → A4 width (794px) and applies
+  // a 0.88× scale transform that rasterises the entire page as a bitmap in the PDF.
+  // Matching widths exactly = pure vector output, sharp text and borders.
+  useEffect(() => {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'ps-print-reset';
+    styleTag.textContent = `
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 794px !important;
+        max-width: 794px !important;
+        overflow: visible !important;
+        background: #fff !important;
+      }
+      @page { size: A4 portrait; margin: 0; }
+    `;
+    document.head.appendChild(styleTag);
+    return () => styleTag.remove();
+  }, []);
 
   useEffect(() => {
     const doc = documents.get(documentId);

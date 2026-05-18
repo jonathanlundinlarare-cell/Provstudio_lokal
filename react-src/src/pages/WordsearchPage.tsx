@@ -321,6 +321,24 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
 
   /* ── Print / PDF mode — no chrome, just the pages ── */
   if (printMode) {
+    // Inject the same width-reset as TestPrintMode so Chromium maps 794px→A4
+    // 1:1 with no scaling (old main.js may still use a 900px window).
+    const styleTag = document.getElementById('ps-print-reset') || (() => {
+      const s = document.createElement('style');
+      s.id = 'ps-print-reset';
+      s.textContent = `
+        html, body {
+          margin: 0 !important; padding: 0 !important;
+          width: 794px !important; max-width: 794px !important;
+          overflow: visible !important; background: #fff !important;
+        }
+        @page { size: A4 portrait; margin: 0; }
+      `;
+      document.head.appendChild(s);
+      return s;
+    })();
+    void styleTag; // used
+
     return (
       <div style={{ background: "#fff", margin: 0, padding: 0 }}>
         {/* Page 1: Puzzle */}
