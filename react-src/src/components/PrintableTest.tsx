@@ -1829,6 +1829,8 @@ export function PrintableTest({
     alignItems: "center",
     fontFamily: bodyFont,
     fontSize: bodySize,
+    // DEBUG (v1.0.32): röd ram visar att printMode-grenen aktiverats i bundlen.
+    ...(printMode ? { border: "4px solid red" } : {}),
     ["--doc-heading-font" as never]: headingFont,
     ["--doc-body-font" as never]: bodyFont,
     ["--doc-title-weight" as never]: titleWeight,
