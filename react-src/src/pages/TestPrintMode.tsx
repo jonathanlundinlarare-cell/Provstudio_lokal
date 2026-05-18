@@ -40,6 +40,14 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
         background: #fff !important;
       }
       @page { size: A4 portrait; margin: 0; }
+      .paper-page {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      .paper-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
     `;
     document.head.appendChild(styleTag);
     return () => styleTag.remove();
