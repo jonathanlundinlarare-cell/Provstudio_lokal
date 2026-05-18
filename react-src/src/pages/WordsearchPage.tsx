@@ -26,14 +26,15 @@ const A4_W = A4_W_MM * MM_TO_PX;
 const A4_H = A4_H_MM * MM_TO_PX;
 
 function useA4Scale(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number | null>(null);
   useEffect(() => {
     function update() {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
       const sw = width  / A4_W;
       const sh = height / A4_H;
-      setScale(Math.min(sw, sh, 1) * 0.92);
+      setScale(Math.min(sw, sh, 1) * 0.97);
     }
     update();
     const ro = new ResizeObserver(update);
@@ -434,22 +435,29 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
           <div
             ref={canvasContainerRef}
             style={{
-              flex: 1, overflow: "hidden",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              flex: 1,
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               background: "var(--ps-bg)",
+              minHeight: 0,
             }}
           >
-            <div style={{
-              transform: `scale(${scale})`,
-              transformOrigin: "center center",
-              boxShadow: "0 4px 32px rgba(20,17,13,0.14)",
-              borderRadius: 2,
-            }}>
-              {viewMode === "puzzle"
-                ? <WordsearchPrintView content={content} />
-                : <WordsearchAnswerView content={content} />
-              }
-            </div>
+            {scale !== null && (
+              <div style={{
+                transform: `scale(${scale})`,
+                transformOrigin: "center center",
+                flexShrink: 0,
+                boxShadow: "0 4px 32px rgba(20,17,13,0.14)",
+                borderRadius: 2,
+              }}>
+                {viewMode === "puzzle"
+                  ? <WordsearchPrintView content={content} />
+                  : <WordsearchAnswerView content={content} />
+                }
+              </div>
+            )}
           </div>
         </div>
 

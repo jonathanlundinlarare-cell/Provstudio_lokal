@@ -175,8 +175,10 @@ ipcMain.handle('pick-image', async () => {
 });
 
 ipcMain.handle('export-pdf-wordsearch', async (_event, docId, suggestedTitle) => {
+  // 794px = A4 width at 96 dpi — content renders 1:1, no browser scaling
+  // 2500px height fits two full A4 pages (2 × 1123px) without clipping
   const win = new BrowserWindow({
-    width: 860, height: 1200, show: false,
+    width: 794, height: 2500, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false,

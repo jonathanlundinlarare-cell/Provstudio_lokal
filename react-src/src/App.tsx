@@ -169,6 +169,15 @@ export default function App() {
     );
   }
 
+  /* ── Clean print mode for wordsearch — bypass all App chrome ── */
+  if (isPrintMode && page.name === 'wordsearch') {
+    return (
+      <div style={{ margin: 0, padding: 0, background: '#fff' }}>
+        <WordsearchPage documentId={page.documentId} onBack={() => {}} printMode />
+      </div>
+    );
+  }
+
   const hasUpdate = update.phase === 'available';
 
   return (
