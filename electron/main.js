@@ -122,8 +122,11 @@ ipcMain.handle('open-print-window', (_event, docId) => {
 });
 
 ipcMain.handle('export-pdf', async (_event, docId, suggestedTitle) => {
+  // 794px = exakt A4-bredd vid 96dpi — inget skalsteg från webbläsaren.
+  // 12000px höjd rymmer ~10 A4-sidor utan clipping; TestPrintMode renderas
+  // utanför App-chromen så overflow:hidden i App-roten påverkar inte längre.
   const win = new BrowserWindow({
-    width: 900, height: 1200, show: false,
+    width: 794, height: 12000, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -133,7 +136,7 @@ ipcMain.handle('export-pdf', async (_event, docId, suggestedTitle) => {
   const url = `file://${resolveIndexHtmlPath()}?print=${docId}`;
   win.loadURL(url);
   await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
-  // Vänta på att React renderar klart
+  // Vänta på att React renderar klart (cover-bild, KaTeX etc.)
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   let pdfBuffer;

@@ -5,6 +5,7 @@ import BankPage from './pages/BankPage';
 import EditorPage from './pages/EditorPage';
 import WorkbookPage from './pages/WorkbookPage';
 import WordsearchPage from './pages/WordsearchPage';
+import TestPrintMode from './pages/TestPrintMode';
 import { SO_SUBJECTS } from './lib/so-taxonomy';
 import type { DocumentType } from './lib/test-types';
 
@@ -169,13 +170,22 @@ export default function App() {
     );
   }
 
-  /* ── Clean print mode for wordsearch — bypass all App chrome ── */
-  if (isPrintMode && page.name === 'wordsearch') {
-    return (
-      <div style={{ margin: 0, padding: 0, background: '#fff' }}>
-        <WordsearchPage documentId={page.documentId} onBack={() => {}} printMode />
-      </div>
-    );
+  /* ── Clean print mode — bypass all App chrome for pixel-perfect PDF ── */
+  if (isPrintMode) {
+    if (page.name === 'wordsearch') {
+      return (
+        <div style={{ margin: 0, padding: 0, background: '#fff' }}>
+          <WordsearchPage documentId={page.documentId} onBack={() => {}} printMode />
+        </div>
+      );
+    }
+    if (page.name === 'editor') {
+      return (
+        <div style={{ margin: 0, padding: 0, background: '#fff' }}>
+          <TestPrintMode documentId={page.documentId} />
+        </div>
+      );
+    }
   }
 
   const hasUpdate = update.phase === 'available';
