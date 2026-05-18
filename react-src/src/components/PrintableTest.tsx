@@ -1829,8 +1829,6 @@ export function PrintableTest({
     alignItems: "center",
     fontFamily: bodyFont,
     fontSize: bodySize,
-    // DEBUG (v1.0.32): röd ram visar att printMode-grenen aktiverats i bundlen.
-    ...(printMode ? { border: "4px solid red" } : {}),
     ["--doc-heading-font" as never]: headingFont,
     ["--doc-body-font" as never]: bodyFont,
     ["--doc-title-weight" as never]: titleWeight,
@@ -1839,6 +1837,22 @@ export function PrintableTest({
 
   return (
     <div className="printable-test" style={outerStyle}>
+      {/* DEBUG v1.0.33: stor synlig banner som verifierar att printMode-prop tagits emot. */}
+      {printMode && (
+        <div style={{
+          background: "#ff0000",
+          color: "#ffffff",
+          fontWeight: 900,
+          fontSize: 32,
+          padding: "20px 40px",
+          textAlign: "center",
+          width: "100%",
+          letterSpacing: "0.05em",
+          fontFamily: "system-ui, sans-serif",
+        }}>
+          PRINTMODE v1.0.33 — KÖRD KOD
+        </div>
+      )}
 
       {/* ── Cover page (v4: template-based) ──
           Undefined coverTemplate on legacy docs = "official" (visually preserves existing covers) */}
