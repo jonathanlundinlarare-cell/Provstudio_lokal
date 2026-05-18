@@ -1850,7 +1850,7 @@ export function PrintableTest({
           letterSpacing: "0.05em",
           fontFamily: "system-ui, sans-serif",
         }}>
-          PRINTMODE v1.0.33 — KÖRD KOD
+          PRINTMODE v1.0.34 — KÖRD KOD
         </div>
       )}
 

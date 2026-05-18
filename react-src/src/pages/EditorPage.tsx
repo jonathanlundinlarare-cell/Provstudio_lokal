@@ -398,7 +398,14 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const handleDownload = async () => {
     if (window.localAPI?.exportPdf) {
       toast.info("Skapar PDF…");
-      const result = await window.localAPI.exportPdf(documentId, stripHtml(title));
+      // Cache-buster: main.js bygger URL:en `file://...?print=${docId}` och
+      // återanvänder Chromium's cache när vi anropar med samma docId.
+      // Genom att lägga &_cb=<timestamp> i docId-strängen blir URL:en unik
+      // varje gång → Chromium tvingas läsa filen från disk på nytt.
+      // App.tsx:s `params.get('print')` returnerar fortfarande bara docId
+      // (& separerar query-params).
+      const cacheBusted = `${documentId}&_cb=${Date.now()}`;
+      const result = await window.localAPI.exportPdf(cacheBusted, stripHtml(title));
       if (result?.success) toast.success("PDF sparad!");
       else toast.info("PDF-export avbruten.");
     } else {
