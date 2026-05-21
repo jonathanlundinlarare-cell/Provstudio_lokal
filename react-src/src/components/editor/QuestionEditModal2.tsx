@@ -1893,61 +1893,114 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   }
 
   /* ── NP-variant mode ── */
+  const DEFAULT_NP_CRITERIA = [
+    { label: "Inga",  points: 0 },
+    { label: "En",    points: 1 },
+    { label: "Två",   points: 2 },
+    { label: "Tre",   points: 3 },
+  ];
+  const npCriteria: Array<{ label: string; points: number }> = q.np_criteria ?? DEFAULT_NP_CRITERIA;
+  const npTotalPoints = npCriteria.reduce((max, r) => Math.max(max, r.points), 0);
+
+  const patchCriteria = (updated: Array<{ label: string; points: number }>) => {
+    // Also auto-update q.points to the highest criterion value
+    const maxPts = updated.reduce((m, r) => Math.max(m, r.points), 0);
+    patchQ({ np_criteria: updated, points: String(maxPts) });
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {modeSelector}
 
-      {/* Max points + thresholds */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Maxpoäng</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <input type="number" value={q.points ?? "0"} min={0}
-              onChange={e => patchQ({ points: e.target.value })}
-              style={{ ...psInput, width: "100%", textAlign: "center" }}
-            />
-            <span style={{ fontSize: 12, color: "var(--ps-ink-3)" }}>p</span>
-          </div>
+      {/* Criteria table editor */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: "var(--ps-ink-2)", fontWeight: 600 }}>Bedömningskriterier</span>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", flex: 1 }}>(visas i tabell i utskriften)</span>
         </div>
-        {GRADE_LABELS.map(({ key, label, color }) => (
-          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 11, color, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>{label}-gräns</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <input type="number" value={q.grade_points?.[key] ?? 0} min={0}
-                onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
-                style={{ ...psInput, width: "100%", textAlign: "center", borderColor: `${color}60` }}
+
+        {/* Header row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 28px", gap: 4, paddingBottom: 4, borderBottom: "1px solid var(--ps-rule-2)", marginBottom: 4 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Beteckning</span>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Poäng</span>
+          <span />
+        </div>
+
+        {/* Criterion rows */}
+        {npCriteria.map((row, idx) => (
+          <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 28px", gap: 4, marginBottom: 4, alignItems: "center" }}>
+            <input
+              type="text"
+              value={row.label}
+              placeholder={`Beteckning ${idx + 1}`}
+              onChange={e => {
+                const updated = npCriteria.map((r, i) => i === idx ? { ...r, label: e.target.value } : r);
+                patchCriteria(updated);
+              }}
+              style={{ ...psInput, fontSize: 12.5 }}
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <input
+                type="number"
+                value={row.points}
+                min={0}
+                onChange={e => {
+                  const updated = npCriteria.map((r, i) => i === idx ? { ...r, points: parseFloat(e.target.value) || 0 } : r);
+                  patchCriteria(updated);
+                }}
+                style={{ ...psInput, width: "100%", textAlign: "center" }}
               />
-              <span style={{ fontSize: 12, color: "var(--ps-ink-3)" }}>p</span>
+              <span style={{ fontSize: 11, color: "var(--ps-ink-4)", flexShrink: 0 }}>p</span>
             </div>
+            <button
+              onClick={() => patchCriteria(npCriteria.filter((_, i) => i !== idx))}
+              title="Ta bort rad"
+              style={{ width: 26, height: 26, border: "none", borderRadius: 5, background: "transparent", color: "var(--ps-ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ×
+            </button>
           </div>
         ))}
+
+        {/* Add row */}
+        <button
+          onClick={() => patchCriteria([...npCriteria, { label: "", points: npTotalPoints + 1 }])}
+          style={{ marginTop: 2, height: 28, padding: "0 12px", border: "1.5px dashed var(--ps-rule-2)", borderRadius: 6, background: "transparent", color: "var(--ps-ink-3)", fontSize: 12, cursor: "pointer", fontFamily: "var(--ps-ui)", width: "100%" }}
+        >
+          + Lägg till rad
+        </button>
       </div>
 
-      {/* Preview table */}
-      {npMax > 0 && (
+      {/* Kommentar / exempelsvar */}
+      <div>
+        <span style={{ fontSize: 12, color: "var(--ps-ink-2)", fontWeight: 600, display: "block", marginBottom: 5 }}>
+          Kommentar och exempelsvar
+        </span>
+        <textarea
+          value={assessText}
+          onChange={e => setAssessText(e.target.value)}
+          onBlur={saveAssessText}
+          placeholder="Skriv kommentarer, exempelsvar och anvisningar…"
+          rows={5}
+          style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+        />
+      </div>
+
+      {/* Live preview */}
+      {npCriteria.length > 0 && (
         <div style={{ border: "1px solid var(--ps-rule-2)", borderRadius: 8, overflow: "hidden" }}>
-          <div style={{ padding: "6px 12px", background: "var(--ps-bg-soft)", borderBottom: "1px solid var(--ps-rule-2)" }}>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ps-ink-2)" }}>Förhandsgranskning</span>
+          <div style={{ padding: "5px 12px", background: "var(--ps-bg-soft)", borderBottom: "1px solid var(--ps-rule-2)" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Förhandsgranskning av utskrift</span>
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <tbody>
-              {GRADE_LABELS.map(({ key, label, color }, idx) => {
-                const range = idx === 0 ? npERange : idx === 1 ? npCRange : npARange;
-                return (
-                  <tr key={key} style={{ borderBottom: "1px solid var(--ps-rule-2)" }}>
-                    <td style={{ padding: "5px 12px", width: 40 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: color, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700 }}>{label}</span>
-                    </td>
-                    <td style={{ padding: "5px 12px", color: "var(--ps-ink-2)" }}>{range}</td>
-                  </tr>
-                );
-              })}
-              <tr>
-                <td style={{ padding: "5px 12px" }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#9CA3AF", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700 }}>F</span>
-                </td>
-                <td style={{ padding: "5px 12px", color: "var(--ps-ink-3)" }}>{npE > 0 ? `0–${npE - 1} p` : "–"}</td>
-              </tr>
+              {npCriteria.map((row, idx) => (
+                <tr key={idx} style={{ borderBottom: idx < npCriteria.length - 1 ? "1px solid var(--ps-rule-2)" : "none" }}>
+                  <td style={{ padding: "4px 12px", color: "var(--ps-ink)", fontWeight: 500 }}>{row.label || `Rad ${idx + 1}`}</td>
+                  <td style={{ padding: "4px 12px", color: "var(--ps-ink-2)" }}>{row.points} poäng</td>
+                  <td style={{ padding: "4px 12px", width: "35%", borderLeft: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)" }}>&nbsp;</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

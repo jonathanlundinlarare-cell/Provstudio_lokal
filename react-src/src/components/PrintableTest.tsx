@@ -1592,53 +1592,87 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
     );
   }
 
-  // NP-variant mode: show threshold table
+  // NP-variant mode: show NP-style criteria table + comment text
   if (mode === "np_variant") {
-    const maxP = parseFloat(q.points ?? "0") || 0;
-    const gp = q.grade_points ?? {};
-    const eP = parseFloat(String(gp.E ?? "")) || null;
-    const cP = parseFloat(String(gp.C ?? "")) || null;
-    const aP = parseFloat(String(gp.A ?? "")) || null;
-    if (!maxP && eP == null) return null;
-
-    // Build range strings: "E: eP–(cP-1) p", "C: cP–(aP-1) p", "A: aP–maxP p"
-    const rows: Array<{ grade: string; range: string }> = [];
-    if (eP != null) {
-      const upper = cP != null ? cP - 1 : maxP;
-      rows.push({ grade: "E", range: eP === upper ? `${eP} p` : `${eP}–${upper} p` });
-    }
-    if (cP != null) {
-      const upper = aP != null ? aP - 1 : maxP;
-      rows.push({ grade: "C", range: cP === upper ? `${cP} p` : `${cP}–${upper} p` });
-    }
-    if (aP != null) {
-      rows.push({ grade: "A", range: aP === maxP ? `${aP} p` : `${aP}–${maxP} p` });
-    }
-
-    if (rows.length === 0) return null;
+    const DEFAULT_CRITERIA = [
+      { label: "Inga", points: 0 },
+      { label: "En",   points: 1 },
+      { label: "Två",  points: 2 },
+      { label: "Tre",  points: 3 },
+    ];
+    const criteria = (q.np_criteria && q.np_criteria.length > 0) ? q.np_criteria : DEFAULT_CRITERIA;
+    const commentText = q.assessment_text ?? "";
 
     return (
-      <div style={{
-        marginTop: "3mm",
-        padding: "2mm 4mm",
-        background: accent + "08",
-        border: `0.4mm solid ${accent}33`,
-        borderRadius: 3,
-        fontSize: 9,
-      }}>
-        <div style={{ fontWeight: 700, color: accent, marginBottom: "1.5mm", letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 8 }}>
-          Bedömningsanvisningar
+      <div style={{ marginTop: "3mm" }}>
+        {/* NP-style criteria table */}
+        <div style={{
+          border: `0.4mm solid ${accent}44`,
+          borderRadius: "1mm",
+          overflow: "hidden",
+          marginBottom: commentText ? "2.5mm" : 0,
+        }}>
+          <div style={{
+            padding: "1.5mm 3mm",
+            background: accent + "12",
+            borderBottom: `0.4mm solid ${accent}33`,
+            fontSize: 8,
+            fontWeight: 700,
+            color: accent,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+          }}>
+            Bedömningsanvisningar
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
+            <tbody>
+              {criteria.map((row, idx) => (
+                <tr key={idx} style={{ borderBottom: idx < criteria.length - 1 ? `0.3mm solid ${accent}22` : "none" }}>
+                  <td style={{
+                    padding: "2mm 3mm",
+                    fontWeight: 600,
+                    color: "#1a1613",
+                    width: "28%",
+                    borderRight: `0.3mm solid ${accent}22`,
+                  }}>
+                    {row.label}
+                  </td>
+                  <td style={{
+                    padding: "2mm 3mm",
+                    color: "#333",
+                    width: "22%",
+                    borderRight: `0.3mm solid ${accent}22`,
+                  }}>
+                    {row.points} poäng
+                  </td>
+                  <td style={{
+                    padding: "2mm 3mm",
+                    width: "50%",
+                    background: accent + "06",
+                  }}>
+                    &nbsp;
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <table style={{ borderCollapse: "collapse", width: "auto" }}>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.grade}>
-                <td style={{ fontWeight: 700, color: accent, paddingRight: "6mm", paddingBottom: "0.5mm", fontSize: 9 }}>{r.grade}</td>
-                <td style={{ color: "#333", paddingBottom: "0.5mm", fontSize: 9 }}>{r.range}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {/* Free-text comments / exempelsvar */}
+        {commentText && (
+          <div style={{
+            fontSize: 8.5,
+            color: "#444",
+            lineHeight: 1.5,
+            padding: "2mm 3mm",
+            background: "#FAFAF8",
+            border: "0.3mm solid #E0D8C8",
+            borderRadius: "1mm",
+            whiteSpace: "pre-wrap",
+          }}>
+            {commentText}
+          </div>
+        )}
       </div>
     );
   }

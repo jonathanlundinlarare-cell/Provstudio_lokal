@@ -279,6 +279,11 @@ export type Question = {
   assessment_use_grade_points?: boolean;
   /** 'optional'-läge: fritext bedömningsanvisning */
   assessment_text?: string;
+  /**
+   * 'np_variant'-läge: rader i bedömningstabellen, t.ex.
+   * [{ label: "Inga", points: 0 }, { label: "En", points: 1 }, ...]
+   */
+  np_criteria?: Array<{ label: string; points: number }>;
   /** Antal prov frågan används i */
   used_in?: number;
   /** Skapare/författare */
