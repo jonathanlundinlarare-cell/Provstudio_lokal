@@ -67,9 +67,14 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: number;
+  /**
+   * compact=true: verktygsfältet döljs tills editorn är i fokus (lämpligt för korta inline-fält
+   * som svarsalternativ, matchningspar etc.). Normalt (false) visas verktygsfältet alltid.
+   */
+  compact?: boolean;
 }
 
-export function RichTextEditor({ value, onChange, placeholder = "Skriv din frågetext här …", minHeight = 90 }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder = "Skriv din frågetext här …", minHeight = 90, compact = false }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false, underline: false, strikeThrough: false });
   const skipNextSync = useRef(false);
@@ -120,14 +125,17 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
   };
 
   return (
-    <div style={{
-      border: "1px solid var(--ps-rule-2)",
-      borderRadius: 8,
-      background: "var(--ps-paper)",
-      overflow: "hidden",
-    }}>
-      {/* ── Toolbar ── */}
-      <div style={{
+    <div
+      className={compact ? "rte-compact" : undefined}
+      style={{
+        border: "1px solid var(--ps-rule-2)",
+        borderRadius: 8,
+        background: "var(--ps-paper)",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── Toolbar — döljs i compact-läge om inte :focus-within ── */}
+      <div className="rte-toolbar" style={{
         display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1,
         padding: "4px 6px",
         borderBottom: "1px solid var(--ps-rule-2)",
@@ -240,6 +248,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
       />
 
       <style>{`
+        /* compact: dölj verktygsfältet tills editorn är aktiv */
+        .rte-compact:not(:focus-within) .rte-toolbar { display: none; }
+        .rte-compact:not(:focus-within) { border-radius: 6px; }
         [contenteditable]:empty:before {
           content: attr(data-placeholder);
           color: var(--ps-ink-4);

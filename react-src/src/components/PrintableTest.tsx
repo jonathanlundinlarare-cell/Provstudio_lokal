@@ -929,16 +929,31 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
 
   if (q.type === "multiple_choice") {
     const c = q.content as MultipleChoiceContent;
+    const correctIndices = showAnswers
+      ? (Array.isArray(c.correctIndex) ? c.correctIndex : c.correctIndex != null ? [c.correctIndex] : [])
+      : [];
     return (
       <ul className={`mc-options mc-marker-${mcMarker}`}>
-        {(c.options ?? []).map((opt, i) => (
-          <li key={i}>
-            {mcMarker === "letter"
-              ? <span className="mc-box mc-letter">{String.fromCharCode(65 + i)}</span>
-              : <span className="mc-box" style={{ borderColor: accent, borderRadius: mcMarker === "circle" ? "50%" : undefined }} />}
-            <span>{opt || `Alternativ ${i + 1}`}</span>
-          </li>
-        ))}
+        {(c.options ?? []).map((opt, i) => {
+          const isCorrect = correctIndices.includes(i);
+          return (
+            <li key={i}>
+              {mcMarker === "letter"
+                ? <span className="mc-box mc-letter" style={isCorrect ? { background: accent, color: "#fff", borderColor: accent } : undefined}>
+                    {isCorrect ? "✓" : String.fromCharCode(65 + i)}
+                  </span>
+                : <span className="mc-box" style={{
+                    borderColor: accent,
+                    background: isCorrect ? accent : undefined,
+                    borderRadius: mcMarker === "circle" ? "50%" : undefined,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {isCorrect && <span style={{ color: "#fff", fontSize: "0.7em", lineHeight: 1 }}>✓</span>}
+                  </span>}
+              <span dangerouslySetInnerHTML={{ __html: opt || `Alternativ ${i + 1}` }} />
+            </li>
+          );
+        })}
       </ul>
     );
   }
@@ -963,9 +978,9 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
         <tbody>
           {(c.pairs ?? []).map((p, i) => (
             <tr key={i}>
-              <td className="match-left">{p.left}</td>
+              <td className="match-left" dangerouslySetInnerHTML={{ __html: p.left }} />
               <td className="match-blank"><span className="match-line" /></td>
-              <td className="match-right">{p.right}</td>
+              <td className="match-right" dangerouslySetInnerHTML={{ __html: p.right }} />
             </tr>
           ))}
         </tbody>
@@ -1018,7 +1033,7 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
         {c.items.map((item, i) => (
           <li key={i}>
             <span className="rank-box" style={{ borderColor: accent }} />
-            <span>{item}</span>
+            <span dangerouslySetInnerHTML={{ __html: item }} />
           </li>
         ))}
       </ul>
@@ -1118,9 +1133,8 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
                 gap: "3mm",
                 flexShrink: 0,
               }}>
-                <span style={{ fontWeight: 700, fontSize: "9pt", color: "#1a1613", wordBreak: "break-word" }}>
-                  {t.term || `Begrepp ${idx + 1}`}
-                </span>
+                <span style={{ fontWeight: 700, fontSize: "9pt", color: "#1a1613", wordBreak: "break-word" }}
+                  dangerouslySetInnerHTML={{ __html: t.term || `Begrepp ${idx + 1}` }} />
                 <span style={{
                   fontSize: "8pt", fontWeight: 700,
                   color: accent, opacity: 0.7,
@@ -1144,7 +1158,7 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
     const lines = Math.max(1, c.lines || 3);
     return (
       <div>
-        {c.term && <div style={{ fontSize: "10pt", fontWeight: 600, color: accent, marginBottom: "1.5mm" }}>{c.term}</div>}
+        {c.term && <div style={{ fontSize: "10pt", fontWeight: 600, color: accent, marginBottom: "1.5mm" }} dangerouslySetInnerHTML={{ __html: c.term }} />}
         <div className="write-lines">
           {Array.from({ length: lines }).map((_, i) => (
             <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
@@ -1440,16 +1454,8 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
   let answerNode: React.ReactNode = null;
 
   if (q.type === "multiple_choice") {
-    const mc = q.content as MultipleChoiceContent;
-    const correct = mc.correctIndex;
-    if (correct === null || correct === undefined) return null;
-    const indices = Array.isArray(correct) ? correct : [correct];
-    const opts = mc.options ?? [];
-    answerNode = (
-      <span>
-        {indices.map(i => opts[i] ?? `alternativ ${i + 1}`).join(", ")}
-      </span>
-    );
+    // Correct answers shown inline in option boxes — no text box needed
+    return null;
   } else if (q.type === "true_false") {
     const val = c.correct as number | null | undefined;
     if (val === null || val === undefined) return null;
@@ -1514,6 +1520,130 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
       {answerNode}
     </div>
   );
+}
+
+/* ─── Assessment block (facit mode) ─────────────────────────────────── */
+
+function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
+  const mode = q.assessment_mode ?? "standard";
+
+  // Standard mode: show rubric (E/C/A texts) if any exist
+  if (mode === "standard") {
+    const rub = q.rubric;
+    if (!rub) return null;
+    const grades: Array<{ label: string; text: string; color: string }> = [
+      { label: "E", text: rub.E ?? "", color: "#2e7d32" },
+      { label: "C", text: rub.C ?? "", color: "#1565c0" },
+      { label: "A", text: rub.A ?? "", color: "#6a1b9a" },
+    ].filter(g => g.text.trim());
+    if (grades.length === 0) return null;
+    return (
+      <div style={{ marginTop: "3mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
+        {grades.map(g => (
+          <div key={g.label} style={{
+            padding: "1.5mm 3mm",
+            background: g.color + "0d",
+            borderLeft: `2px solid ${g.color}`,
+            borderRadius: "0 3px 3px 0",
+            fontSize: 9,
+            color: "#333",
+            lineHeight: 1.4,
+          }}>
+            <span style={{ fontWeight: 700, color: g.color, marginRight: 4 }}>{g.label}:</span>
+            {g.text}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Optional mode: show assessment_text + total or E/C/A points
+  if (mode === "optional") {
+    const text = q.assessment_text ?? "";
+    const useGradePoints = q.assessment_use_grade_points ?? false;
+    if (!text && !useGradePoints && !q.points) return null;
+    return (
+      <div style={{
+        marginTop: "3mm",
+        padding: "2mm 4mm",
+        background: accent + "0d",
+        borderLeft: `2px solid ${accent}`,
+        borderRadius: "0 3px 3px 0",
+        fontSize: 9,
+        color: "#333",
+        lineHeight: 1.5,
+      }}>
+        {useGradePoints && q.grade_points && (
+          <div style={{ display: "flex", gap: "4mm", marginBottom: text ? "1.5mm" : 0 }}>
+            {(["E", "C", "A"] as const).map(g => q.grade_points![g] != null && (
+              <span key={g} style={{ fontWeight: 700 }}>
+                <span style={{ color: accent }}>{g}:</span> {q.grade_points![g]} p
+              </span>
+            ))}
+          </div>
+        )}
+        {!useGradePoints && q.points && (
+          <div style={{ marginBottom: text ? "1.5mm" : 0 }}>
+            <span style={{ fontWeight: 700, color: accent }}>Poäng: </span>{q.points} p
+          </div>
+        )}
+        {text && <div>{text}</div>}
+      </div>
+    );
+  }
+
+  // NP-variant mode: show threshold table
+  if (mode === "np_variant") {
+    const maxP = parseFloat(q.points ?? "0") || 0;
+    const gp = q.grade_points ?? {};
+    const eP = parseFloat(String(gp.E ?? "")) || null;
+    const cP = parseFloat(String(gp.C ?? "")) || null;
+    const aP = parseFloat(String(gp.A ?? "")) || null;
+    if (!maxP && eP == null) return null;
+
+    // Build range strings: "E: eP–(cP-1) p", "C: cP–(aP-1) p", "A: aP–maxP p"
+    const rows: Array<{ grade: string; range: string }> = [];
+    if (eP != null) {
+      const upper = cP != null ? cP - 1 : maxP;
+      rows.push({ grade: "E", range: eP === upper ? `${eP} p` : `${eP}–${upper} p` });
+    }
+    if (cP != null) {
+      const upper = aP != null ? aP - 1 : maxP;
+      rows.push({ grade: "C", range: cP === upper ? `${cP} p` : `${cP}–${upper} p` });
+    }
+    if (aP != null) {
+      rows.push({ grade: "A", range: aP === maxP ? `${aP} p` : `${aP}–${maxP} p` });
+    }
+
+    if (rows.length === 0) return null;
+
+    return (
+      <div style={{
+        marginTop: "3mm",
+        padding: "2mm 4mm",
+        background: accent + "08",
+        border: `0.4mm solid ${accent}33`,
+        borderRadius: 3,
+        fontSize: 9,
+      }}>
+        <div style={{ fontWeight: 700, color: accent, marginBottom: "1.5mm", letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 8 }}>
+          Bedömningsanvisningar
+        </div>
+        <table style={{ borderCollapse: "collapse", width: "auto" }}>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.grade}>
+                <td style={{ fontWeight: 700, color: accent, paddingRight: "6mm", paddingBottom: "0.5mm", fontSize: 9 }}>{r.grade}</td>
+                <td style={{ color: "#333", paddingBottom: "0.5mm", fontSize: 9 }}>{r.range}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 /* ─── QBlock render ──────────────────────────────────────────────────── */
@@ -1600,7 +1730,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                           <div key={si}>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 3 }}>
                               <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[si]})</span>
-                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>{sub.text}</span>
+                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }} dangerouslySetInnerHTML={{ __html: sub.text }} />
                               {showPoints && sub.points && (
                                 <span style={{ marginLeft: "auto" }}>
                                   <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
@@ -1620,6 +1750,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                     ) : null;
                   })()}
                   {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
+                  {showAnswers && <AssessmentBlock q={q} accent={accent} />}
                 </div>
                 {/* Points on the right */}
                 {showPoints && q.points && (isLead ? !hasSubs : true) && (

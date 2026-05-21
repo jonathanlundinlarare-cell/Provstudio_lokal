@@ -268,6 +268,17 @@ export type Question = {
   rubric?: { E?: string; C?: string; A?: string };
   /** Poäng per betygssteg */
   grade_points?: { E?: number; C?: number; A?: number };
+  /**
+   * Bedömningsläge:
+   *  'standard'   – poäng + E/C/A-textkort (befintligt beteende, default)
+   *  'optional'   – antingen ett totalpoäng ELLER E/C/A-poäng + fritext
+   *  'np_variant' – maxpoäng + tröskelpoäng → NP-stilstabell i utskriften
+   */
+  assessment_mode?: 'standard' | 'optional' | 'np_variant';
+  /** 'optional'-läge: true = E/C/A-poäng per betygssteg, false = ett totalt poängvärde */
+  assessment_use_grade_points?: boolean;
+  /** 'optional'-läge: fritext bedömningsanvisning */
+  assessment_text?: string;
   /** Antal prov frågan används i */
   used_in?: number;
   /** Skapare/författare */

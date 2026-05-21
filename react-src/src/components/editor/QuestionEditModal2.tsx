@@ -523,16 +523,19 @@ function TypeSpecificFields({
                 >
                   {letters[i]}
                 </span>
-                <input
-                  value={opt}
-                  onChange={(e) => {
-                    const next = [...options];
-                    next[i] = e.target.value;
-                    patchContent({ options: next });
-                  }}
-                  placeholder={`Alternativ ${letters[i]}`}
-                  style={{ ...psInput, flex: 1 }}
-                />
+                <div style={{ flex: 1 }}>
+                  <RichTextEditor
+                    value={opt}
+                    onChange={(html) => {
+                      const next = [...options];
+                      next[i] = html;
+                      patchContent({ options: next });
+                    }}
+                    placeholder={`Alternativ ${letters[i]}`}
+                    minHeight={36}
+                    compact
+                  />
+                </div>
                 <button
                   onClick={() => patchContent({ options: options.filter((_, j) => j !== i) })}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ps-ink-4)", padding: 4 }}
@@ -675,26 +678,28 @@ function TypeSpecificFields({
                 >
                   {i + 1}
                 </span>
-                <input
+                <RichTextEditor
                   value={pair.left}
-                  onChange={(e) => {
+                  onChange={(html) => {
                     const next = [...pairs];
-                    next[i] = { ...pair, left: e.target.value };
+                    next[i] = { ...pair, left: html };
                     patchContent({ pairs: next });
                   }}
                   placeholder="Vänster"
-                  style={psInput}
+                  minHeight={36}
+                  compact
                 />
                 <span style={{ textAlign: "center", color: "var(--ps-ink-3)", fontSize: 14 }}>→</span>
-                <input
+                <RichTextEditor
                   value={pair.right}
-                  onChange={(e) => {
+                  onChange={(html) => {
                     const next = [...pairs];
-                    next[i] = { ...pair, right: e.target.value };
+                    next[i] = { ...pair, right: html };
                     patchContent({ pairs: next });
                   }}
                   placeholder="Höger"
-                  style={psInput}
+                  minHeight={36}
+                  compact
                 />
                 <button
                   onClick={() => patchContent({ pairs: pairs.filter((_, j) => j !== i) })}
@@ -736,16 +741,19 @@ function TypeSpecificFields({
                 >
                   {i + 1}
                 </span>
-                <input
-                  value={item}
-                  onChange={(e) => {
-                    const next = [...items];
-                    next[i] = e.target.value;
-                    patchContent({ items: next });
-                  }}
-                  placeholder={`Post ${i + 1}`}
-                  style={{ ...psInput, flex: 1 }}
-                />
+                <div style={{ flex: 1 }}>
+                  <RichTextEditor
+                    value={item}
+                    onChange={(html) => {
+                      const next = [...items];
+                      next[i] = html;
+                      patchContent({ items: next });
+                    }}
+                    placeholder={`Post ${i + 1}`}
+                    minHeight={36}
+                    compact
+                  />
+                </div>
                 <button
                   onClick={() => {
                     if (i === 0) return;
@@ -837,26 +845,29 @@ function TypeSpecificFields({
             {terms.map((t, i) => (
               <RowBox key={i}>
                 <ModalField label="Begrepp">
-                  <input
+                  <RichTextEditor
                     value={t.term}
-                    onChange={(e) => {
+                    onChange={(html) => {
                       const next = [...terms];
-                      next[i] = { ...t, term: e.target.value };
+                      next[i] = { ...t, term: html };
                       patchContent({ terms: next });
                     }}
-                    style={psInput}
+                    placeholder="Skriv begreppet…"
+                    minHeight={36}
+                    compact
                   />
                 </ModalField>
                 <ModalField label="Facit / definition">
-                  <textarea
+                  <RichTextEditor
                     value={t.def}
-                    onChange={(e) => {
+                    onChange={(html) => {
                       const next = [...terms];
-                      next[i] = { ...t, def: e.target.value };
+                      next[i] = { ...t, def: html };
                       patchContent({ terms: next });
                     }}
-                    rows={2}
-                    style={{ ...psInput, resize: "vertical" }}
+                    placeholder="Skriv definitionen…"
+                    minHeight={56}
+                    compact
                   />
                 </ModalField>
               </RowBox>
@@ -991,11 +1002,12 @@ function TypeSpecificFields({
                   </button>
                 </div>
                 <ModalField label="Frågetext">
-                  <input
+                  <RichTextEditor
                     value={sub.text}
-                    onChange={e => patchSub(i, { text: e.target.value })}
+                    onChange={html => patchSub(i, { text: html })}
                     placeholder={`Delfråga ${i + 1}`}
-                    style={psInput}
+                    minHeight={52}
+                    compact
                   />
                 </ModalField>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -1687,108 +1699,259 @@ const GRADE_LABELS: { key: "E" | "C" | "A"; label: string; desc: string; color: 
   { key: "A", label: "A", desc: "Välutvecklat och nyanserat",      color: "#7C3AED" },
 ];
 
+type AssessmentMode = 'standard' | 'optional' | 'np_variant';
+
+const MODE_LABELS: { key: AssessmentMode; label: string; title: string }[] = [
+  { key: "standard",   label: "Standard",    title: "Poäng + E/C/A-kriterier (nuvarande)" },
+  { key: "optional",   label: "Valfritt",    title: "Fritext + valfri poängsättning"       },
+  { key: "np_variant", label: "NP-variant",  title: "Maxpoäng med tröskelgränser"          },
+];
+
 function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Question>) => void }) {
   const isGroup = q.type === "group";
-  const auto = AUTO_TYPES.has(q.type);
+  const auto    = AUTO_TYPES.has(q.type);
+  const mode: AssessmentMode = q.assessment_mode ?? "standard";
 
-  // Local state for rubric text to avoid cursor-jump on every keystroke.
-  // Syncs to bank on onBlur.
+  // Local state for rubric text (standard mode) — avoids cursor-jump.
   const [rubricE, setRubricE] = useState(q.rubric?.E ?? "");
   const [rubricC, setRubricC] = useState(q.rubric?.C ?? "");
   const [rubricA, setRubricA] = useState(q.rubric?.A ?? "");
+  const [assessText, setAssessText] = useState(q.assessment_text ?? "");
 
-  // Keep local state in sync when q changes from outside (e.g. initial open)
   const prevQId = useRef(q.id);
   if (prevQId.current !== q.id) {
     prevQId.current = q.id;
-    // Reset when a different question is shown (useRef trick to avoid extra render)
+    setRubricE(q.rubric?.E ?? "");
+    setRubricC(q.rubric?.C ?? "");
+    setRubricA(q.rubric?.A ?? "");
+    setAssessText(q.assessment_text ?? "");
   }
 
-  const saveRubric = () => {
-    patchQ({
-      rubric: { E: rubricE, C: rubricC, A: rubricA },
-    });
-  };
+  const saveRubric = () => patchQ({ rubric: { E: rubricE, C: rubricC, A: rubricA } });
+  const saveAssessText = () => patchQ({ assessment_text: assessText });
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Total points */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)" }}>Totalpoäng</span>
-        {auto && <Pill color="#16A34A">Auto</Pill>}
-        {isGroup && <Pill>Summa från delfrågor</Pill>}
-        <input
-          type="number"
-          value={q.points ?? "0"}
-          min={0}
-          disabled={isGroup}
-          onChange={(e) => patchQ({ points: e.target.value })}
-          style={{ ...psInput, width: 70, marginLeft: "auto", opacity: isGroup ? 0.5 : 1 }}
-        />
-        <span style={{ fontSize: 12.5, color: "var(--ps-ink-3)" }}>p</span>
-      </div>
+  // NP-variant: compute point ranges for preview
+  const npMax = parseFloat(q.points ?? "0") || 0;
+  const npE   = q.grade_points?.E ?? 0;
+  const npC   = q.grade_points?.C ?? 0;
+  const npA   = q.grade_points?.A ?? 0;
+  const npERange = npE > 0
+    ? (npC > npE ? `${npE}–${npC - 1} p` : `${npE} p`)
+    : "–";
+  const npCRange = npC > 0
+    ? (npA > npC ? `${npC}–${npA - 1} p` : `${npC} p`)
+    : "–";
+  const npARange = npA > 0
+    ? (npMax > npA ? `${npA}–${npMax} p` : `${npA} p`)
+    : "–";
 
-      {/* E/C/A cards */}
-      {GRADE_LABELS.map(({ key, label, desc, color }) => {
-        const rubricVal = key === "E" ? rubricE : key === "C" ? rubricC : rubricA;
-        const setRubric = key === "E" ? setRubricE : key === "C" ? setRubricC : setRubricA;
-        const gpVal = q.grade_points?.[key] ?? 0;
+  /* ── Segmented mode selector ── */
+  const modeSelector = (
+    <div style={{ display: "flex", gap: 4, background: "var(--ps-bg-soft)", borderRadius: 8, padding: 3, marginBottom: 4 }}>
+      {MODE_LABELS.map(({ key, label, title }) => (
+        <button
+          key={key}
+          title={title}
+          onClick={() => patchQ({ assessment_mode: key })}
+          style={{
+            flex: 1,
+            height: 30,
+            borderRadius: 6,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: mode === key ? 600 : 400,
+            fontFamily: "var(--ps-ui)",
+            background: mode === key ? "var(--ps-paper)" : "transparent",
+            color: mode === key ? "var(--ps-accent, #1E5F5C)" : "var(--ps-ink-3)",
+            boxShadow: mode === key ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
+            transition: "all 0.15s",
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 
-        return (
-          <div
-            key={key}
-            style={{
-              border: `1.5px solid ${color}30`,
-              borderRadius: 10,
-              background: `${color}06`,
-              overflow: "hidden",
-            }}
-          >
-            {/* Card header */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 14px",
-              borderBottom: `1px solid ${color}20`,
-              background: `${color}10`,
-            }}>
-              <span style={{
-                width: 24, height: 24,
-                borderRadius: "50%",
-                background: color,
-                color: "white",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: 12, fontWeight: 700, flexShrink: 0,
-              }}>
-                {label}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>{desc}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)" }}>Poäng:</span>
-                <input
-                  type="number"
-                  value={gpVal}
-                  min={0}
-                  onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
-                  style={{ ...psInput, width: 60, textAlign: "center" }}
+  /* ── Standard mode (unchanged) ── */
+  if (mode === "standard") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {modeSelector}
+        {/* Total points */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)" }}>Totalpoäng</span>
+          {auto && <Pill color="#16A34A">Auto</Pill>}
+          {isGroup && <Pill>Summa från delfrågor</Pill>}
+          <input
+            type="number"
+            value={q.points ?? "0"}
+            min={0}
+            disabled={isGroup}
+            onChange={(e) => patchQ({ points: e.target.value })}
+            style={{ ...psInput, width: 70, marginLeft: "auto", opacity: isGroup ? 0.5 : 1 }}
+          />
+          <span style={{ fontSize: 12.5, color: "var(--ps-ink-3)" }}>p</span>
+        </div>
+        {/* E/C/A cards */}
+        {GRADE_LABELS.map(({ key, label, desc, color }) => {
+          const rubricVal = key === "E" ? rubricE : key === "C" ? rubricC : rubricA;
+          const setRubric = key === "E" ? setRubricE : key === "C" ? setRubricC : setRubricA;
+          const gpVal = q.grade_points?.[key] ?? 0;
+          return (
+            <div key={key} style={{ border: `1.5px solid ${color}30`, borderRadius: 10, background: `${color}06`, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderBottom: `1px solid ${color}20`, background: `${color}10` }}>
+                <span style={{ width: 24, height: 24, borderRadius: "50%", background: color, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{label}</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>{desc}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11.5, color: "var(--ps-ink-3)" }}>Poäng:</span>
+                  <input type="number" value={gpVal} min={0}
+                    onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
+                    style={{ ...psInput, width: 60, textAlign: "center" }}
+                  />
+                </div>
+              </div>
+              <div style={{ padding: "10px 14px" }}>
+                <textarea value={rubricVal} onChange={e => setRubric(e.target.value)} onBlur={saveRubric}
+                  placeholder={`Vad krävs för betyget ${label}…`} rows={3}
+                  style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
                 />
               </div>
             </div>
-            {/* Rubric textarea — saves on blur */}
-            <div style={{ padding: "10px 14px" }}>
-              <textarea
-                value={rubricVal}
-                onChange={e => setRubric(e.target.value)}
-                onBlur={saveRubric}
-                placeholder={`Vad krävs för betyget ${label}…`}
-                rows={3}
-                style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* ── Optional mode ── */
+  if (mode === "optional") {
+    const useGP = q.assessment_use_grade_points ?? false;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {modeSelector}
+
+        {/* Poäng toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "var(--ps-bg-soft)", borderRadius: 8 }}>
+          <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)", flex: 1 }}>Poängmodell</span>
+          <button
+            onClick={() => patchQ({ assessment_use_grade_points: false })}
+            style={{ height: 28, padding: "0 12px", borderRadius: 6, border: `1.5px solid ${!useGP ? "var(--ps-accent)" : "var(--ps-rule-2)"}`, background: !useGP ? "var(--ps-accent)10" : "transparent", color: !useGP ? "var(--ps-accent)" : "var(--ps-ink-3)", fontSize: 12, fontWeight: !useGP ? 600 : 400, cursor: "pointer", fontFamily: "var(--ps-ui)" }}
+          >
+            Totalpoäng
+          </button>
+          <button
+            onClick={() => patchQ({ assessment_use_grade_points: true })}
+            style={{ height: 28, padding: "0 12px", borderRadius: 6, border: `1.5px solid ${useGP ? "var(--ps-accent)" : "var(--ps-rule-2)"}`, background: useGP ? "var(--ps-accent)10" : "transparent", color: useGP ? "var(--ps-accent)" : "var(--ps-ink-3)", fontSize: 12, fontWeight: useGP ? 600 : 400, cursor: "pointer", fontFamily: "var(--ps-ui)" }}
+          >
+            E/C/A-poäng
+          </button>
+        </div>
+
+        {/* Points inputs */}
+        {!useGP ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12.5, color: "var(--ps-ink-2)" }}>Poäng</span>
+            {auto && <Pill color="#16A34A">Auto</Pill>}
+            {isGroup && <Pill>Summa från delfrågor</Pill>}
+            <input type="number" value={q.points ?? "0"} min={0} disabled={isGroup}
+              onChange={(e) => patchQ({ points: e.target.value })}
+              style={{ ...psInput, width: 70, marginLeft: "auto", opacity: isGroup ? 0.5 : 1 }}
+            />
+            <span style={{ fontSize: 12.5, color: "var(--ps-ink-3)" }}>p</span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            {GRADE_LABELS.map(({ key, label, color }) => (
+              <div key={key} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, alignItems: "center", padding: "8px 6px", background: `${color}08`, borderRadius: 8, border: `1.5px solid ${color}30` }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: color, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{label}</span>
+                <input type="number" value={q.grade_points?.[key] ?? 0} min={0}
+                  onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
+                  style={{ ...psInput, width: "100%", textAlign: "center" }}
+                />
+                <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)" }}>p</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Free-text assessment */}
+        <div>
+          <span style={{ fontSize: 12, color: "var(--ps-ink-3)", display: "block", marginBottom: 5 }}>Bedömningsanvisningar (fritext)</span>
+          <textarea
+            value={assessText}
+            onChange={e => setAssessText(e.target.value)}
+            onBlur={saveAssessText}
+            placeholder="Skriv dina bedömningsanvisningar fritt…"
+            rows={5}
+            style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── NP-variant mode ── */
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {modeSelector}
+
+      {/* Max points + thresholds */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Maxpoäng</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <input type="number" value={q.points ?? "0"} min={0}
+              onChange={e => patchQ({ points: e.target.value })}
+              style={{ ...psInput, width: "100%", textAlign: "center" }}
+            />
+            <span style={{ fontSize: 12, color: "var(--ps-ink-3)" }}>p</span>
+          </div>
+        </div>
+        {GRADE_LABELS.map(({ key, label, color }) => (
+          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 11, color, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>{label}-gräns</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <input type="number" value={q.grade_points?.[key] ?? 0} min={0}
+                onChange={e => patchQ({ grade_points: { ...q.grade_points, [key]: parseFloat(e.target.value) || 0 } })}
+                style={{ ...psInput, width: "100%", textAlign: "center", borderColor: `${color}60` }}
               />
+              <span style={{ fontSize: 12, color: "var(--ps-ink-3)" }}>p</span>
             </div>
           </div>
-        );
-      })}
+        ))}
+      </div>
+
+      {/* Preview table */}
+      {npMax > 0 && (
+        <div style={{ border: "1px solid var(--ps-rule-2)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "6px 12px", background: "var(--ps-bg-soft)", borderBottom: "1px solid var(--ps-rule-2)" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ps-ink-2)" }}>Förhandsgranskning</span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <tbody>
+              {GRADE_LABELS.map(({ key, label, color }, idx) => {
+                const range = idx === 0 ? npERange : idx === 1 ? npCRange : npARange;
+                return (
+                  <tr key={key} style={{ borderBottom: "1px solid var(--ps-rule-2)" }}>
+                    <td style={{ padding: "5px 12px", width: 40 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: color, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700 }}>{label}</span>
+                    </td>
+                    <td style={{ padding: "5px 12px", color: "var(--ps-ink-2)" }}>{range}</td>
+                  </tr>
+                );
+              })}
+              <tr>
+                <td style={{ padding: "5px 12px" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#9CA3AF", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700 }}>F</span>
+                </td>
+                <td style={{ padding: "5px 12px", color: "var(--ps-ink-3)" }}>{npE > 0 ? `0–${npE - 1} p` : "–"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
