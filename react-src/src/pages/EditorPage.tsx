@@ -29,6 +29,7 @@ import type { LocalDocument } from "@/lib/local-db";
 import { toast } from "sonner";
 import {
   CheckSquare,
+  ChevronDown,
   ChevronLeft,
   Download,
   Eye,
@@ -263,6 +264,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
   const [newQOpen, setNewQOpen]       = useState(false);
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [pdfMenuOpen,    setPdfMenuOpen]    = useState(false);
   const [docSubject, setDocSubject]         = useState<string>("");
 
   const setD = (patch: Partial<DesignSettings>) => setDesign(d => ({ ...d, ...patch }));
@@ -498,12 +500,81 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
           >
             <Shuffle size={12} /> Version B
           </button>
-          <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={() => window.print()}>
+          <button
+            className="ps-btn ps-btn-outline ps-btn-sm"
+            onClick={() => {
+              if (window.localAPI?.openPrint) {
+                window.localAPI.openPrint(documentId);
+              } else {
+                window.print();
+              }
+            }}
+            title="Skriv ut provet"
+          >
             <Printer size={12} /> Skriv ut
           </button>
-          <button className="ps-btn ps-btn-outline ps-btn-sm" onClick={handleDownload}>
-            <Download size={12} /> PDF
-          </button>
+          {/* PDF split-button with dropdown */}
+          <div style={{ position: "relative", display: "flex" }}>
+            <button
+              className="ps-btn ps-btn-outline ps-btn-sm"
+              style={{ borderRadius: "6px 0 0 6px", borderRight: "none" }}
+              onClick={handleDownload}
+              title="Ladda ned provet som PDF"
+            >
+              <Download size={12} /> PDF
+            </button>
+            <button
+              className="ps-btn ps-btn-outline ps-btn-sm"
+              style={{ borderRadius: "0 6px 6px 0", padding: "0 5px" }}
+              onClick={() => setPdfMenuOpen(o => !o)}
+              title="Fler PDF-alternativ"
+            >
+              <ChevronDown size={11} />
+            </button>
+            {pdfMenuOpen && (
+              <>
+                {/* Backdrop to close on outside click */}
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setPdfMenuOpen(false)}
+                />
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", right: 0,
+                  background: "var(--ps-paper)", border: "1px solid var(--ps-rule)",
+                  borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                  zIndex: 1000, minWidth: 160, overflow: "hidden",
+                }}>
+                  <button
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      padding: "9px 14px", background: "none", border: "none",
+                      cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5,
+                      color: "var(--ps-ink)", textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--ps-bg-soft)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    onClick={() => { setPdfMenuOpen(false); handleDownload(); }}
+                  >
+                    <Download size={13} /> Prov PDF
+                  </button>
+                  <button
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      padding: "9px 14px", background: "none", border: "none",
+                      cursor: "pointer", fontFamily: "var(--ps-ui)", fontSize: 12.5,
+                      color: "var(--ps-ink)", textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--ps-bg-soft)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    onClick={() => {
+                      setPdfMenuOpen(false);
+                      if (window.localAPI?.exportPdf) {
+                        window.localAPI.exportPdf(documentId + "::answers", stripHtml(title) + " - Facit");
+                      }
+                    }}
+                  >
+                    <Download size={13} /> Facit PDF
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Paper */}

@@ -239,7 +239,7 @@
 .printable-test .write-lines { margin-top: 2mm; }
 .printable-test .write-lines .line {
   border-bottom-width: var(--line-thickness, 1px);
-  border-bottom-color: #c8c8c8;
+  border-bottom-color: #000;
   border-bottom-style: solid; /* overridden inline per question */
   height: var(--line-spacing, 12mm);
 }

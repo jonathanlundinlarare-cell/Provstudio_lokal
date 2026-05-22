@@ -3,7 +3,7 @@
  * Renderas när App.tsx ser ?print=docId och docType !== 'wordsearch'.
  * Ingen app-chrome, ingen overflow-constraint — full sida levereras till printToPDF.
  */
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { documents, questionBank } from "@/lib/local-db";
 import { PrintableTest, type PrintableItem } from "@/components/PrintableTest";
 import {
@@ -16,7 +16,37 @@ import {
   type QuestionOrderItem,
 } from "@/lib/test-types";
 
-export default function TestPrintMode({ documentId }: { documentId: string }) {
+// ─── Print-timing fix ─────────────────────────────────────────────────────────
+// main.js calls window.print() via executeJavaScript on 'did-finish-load', which
+// fires before React's useEffect has run (loading=true → renders null).
+// We capture the original print function and replace it with a deferred version
+// that waits until we signal ready. Only active in print-window context.
+const _isPrintWindow = new URLSearchParams(window.location.search).has('print');
+const _origPrint = window.print.bind(window);
+let _printPending = false;
+let _printReady   = false;
+
+if (_isPrintWindow) {
+  (window as Window & typeof globalThis).print = function () {
+    if (_printReady) {
+      _origPrint();
+    } else {
+      _printPending = true;
+    }
+  };
+}
+
+function signalPrintReady() {
+  if (!_isPrintWindow) return;
+  _printReady = true;
+  if (_printPending) {
+    _printPending = false;
+    _origPrint();
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function TestPrintMode({ documentId, showAnswers = false }: { documentId: string; showAnswers?: boolean }) {
   const [title,   setTitle]   = useState("");
   const [design,  setDesign]  = useState<DesignSettings>(DEFAULT_DESIGN);
   const [order,   setOrder]   = useState<QuestionOrderItem[]>([]);
@@ -31,6 +61,12 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
     const styleTag = document.createElement('style');
     styleTag.id = 'ps-print-reset';
     styleTag.textContent = `
+      /* Force all colors/backgrounds to print exactly */
+      *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -68,12 +104,15 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
 
   useEffect(() => {
     const doc = documents.get(documentId);
-    if (!doc) { setLoading(false); return; }
+    if (!doc) { setLoading(false); signalPrintReady(); return; }
     setTitle(doc.title ?? "");
     setDesign({ ...DEFAULT_DESIGN, ...(doc.design_settings ?? {}) });
     setOrder(doc.question_order ?? []);
     setBank(questionBank.list());
     setLoading(false);
+    // Signal that React has rendered — flush any pending window.print() call
+    // that main.js fired too early (before did-finish-load).
+    signalPrintReady();
   }, [documentId]);
 
   const bankMap = useMemo(() => new Map(bank.map(q => [q.id, q])), [bank]);
@@ -126,7 +165,7 @@ export default function TestPrintMode({ documentId }: { documentId: string }) {
       subtitle={design.subtitle ?? ""}
       design={design}
       items={printItems}
-      showAnswers={false}
+      showAnswers={showAnswers}
       onTitleChange={() => { /* read-only in print mode */ }}
       onDesignChange={() => { /* read-only in print mode */ }}
       printMode

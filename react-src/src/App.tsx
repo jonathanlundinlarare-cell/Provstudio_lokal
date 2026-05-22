@@ -33,7 +33,11 @@ export default function App() {
   // i useEffect om doc_type visar sig vara wordsearch.
   const [page, setPage] = useState<Page>(() => {
     const printDocId = new URLSearchParams(window.location.search).get('print');
-    if (printDocId) return { name: 'editor', documentId: printDocId };
+    if (printDocId) {
+      // Strip optional ::answers suffix to get the real document ID
+      const realDocId = printDocId.split('::')[0];
+      return { name: 'editor', documentId: realDocId };
+    }
     return { name: 'home' };
   });
   const [ready, setReady] = useState(false);
@@ -41,6 +45,10 @@ export default function App() {
   const [update, setUpdate] = useState<UpdateState>({ phase: 'idle' });
   const [installing, setInstalling] = useState(false);
   const [isPrintMode] = useState(() => !!new URLSearchParams(window.location.search).get('print'));
+  // True when opened with ?print=docId::answers — renders facit instead of blank test
+  const [isPrintAnswers] = useState(() =>
+    (new URLSearchParams(window.location.search).get('print') ?? '').includes('::answers')
+  );
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [newDocDialog, setNewDocDialog] = useState<DocumentType | null>(null);
   const [newDocTitle, setNewDocTitle]   = useState('');
@@ -65,9 +73,10 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const printDocId = params.get('print');
       if (printDocId) {
-        const printDoc = documents.get(printDocId);
+        const realPrintDocId = printDocId.split('::')[0];
+        const printDoc = documents.get(realPrintDocId);
         if (printDoc?.doc_type === 'wordsearch') {
-          setPage({ name: 'wordsearch', documentId: printDocId });
+          setPage({ name: 'wordsearch', documentId: realPrintDocId });
         }
         // editor/workbook/homework: page är redan 'editor' (satt i initialiseraren)
         // doc inte hittat: page är redan 'editor' — TestPrintMode hanterar tom rendering
@@ -189,7 +198,7 @@ export default function App() {
     if (page.name === 'editor') {
       return (
         <div style={{ margin: 0, padding: 0, background: '#fff' }}>
-          <TestPrintMode documentId={page.documentId} />
+          <TestPrintMode documentId={page.documentId} showAnswers={isPrintAnswers} />
         </div>
       );
     }
