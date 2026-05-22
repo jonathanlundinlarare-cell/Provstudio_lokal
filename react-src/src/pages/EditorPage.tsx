@@ -1791,8 +1791,8 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
         />
         <PsSlider
           label="Brödtext"
-          value={design.bodySize ?? design.fontSizeBody ?? 11.5}
-          min={9} max={16} step={0.5} suffix="px"
+          value={design.bodySize ?? design.fontSizeBody ?? 11}
+          min={8} max={14} step={0.5} suffix="pt"
           onChange={v => setD({ bodySize: v })}
         />
       </PsGroup>

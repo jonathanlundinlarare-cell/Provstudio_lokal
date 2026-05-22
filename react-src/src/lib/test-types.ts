@@ -651,7 +651,7 @@ export type DesignSettings = {
   footerStyle?: "none" | "minimal" | "info" | "hairline" | "branded";
   /** Marginal i mm */
   margin?: number;
-  /** Brödtextstorlek i px */
+  /** Brödtextstorlek i pt */
   bodySize?: number;
   /** Radhöjd i px */
   lineHeight?: number;
@@ -761,7 +761,7 @@ export const DEFAULT_DESIGN: DesignSettings = {
   density: "comfortable",
   footerStyle: "info",
   margin: 22,
-  bodySize: 11.5,
+  bodySize: 11,
   lineHeight: 22,
   includeCover: true,
   showToc: false,

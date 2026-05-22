@@ -721,7 +721,7 @@ function NumLabel({ label, numStyle, accent, numColor, bodySize }: {
   switch (numStyle) {
     case "fraga":
       return (
-        <strong style={{ fontSize: bodySize - 0.5, textTransform: "uppercase", letterSpacing: "0.06em", color }}>
+        <strong style={{ fontSize: (bodySize - 0.5) + "pt", textTransform: "uppercase", letterSpacing: "0.06em", color }}>
           Fråga {label}
         </strong>
       );
@@ -1772,22 +1772,22 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                 {/* Number / sub-letter */}
                 <div style={{ flexShrink: 0, marginTop: 1 }}>
                   {isLead && !hasSubs ? (
-                    <span style={{ fontSize: bodySize }}>
+                    <span style={{ fontSize: bodySize + "pt" }}>
                       <NumLabel label={numLabel} numStyle={numStyle} accent={accent} numColor={numColor} bodySize={bodySize} />
                     </span>
                   ) : isLead && hasSubs ? (
-                    <span style={{ fontSize: bodySize }}>
+                    <span style={{ fontSize: bodySize + "pt" }}>
                       <NumLabel label={numLabel} numStyle={numStyle} accent={accent} numColor={numColor} bodySize={bodySize} />
                     </span>
                   ) : (
-                    <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[i - 1]})</span>
+                    <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize + "pt" }}>{SUB_LETTERS[i - 1]})</span>
                   )}
                 </div>
                 {/* Question text + body — points sits beside the TEXT, not beside write-lines */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {/* Text row: question text + points badge side-by-side */}
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-                    <div style={{ flex: 1, fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>
+                    <div style={{ flex: 1, fontSize: bodySize + "pt", lineHeight: 1.55, color: "#14110D" }}>
                       {!hasSubs && isLead && dropCapStyle !== "off" && firstChar && (
                         <DropCap char={firstChar} dropCap={dropCapStyle} accent={accent} />
                       )}
@@ -1821,8 +1821,8 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                           <div key={si}>
                             {/* Sub text row with points badge */}
                             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 3 }}>
-                              <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[si]})</span>
-                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D", flex: 1 }} dangerouslySetInnerHTML={{ __html: sub.text }} />
+                              <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize + "pt" }}>{SUB_LETTERS[si]})</span>
+                              <span style={{ fontSize: bodySize + "pt", lineHeight: 1.55, color: "#14110D", flex: 1 }} dangerouslySetInnerHTML={{ __html: sub.text }} />
                               {showPoints && sub.points && (
                                 <span style={{ flexShrink: 0 }}>
                                   <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
@@ -1984,10 +1984,10 @@ export function PrintableTest({
         style={{
           width: 794,
           // I print: lås exakt A4 (297mm) så printToPDF mappar 1:1 utan spill.
-          // På skärm: minHeight 1100 så pappret växer med innehållet i editorn.
-          ...(printMode
-            ? { height: "297mm", minHeight: "297mm", maxHeight: "297mm" }
-            : { minHeight: 1100 }),
+          // På skärm: fast A4-höjd med overflow:hidden — pappret växer inte utanför A4.
+          height: "297mm",
+          minHeight: "297mm",
+          ...(printMode ? { maxHeight: "297mm" } : {}),
           position: "relative",
           background: paperInfo.bg,
           overflow: "hidden",
@@ -2045,7 +2045,8 @@ export function PrintableTest({
     flexDirection: "column",
     alignItems: "center",
     fontFamily: bodyFont,
-    fontSize: bodySize,
+    fontSize: bodySize + "pt",
+    ["--body-size" as never]: bodySize + "pt",
     ["--doc-heading-font" as never]: headingFont,
     ["--doc-body-font" as never]: bodyFont,
     ["--doc-title-weight" as never]: titleWeight,
