@@ -1592,7 +1592,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
     );
   }
 
-  // NP-variant mode: show NP-style criteria table + comment text
+  // NP-variant mode: multiple assessment questions + three comment sections
   if (mode === "np_variant") {
     const DEFAULT_CRITERIA = [
       { label: "Inga", points: 0 },
@@ -1600,79 +1600,107 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
       { label: "Två",  points: 2 },
       { label: "Tre",  points: 3 },
     ];
-    const criteria = (q.np_criteria && q.np_criteria.length > 0) ? q.np_criteria : DEFAULT_CRITERIA;
-    const commentText = q.assessment_text ?? "";
+
+    // Support both new np_questions[] and legacy np_criteria[]
+    const npQs = (q.np_questions && q.np_questions.length > 0)
+      ? q.np_questions
+      : q.np_criteria && q.np_criteria.length > 0
+        ? [{ question: "", criteria: q.np_criteria }]
+        : [{ question: "", criteria: DEFAULT_CRITERIA }];
+
+    const comments: Array<{ label: string; text: string }> = [
+      { label: "Kommentar med exempel på icke poänggivande svar", text: q.np_comment_non_scoring ?? "" },
+      { label: "Några exempel på relevanta svar/anledningar",      text: q.np_comment_relevant    ?? "" },
+      { label: "Några exempel på hur svaren kan förtydligas",      text: q.np_comment_elaborated  ?? "" },
+    ].filter(c => c.text.trim());
+
+    const borderClr = `${accent}44`;
+    const dividerClr = `${accent}22`;
 
     return (
-      <div style={{ marginTop: "3mm" }}>
-        {/* NP-style criteria table */}
+      <div style={{ marginTop: "3mm", display: "flex", flexDirection: "column", gap: "3mm" }}>
+
+        {/* Header */}
         <div style={{
-          border: `0.4mm solid ${accent}44`,
-          borderRadius: "1mm",
-          overflow: "hidden",
-          marginBottom: commentText ? "2.5mm" : 0,
+          fontSize: 8,
+          fontWeight: 700,
+          color: accent,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+          paddingBottom: "1.5mm",
+          borderBottom: `0.4mm solid ${borderClr}`,
         }}>
-          <div style={{
-            padding: "1.5mm 3mm",
-            background: accent + "12",
-            borderBottom: `0.4mm solid ${accent}33`,
-            fontSize: 8,
-            fontWeight: 700,
-            color: accent,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-          }}>
-            Bedömningsanvisningar
-          </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
-            <tbody>
-              {criteria.map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: idx < criteria.length - 1 ? `0.3mm solid ${accent}22` : "none" }}>
-                  <td style={{
-                    padding: "2mm 3mm",
-                    fontWeight: 600,
-                    color: "#1a1613",
-                    width: "28%",
-                    borderRight: `0.3mm solid ${accent}22`,
-                  }}>
-                    {row.label}
-                  </td>
-                  <td style={{
-                    padding: "2mm 3mm",
-                    color: "#333",
-                    width: "22%",
-                    borderRight: `0.3mm solid ${accent}22`,
-                  }}>
-                    {row.points} poäng
-                  </td>
-                  <td style={{
-                    padding: "2mm 3mm",
-                    width: "50%",
-                    background: accent + "06",
-                  }}>
-                    &nbsp;
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          Bedömningsfrågor och exempelsvar
         </div>
 
-        {/* Free-text comments / exempelsvar */}
-        {commentText && (
-          <div style={{
-            fontSize: 8.5,
-            color: "#444",
-            lineHeight: 1.5,
-            padding: "2mm 3mm",
-            background: "#FAFAF8",
+        {/* One block per bedömningsfråga */}
+        {npQs.map((bq, bqIdx) => {
+          const crit = bq.criteria.length > 0 ? bq.criteria : DEFAULT_CRITERIA;
+          return (
+            <div key={bqIdx} style={{ border: `0.4mm solid ${borderClr}`, borderRadius: "1mm", overflow: "hidden" }}>
+              {/* Question header */}
+              <div style={{
+                padding: "1.5mm 3mm",
+                background: accent + "0e",
+                borderBottom: `0.4mm solid ${borderClr}`,
+              }}>
+                <span style={{ fontSize: 8.5, fontWeight: 700, color: accent }}>
+                  Bedömningsfråga {bqIdx + 1}
+                </span>
+                {bq.question && (
+                  <span style={{ fontSize: 8.5, color: "#333", marginLeft: "3mm" }}>{bq.question}</span>
+                )}
+              </div>
+              {/* Criteria table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
+                <tbody>
+                  {crit.map((row, rIdx) => (
+                    <tr key={rIdx} style={{ borderBottom: rIdx < crit.length - 1 ? `0.3mm solid ${dividerClr}` : "none" }}>
+                      <td style={{ padding: "1.8mm 3mm", fontWeight: 600, color: "#1a1613", width: "30%", borderRight: `0.3mm solid ${dividerClr}` }}>
+                        {row.label}
+                      </td>
+                      <td style={{ padding: "1.8mm 3mm", color: "#555", width: "22%", borderRight: `0.3mm solid ${dividerClr}` }}>
+                        {row.points} poäng
+                      </td>
+                      <td style={{ padding: "1.8mm 3mm", width: "48%", background: accent + "05" }}>
+                        &nbsp;
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+
+        {/* Three comment sections */}
+        {comments.map((c, idx) => (
+          <div key={idx} style={{
             border: "0.3mm solid #E0D8C8",
             borderRadius: "1mm",
-            whiteSpace: "pre-wrap",
+            overflow: "hidden",
           }}>
-            {commentText}
+            <div style={{
+              padding: "1.5mm 3mm",
+              background: "#F5F2EC",
+              borderBottom: "0.3mm solid #E0D8C8",
+              fontSize: 8,
+              fontWeight: 700,
+              color: "#555",
+            }}>
+              {c.label}:
+            </div>
+            <div style={{
+              padding: "2mm 3mm",
+              fontSize: 8.5,
+              color: "#333",
+              lineHeight: 1.55,
+              whiteSpace: "pre-wrap",
+            }}>
+              {c.text}
+            </div>
           </div>
-        )}
+        ))}
       </div>
     );
   }

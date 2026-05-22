@@ -1712,11 +1712,14 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   const auto    = AUTO_TYPES.has(q.type);
   const mode: AssessmentMode = q.assessment_mode ?? "standard";
 
-  // Local state for rubric text (standard mode) — avoids cursor-jump.
-  const [rubricE, setRubricE] = useState(q.rubric?.E ?? "");
-  const [rubricC, setRubricC] = useState(q.rubric?.C ?? "");
-  const [rubricA, setRubricA] = useState(q.rubric?.A ?? "");
-  const [assessText, setAssessText] = useState(q.assessment_text ?? "");
+  // Local state for all modes — must all be declared unconditionally (Rules of Hooks)
+  const [rubricE, setRubricE]         = useState(q.rubric?.E ?? "");
+  const [rubricC, setRubricC]         = useState(q.rubric?.C ?? "");
+  const [rubricA, setRubricA]         = useState(q.rubric?.A ?? "");
+  const [assessText, setAssessText]   = useState(q.assessment_text ?? "");
+  const [npNonScoring, setNpNonScoring] = useState(q.np_comment_non_scoring ?? "");
+  const [npRelevant,   setNpRelevant]   = useState(q.np_comment_relevant    ?? "");
+  const [npElaborated, setNpElaborated] = useState(q.np_comment_elaborated  ?? "");
 
   const prevQId = useRef(q.id);
   if (prevQId.current !== q.id) {
@@ -1725,25 +1728,13 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
     setRubricC(q.rubric?.C ?? "");
     setRubricA(q.rubric?.A ?? "");
     setAssessText(q.assessment_text ?? "");
+    setNpNonScoring(q.np_comment_non_scoring ?? "");
+    setNpRelevant(q.np_comment_relevant    ?? "");
+    setNpElaborated(q.np_comment_elaborated  ?? "");
   }
 
   const saveRubric = () => patchQ({ rubric: { E: rubricE, C: rubricC, A: rubricA } });
   const saveAssessText = () => patchQ({ assessment_text: assessText });
-
-  // NP-variant: compute point ranges for preview
-  const npMax = parseFloat(q.points ?? "0") || 0;
-  const npE   = q.grade_points?.E ?? 0;
-  const npC   = q.grade_points?.C ?? 0;
-  const npA   = q.grade_points?.A ?? 0;
-  const npERange = npE > 0
-    ? (npC > npE ? `${npE}–${npC - 1} p` : `${npE} p`)
-    : "–";
-  const npCRange = npC > 0
-    ? (npA > npC ? `${npC}–${npA - 1} p` : `${npC} p`)
-    : "–";
-  const npARange = npA > 0
-    ? (npMax > npA ? `${npA}–${npMax} p` : `${npA} p`)
-    : "–";
 
   /* ── Segmented mode selector ── */
   const modeSelector = (
@@ -1893,118 +1884,152 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   }
 
   /* ── NP-variant mode ── */
-  const DEFAULT_NP_CRITERIA = [
-    { label: "Inga",  points: 0 },
-    { label: "En",    points: 1 },
-    { label: "Två",   points: 2 },
-    { label: "Tre",   points: 3 },
-  ];
-  const npCriteria: Array<{ label: string; points: number }> = q.np_criteria ?? DEFAULT_NP_CRITERIA;
-  const npTotalPoints = npCriteria.reduce((max, r) => Math.max(max, r.points), 0);
 
-  const patchCriteria = (updated: Array<{ label: string; points: number }>) => {
-    // Also auto-update q.points to the highest criterion value
-    const maxPts = updated.reduce((m, r) => Math.max(m, r.points), 0);
-    patchQ({ np_criteria: updated, points: String(maxPts) });
+  // Migrate legacy np_criteria → np_questions on first render
+  const DEFAULT_NP_QUESTIONS: Array<{ question: string; criteria: Array<{ label: string; points: number }> }> = [
+    {
+      question: "Bedömningsfråga 1",
+      criteria: [
+        { label: "Inga", points: 0 },
+        { label: "En",   points: 1 },
+        { label: "Två",  points: 2 },
+        { label: "Tre",  points: 3 },
+      ],
+    },
+  ];
+
+  const npQuestions = q.np_questions && q.np_questions.length > 0
+    ? q.np_questions
+    : q.np_criteria && q.np_criteria.length > 0
+      ? [{ question: "Bedömningsfråga 1", criteria: q.np_criteria }]
+      : DEFAULT_NP_QUESTIONS;
+
+  const patchNpQ = (updated: typeof npQuestions) => {
+    const maxPts = updated.reduce((m, bq) =>
+      Math.max(m, bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0)), 0);
+    patchQ({ np_questions: updated, points: String(maxPts) });
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {modeSelector}
-
-      {/* Criteria table editor */}
+  // Helper: render one criteria table editor
+  const renderCriteriaEditor = (bqIdx: number, criteria: Array<{ label: string; points: number }>) => {
+    const maxPts = criteria.reduce((m, r) => Math.max(m, r.points), 0);
+    return (
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: "var(--ps-ink-2)", fontWeight: 600 }}>Bedömningskriterier</span>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", flex: 1 }}>(visas i tabell i utskriften)</span>
-        </div>
-
-        {/* Header row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 28px", gap: 4, paddingBottom: 4, borderBottom: "1px solid var(--ps-rule-2)", marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Beteckning</span>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Poäng</span>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 76px 28px", gap: 4, paddingBottom: 4, borderBottom: "1px solid var(--ps-rule-2)", marginBottom: 4 }}>
+          <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Beteckning</span>
+          <span style={{ fontSize: 10.5, color: "var(--ps-ink-4)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Poäng</span>
           <span />
         </div>
-
-        {/* Criterion rows */}
-        {npCriteria.map((row, idx) => (
-          <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 28px", gap: 4, marginBottom: 4, alignItems: "center" }}>
-            <input
-              type="text"
-              value={row.label}
-              placeholder={`Beteckning ${idx + 1}`}
+        {criteria.map((row, rIdx) => (
+          <div key={rIdx} style={{ display: "grid", gridTemplateColumns: "1fr 76px 28px", gap: 4, marginBottom: 4, alignItems: "center" }}>
+            <input type="text" value={row.label} placeholder={`Beteckning ${rIdx + 1}`}
               onChange={e => {
-                const updated = npCriteria.map((r, i) => i === idx ? { ...r, label: e.target.value } : r);
-                patchCriteria(updated);
+                const updCrit = criteria.map((r, i) => i === rIdx ? { ...r, label: e.target.value } : r);
+                const updQs = npQuestions.map((bq, bi) => bi === bqIdx ? { ...bq, criteria: updCrit } : bq);
+                patchNpQ(updQs);
               }}
               style={{ ...psInput, fontSize: 12.5 }}
             />
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <input
-                type="number"
-                value={row.points}
-                min={0}
+              <input type="number" value={row.points} min={0}
                 onChange={e => {
-                  const updated = npCriteria.map((r, i) => i === idx ? { ...r, points: parseFloat(e.target.value) || 0 } : r);
-                  patchCriteria(updated);
+                  const updCrit = criteria.map((r, i) => i === rIdx ? { ...r, points: parseFloat(e.target.value) || 0 } : r);
+                  const updQs = npQuestions.map((bq, bi) => bi === bqIdx ? { ...bq, criteria: updCrit } : bq);
+                  patchNpQ(updQs);
                 }}
                 style={{ ...psInput, width: "100%", textAlign: "center" }}
               />
               <span style={{ fontSize: 11, color: "var(--ps-ink-4)", flexShrink: 0 }}>p</span>
             </div>
-            <button
-              onClick={() => patchCriteria(npCriteria.filter((_, i) => i !== idx))}
-              title="Ta bort rad"
-              style={{ width: 26, height: 26, border: "none", borderRadius: 5, background: "transparent", color: "var(--ps-ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
-            >
-              ×
-            </button>
+            <button title="Ta bort rad"
+              onClick={() => {
+                const updCrit = criteria.filter((_, i) => i !== rIdx);
+                const updQs = npQuestions.map((bq, bi) => bi === bqIdx ? { ...bq, criteria: updCrit } : bq);
+                patchNpQ(updQs);
+              }}
+              style={{ width: 26, height: 26, border: "none", borderRadius: 5, background: "transparent", color: "var(--ps-ink-4)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}
+            >×</button>
           </div>
         ))}
-
-        {/* Add row */}
         <button
-          onClick={() => patchCriteria([...npCriteria, { label: "", points: npTotalPoints + 1 }])}
-          style={{ marginTop: 2, height: 28, padding: "0 12px", border: "1.5px dashed var(--ps-rule-2)", borderRadius: 6, background: "transparent", color: "var(--ps-ink-3)", fontSize: 12, cursor: "pointer", fontFamily: "var(--ps-ui)", width: "100%" }}
-        >
-          + Lägg till rad
-        </button>
+          onClick={() => {
+            const updCrit = [...criteria, { label: "", points: maxPts + 1 }];
+            const updQs = npQuestions.map((bq, bi) => bi === bqIdx ? { ...bq, criteria: updCrit } : bq);
+            patchNpQ(updQs);
+          }}
+          style={{ height: 26, padding: "0 10px", border: "1.5px dashed var(--ps-rule-2)", borderRadius: 5, background: "transparent", color: "var(--ps-ink-3)", fontSize: 11.5, cursor: "pointer", fontFamily: "var(--ps-ui)", width: "100%" }}
+        >+ Lägg till rad</button>
       </div>
+    );
+  };
 
-      {/* Kommentar / exempelsvar */}
-      <div>
-        <span style={{ fontSize: 12, color: "var(--ps-ink-2)", fontWeight: 600, display: "block", marginBottom: 5 }}>
-          Kommentar och exempelsvar
-        </span>
-        <textarea
-          value={assessText}
-          onChange={e => setAssessText(e.target.value)}
-          onBlur={saveAssessText}
-          placeholder="Skriv kommentarer, exempelsvar och anvisningar…"
-          rows={5}
-          style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
-        />
-      </div>
+  const NP_COMMENT_FIELDS = [
+    { key: "np_comment_non_scoring" as const,  label: "Kommentar: ej poänggivande svar",       placeholder: "Exempel på svar som inte ger poäng…",            val: npNonScoring, set: setNpNonScoring },
+    { key: "np_comment_relevant"   as const,  label: "Exempel på relevanta svar/anledningar", placeholder: "Exempel på relevanta anledningar eller svar…",     val: npRelevant,   set: setNpRelevant   },
+    { key: "np_comment_elaborated" as const,  label: "Exempel på förtydligande/fördjupning",  placeholder: "Exempel på hur svaren kan förtydligas eller fördjupas…", val: npElaborated, set: setNpElaborated },
+  ];
 
-      {/* Live preview */}
-      {npCriteria.length > 0 && (
-        <div style={{ border: "1px solid var(--ps-rule-2)", borderRadius: 8, overflow: "hidden" }}>
-          <div style={{ padding: "5px 12px", background: "var(--ps-bg-soft)", borderBottom: "1px solid var(--ps-rule-2)" }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Förhandsgranskning av utskrift</span>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {modeSelector}
+
+      {/* ── Bedömningsfrågor ── */}
+      {npQuestions.map((bq, bqIdx) => (
+        <div key={bqIdx} style={{ border: "1.5px solid var(--ps-rule-2)", borderRadius: 10, overflow: "hidden" }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", background: "var(--ps-bg-soft)", borderBottom: "1px solid var(--ps-rule-2)" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ps-accent, #1E5F5C)", flexShrink: 0 }}>
+              Bedömningsfråga {bqIdx + 1}
+            </span>
+            <input
+              type="text"
+              value={bq.question}
+              placeholder="Skriv bedömningsfrågan…"
+              onChange={e => {
+                const updQs = npQuestions.map((b, i) => i === bqIdx ? { ...b, question: e.target.value } : b);
+                patchNpQ(updQs);
+              }}
+              style={{ ...psInput, flex: 1, fontSize: 12 }}
+            />
+            {npQuestions.length > 1 && (
+              <button title="Ta bort denna bedömningsfråga"
+                onClick={() => patchNpQ(npQuestions.filter((_, i) => i !== bqIdx))}
+                style={{ width: 26, height: 26, border: "none", borderRadius: 5, background: "transparent", color: "#e53e3e", cursor: "pointer", fontSize: 15, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >×</button>
+            )}
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-            <tbody>
-              {npCriteria.map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: idx < npCriteria.length - 1 ? "1px solid var(--ps-rule-2)" : "none" }}>
-                  <td style={{ padding: "4px 12px", color: "var(--ps-ink)", fontWeight: 500 }}>{row.label || `Rad ${idx + 1}`}</td>
-                  <td style={{ padding: "4px 12px", color: "var(--ps-ink-2)" }}>{row.points} poäng</td>
-                  <td style={{ padding: "4px 12px", width: "35%", borderLeft: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)" }}>&nbsp;</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Criteria editor */}
+          <div style={{ padding: "10px 12px" }}>
+            {renderCriteriaEditor(bqIdx, bq.criteria)}
+          </div>
         </div>
-      )}
+      ))}
+
+      {/* Add bedömningsfråga */}
+      <button
+        onClick={() => patchNpQ([...npQuestions, {
+          question: `Bedömningsfråga ${npQuestions.length + 1}`,
+          criteria: [{ label: "Inga", points: 0 }, { label: "En", points: 1 }, { label: "Två", points: 2 }, { label: "Tre", points: 3 }],
+        }])}
+        style={{ height: 32, padding: "0 14px", border: "1.5px dashed var(--ps-accent, #1E5F5C)", borderRadius: 8, background: "transparent", color: "var(--ps-accent, #1E5F5C)", fontSize: 12.5, cursor: "pointer", fontFamily: "var(--ps-ui)", fontWeight: 600 }}
+      >
+        + Lägg till bedömningsfråga
+      </button>
+
+      {/* ── Tre kommentarrutor ── */}
+      {NP_COMMENT_FIELDS.map(({ key, label, placeholder, val, set }) => (
+        <div key={key}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ps-ink-2)", display: "block", marginBottom: 5 }}>{label}</span>
+          <textarea
+            value={val}
+            onChange={e => set(e.target.value)}
+            onBlur={() => patchQ({ [key]: val })}
+            placeholder={placeholder}
+            rows={4}
+            style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+          />
+        </div>
+      ))}
     </div>
   );
 }

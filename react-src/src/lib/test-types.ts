@@ -280,10 +280,24 @@ export type Question = {
   /** 'optional'-läge: fritext bedömningsanvisning */
   assessment_text?: string;
   /**
-   * 'np_variant'-läge: rader i bedömningstabellen, t.ex.
-   * [{ label: "Inga", points: 0 }, { label: "En", points: 1 }, ...]
+   * 'np_variant'-läge: rader i bedömningstabellen (bakåtkompatibelt, v1.0.38).
+   * Ersatt av np_questions[] för flerdelade bedömningsfrågor.
    */
   np_criteria?: Array<{ label: string; points: number }>;
+  /**
+   * 'np_variant'-läge: en eller flera bedömningsfrågor med egna kriterietabeller.
+   * Varje fråga har en rubrik och sina egna poängrader.
+   */
+  np_questions?: Array<{
+    question: string;
+    criteria: Array<{ label: string; points: number }>;
+  }>;
+  /** NP-variant: exempel på ej poänggivande svar */
+  np_comment_non_scoring?: string;
+  /** NP-variant: exempel på relevanta svar/anledningar */
+  np_comment_relevant?: string;
+  /** NP-variant: exempel på förtydligande/fördjupning */
+  np_comment_elaborated?: string;
   /** Antal prov frågan används i */
   used_in?: number;
   /** Skapare/författare */
