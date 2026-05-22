@@ -3,7 +3,7 @@
  * Opened from preview/answer mode by clicking a question.
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { Trash2, X, Minus, Upload, ImageOff } from "lucide-react";
 import type { Question, QuestionType, MatchingPair, WordSearchEntry } from "@/lib/test-types";
 import { generateWordSearch } from "@/lib/wordsearch-gen";
@@ -1712,29 +1712,7 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   const auto    = AUTO_TYPES.has(q.type);
   const mode: AssessmentMode = q.assessment_mode ?? "standard";
 
-  // Local state for all modes — must all be declared unconditionally (Rules of Hooks)
-  const [rubricE, setRubricE]         = useState(q.rubric?.E ?? "");
-  const [rubricC, setRubricC]         = useState(q.rubric?.C ?? "");
-  const [rubricA, setRubricA]         = useState(q.rubric?.A ?? "");
-  const [assessText, setAssessText]   = useState(q.assessment_text ?? "");
-  const [npNonScoring, setNpNonScoring] = useState(q.np_comment_non_scoring ?? "");
-  const [npRelevant,   setNpRelevant]   = useState(q.np_comment_relevant    ?? "");
-  const [npElaborated, setNpElaborated] = useState(q.np_comment_elaborated  ?? "");
-
-  const prevQId = useRef(q.id);
-  if (prevQId.current !== q.id) {
-    prevQId.current = q.id;
-    setRubricE(q.rubric?.E ?? "");
-    setRubricC(q.rubric?.C ?? "");
-    setRubricA(q.rubric?.A ?? "");
-    setAssessText(q.assessment_text ?? "");
-    setNpNonScoring(q.np_comment_non_scoring ?? "");
-    setNpRelevant(q.np_comment_relevant    ?? "");
-    setNpElaborated(q.np_comment_elaborated  ?? "");
-  }
-
-  const saveRubric = () => patchQ({ rubric: { E: rubricE, C: rubricC, A: rubricA } });
-  const saveAssessText = () => patchQ({ assessment_text: assessText });
+  // RichTextEditor instances use key={q.id + field} to remount when question switches
 
   /* ── Segmented mode selector ── */
   const modeSelector = (
@@ -1787,8 +1765,6 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
         </div>
         {/* E/C/A cards */}
         {GRADE_LABELS.map(({ key, label, desc, color }) => {
-          const rubricVal = key === "E" ? rubricE : key === "C" ? rubricC : rubricA;
-          const setRubric = key === "E" ? setRubricE : key === "C" ? setRubricC : setRubricA;
           const gpVal = q.grade_points?.[key] ?? 0;
           return (
             <div key={key} style={{ border: `1.5px solid ${color}30`, borderRadius: 10, background: `${color}06`, overflow: "hidden" }}>
@@ -1804,9 +1780,13 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
                 </div>
               </div>
               <div style={{ padding: "10px 14px" }}>
-                <textarea value={rubricVal} onChange={e => setRubric(e.target.value)} onBlur={saveRubric}
-                  placeholder={`Vad krävs för betyget ${label}…`} rows={3}
-                  style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+                <RichTextEditor
+                  key={`${q.id}-rubric-${key}`}
+                  value={q.rubric?.[key] ?? ""}
+                  onChange={html => patchQ({ rubric: { ...q.rubric, [key]: html } })}
+                  placeholder={`Vad krävs för betyget ${label}…`}
+                  minHeight={80}
+                  compact
                 />
               </div>
             </div>
@@ -1870,13 +1850,13 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
         {/* Free-text assessment */}
         <div>
           <span style={{ fontSize: 12, color: "var(--ps-ink-3)", display: "block", marginBottom: 5 }}>Bedömningsanvisningar (fritext)</span>
-          <textarea
-            value={assessText}
-            onChange={e => setAssessText(e.target.value)}
-            onBlur={saveAssessText}
+          <RichTextEditor
+            key={`${q.id}-assess-text`}
+            value={q.assessment_text ?? ""}
+            onChange={html => patchQ({ assessment_text: html })}
             placeholder="Skriv dina bedömningsanvisningar fritt…"
-            rows={5}
-            style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+            minHeight={120}
+            compact
           />
         </div>
       </div>
@@ -1905,9 +1885,10 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
       : DEFAULT_NP_QUESTIONS;
 
   const patchNpQ = (updated: typeof npQuestions) => {
-    const maxPts = updated.reduce((m, bq) =>
-      Math.max(m, bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0)), 0);
-    patchQ({ np_questions: updated, points: String(maxPts) });
+    // Total points = sum of each bedömningsfråga's max criteria points
+    const totalPts = updated.reduce((sum, bq) =>
+      sum + bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0), 0);
+    patchQ({ np_questions: updated, points: String(totalPts) });
   };
 
   // Helper: render one criteria table editor
@@ -1964,9 +1945,9 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   };
 
   const NP_COMMENT_FIELDS = [
-    { key: "np_comment_non_scoring" as const,  label: "Kommentar: ej poänggivande svar",       placeholder: "Exempel på svar som inte ger poäng…",            val: npNonScoring, set: setNpNonScoring },
-    { key: "np_comment_relevant"   as const,  label: "Exempel på relevanta svar/anledningar", placeholder: "Exempel på relevanta anledningar eller svar…",     val: npRelevant,   set: setNpRelevant   },
-    { key: "np_comment_elaborated" as const,  label: "Exempel på förtydligande/fördjupning",  placeholder: "Exempel på hur svaren kan förtydligas eller fördjupas…", val: npElaborated, set: setNpElaborated },
+    { key: "np_comment_non_scoring" as const,  label: "Kommentar: ej poänggivande svar",       placeholder: "Exempel på svar som inte ger poäng…"                     },
+    { key: "np_comment_relevant"   as const,  label: "Exempel på relevanta svar/anledningar", placeholder: "Exempel på relevanta anledningar eller svar…"              },
+    { key: "np_comment_elaborated" as const,  label: "Exempel på förtydligande/fördjupning",  placeholder: "Exempel på hur svaren kan förtydligas eller fördjupas…"   },
   ];
 
   return (
@@ -1981,16 +1962,19 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ps-accent, #1E5F5C)", flexShrink: 0 }}>
               Bedömningsfråga {bqIdx + 1}
             </span>
-            <input
-              type="text"
-              value={bq.question}
-              placeholder="Skriv bedömningsfrågan…"
-              onChange={e => {
-                const updQs = npQuestions.map((b, i) => i === bqIdx ? { ...b, question: e.target.value } : b);
-                patchNpQ(updQs);
-              }}
-              style={{ ...psInput, flex: 1, fontSize: 12 }}
-            />
+            <div style={{ flex: 1 }}>
+              <RichTextEditor
+                key={`${q.id}-npq-${bqIdx}`}
+                value={bq.question}
+                onChange={html => {
+                  const updQs = npQuestions.map((b, i) => i === bqIdx ? { ...b, question: html } : b);
+                  patchNpQ(updQs);
+                }}
+                placeholder="Skriv bedömningsfrågan…"
+                minHeight={36}
+                compact
+              />
+            </div>
             {npQuestions.length > 1 && (
               <button title="Ta bort denna bedömningsfråga"
                 onClick={() => patchNpQ(npQuestions.filter((_, i) => i !== bqIdx))}
@@ -2017,16 +2001,16 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
       </button>
 
       {/* ── Tre kommentarrutor ── */}
-      {NP_COMMENT_FIELDS.map(({ key, label, placeholder, val, set }) => (
+      {NP_COMMENT_FIELDS.map(({ key, label, placeholder }) => (
         <div key={key}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ps-ink-2)", display: "block", marginBottom: 5 }}>{label}</span>
-          <textarea
-            value={val}
-            onChange={e => set(e.target.value)}
-            onBlur={() => patchQ({ [key]: val })}
+          <RichTextEditor
+            key={`${q.id}-${key}`}
+            value={q[key] ?? ""}
+            onChange={html => patchQ({ [key]: html })}
             placeholder={placeholder}
-            rows={4}
-            style={{ ...psInput, resize: "vertical", fontSize: 12.5 }}
+            minHeight={100}
+            compact
           />
         </div>
       ))}

@@ -919,6 +919,7 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
   const borderStyle = lineStyle === "dashed" ? "dashed" : lineStyle === "dotted" ? "dotted" : "solid";
 
   if (q.type === "open") {
+    if (showAnswers) return null;
     const lines = Math.max(1, (q.content as OpenContent).lines || 1);
     return (
       <div className="write-lines" data-style={lineStyle}>
@@ -1001,7 +1002,7 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
             {c.caption && <figcaption>{c.caption}</figcaption>}
           </figure>
         )}
-        {lines > 0 && (
+        {lines > 0 && !showAnswers && (
           <div className="write-lines">
             {Array.from({ length: lines }).map((_, i) => (
               <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
@@ -1066,16 +1067,19 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
             <div style={{ fontSize: "8pt", color: "#8a7e64", marginTop: "2mm", textAlign: "right" }}>— {c.sourceAttribution}</div>
           )}
         </div>
-        <div className="write-lines" data-style={lineStyle}>
-          {Array.from({ length: lines }).map((_, i) => (
-            <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
-          ))}
-        </div>
+        {!showAnswers && (
+          <div className="write-lines" data-style={lineStyle}>
+            {Array.from({ length: lines }).map((_, i) => (
+              <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   if (q.type === "short_answer") {
+    if (showAnswers) return null;
     const c = q.content as ShortAnswerContent;
     const lines = Math.max(1, c.lines || 2);
     return (
@@ -1098,6 +1102,7 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
   }
 
   if (q.type === "essay") {
+    if (showAnswers) return null;
     const c = q.content as EssayContent;
     const lines = Math.max(1, c.lines || 20);
     return (
@@ -1146,11 +1151,13 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
                 </span>
               </div>
               {/* Write lines */}
-              <div className="write-lines" style={{ flex: 1, paddingTop: "1mm" }}>
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
-                ))}
-              </div>
+              {!showAnswers && (
+                <div className="write-lines" style={{ flex: 1, paddingTop: "1mm" }}>
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1161,11 +1168,13 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
     return (
       <div>
         {c.term && <div style={{ fontSize: "10pt", fontWeight: 600, color: accent, marginBottom: "1.5mm" }} dangerouslySetInnerHTML={{ __html: c.term }} />}
-        <div className="write-lines">
-          {Array.from({ length: lines }).map((_, i) => (
-            <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
-          ))}
-        </div>
+        {!showAnswers && (
+          <div className="write-lines">
+            {Array.from({ length: lines }).map((_, i) => (
+              <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1320,11 +1329,13 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
             </tbody>
           </table>
         )}
-        <div className="write-lines">
-          {Array.from({ length: lines }).map((_, i) => (
-            <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
-          ))}
-        </div>
+        {!showAnswers && (
+          <div className="write-lines">
+            {Array.from({ length: lines }).map((_, i) => (
+              <div className="line" key={i} style={{ borderBottomStyle: borderStyle, height: lineHeight }} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1552,7 +1563,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
             lineHeight: 1.4,
           }}>
             <span style={{ fontWeight: 700, color: g.color, marginRight: 4 }}>{g.label}:</span>
-            {g.text}
+            <span dangerouslySetInnerHTML={{ __html: g.text }} />
           </div>
         ))}
       </div>
@@ -1589,7 +1600,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
             <span style={{ fontWeight: 700, color: accent }}>Poäng: </span>{q.points} p
           </div>
         )}
-        {text && <div>{text}</div>}
+        {text && <div dangerouslySetInnerHTML={{ __html: text }} />}
       </div>
     );
   }
@@ -1650,7 +1661,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
                   Bedömningsfråga {bqIdx + 1}
                 </span>
                 {bq.question && (
-                  <span style={{ fontSize: 8.5, color: "#333", marginLeft: "3mm" }}>{bq.question}</span>
+                  <span style={{ fontSize: 8.5, color: "#333", marginLeft: "3mm" }} dangerouslySetInnerHTML={{ __html: bq.question }} />
                 )}
               </div>
               {/* Criteria table */}
@@ -1697,10 +1708,9 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
               fontSize: 8.5,
               color: "#333",
               lineHeight: 1.55,
-              whiteSpace: "pre-wrap",
-            }}>
-              {c.text}
-            </div>
+            }}
+              dangerouslySetInnerHTML={{ __html: c.text }}
+            />
           </div>
         ))}
       </div>
@@ -1812,7 +1822,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                                 </span>
                               )}
                             </div>
-                            {(sub.lines ?? 0) > 0 && (
+                            {(sub.lines ?? 0) > 0 && !showAnswers && (
                               <div className="write-lines" style={{ marginLeft: 26 }}>
                                 {Array.from({ length: sub.lines! }).map((_, j) => (
                                   <div className="line" key={j} style={{ borderBottomStyle: borderStyle, height: lineH }} />
