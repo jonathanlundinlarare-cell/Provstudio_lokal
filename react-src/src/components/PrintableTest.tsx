@@ -819,9 +819,10 @@ function PointsDisplay({ points, style: pStyle, accent, format = "plain", gradeP
   if (pStyle === "pill") {
     return (
       <span style={{
-        display: "inline-block", fontSize: "var(--points-size, 10pt)",
+        display: "inline-block", fontSize: "var(--points-size, 10.5pt)",
         fontWeight: 600, color: accent, background: `${accent}18`,
-        borderRadius: 999, padding: "0.5mm 3mm", whiteSpace: "nowrap",
+        borderRadius: 999, padding: "1.2mm 4.5mm", whiteSpace: "nowrap",
+        minWidth: "12mm", textAlign: "center",
       }}>
         {displayText}
       </span>
@@ -830,23 +831,24 @@ function PointsDisplay({ points, style: pStyle, accent, format = "plain", gradeP
   if (pStyle === "box") {
     return (
       <span style={{
-        display: "inline-block", fontSize: "var(--points-size, 10pt)",
-        fontWeight: 600, border: `1px solid ${accent}`,
-        borderRadius: "1mm", padding: "0.5mm 2.5mm", whiteSpace: "nowrap",
+        display: "inline-block", fontSize: "var(--points-size, 10.5pt)",
+        fontWeight: 600, color: accent, border: `1.5px solid ${accent}`,
+        borderRadius: "1.5mm", padding: "1.2mm 4mm", whiteSpace: "nowrap",
+        minWidth: "12mm", textAlign: "center",
       }}>
         {displayText}
       </span>
     );
   }
   if (pStyle === "stamp") {
-    // For stamp: use plain "3p" without space for plain format
     const stampText = format === "plain" ? `${points}p` : displayText;
     return (
       <span style={{
-        display: "inline-block", fontSize: "var(--points-size, 10pt)",
+        display: "inline-block", fontSize: "var(--points-size, 10.5pt)",
         fontWeight: 700, color: accent, border: `2px solid ${accent}`,
-        borderRadius: 2, padding: "0.5mm 2.5mm", whiteSpace: "nowrap",
+        borderRadius: "1mm", padding: "1.2mm 4mm", whiteSpace: "nowrap",
         textTransform: "uppercase", letterSpacing: "0.06em",
+        minWidth: "12mm", textAlign: "center",
       }}>
         {stampText}
       </span>
@@ -854,7 +856,7 @@ function PointsDisplay({ points, style: pStyle, accent, format = "plain", gradeP
   }
   // italic (default)
   return (
-    <span style={{ fontSize: "var(--points-size, 10pt)", color: "#555", fontStyle: "italic", whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: "var(--points-size, 10.5pt)", color: "#555", fontStyle: "italic", whiteSpace: "nowrap" }}>
       ({displayText})
     </span>
   );
@@ -1771,14 +1773,24 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                     <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[i - 1]})</span>
                   )}
                 </div>
-                {/* Question text + body */}
+                {/* Question text + body — points sits beside the TEXT, not beside write-lines */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>
-                    {!hasSubs && isLead && dropCapStyle !== "off" && firstChar && (
-                      <DropCap char={firstChar} dropCap={dropCapStyle} accent={accent} />
+                  {/* Text row: question text + points badge side-by-side */}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                    <div style={{ flex: 1, fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }}>
+                      {!hasSubs && isLead && dropCapStyle !== "off" && firstChar && (
+                        <DropCap char={firstChar} dropCap={dropCapStyle} accent={accent} />
+                      )}
+                      <QuestionText q={q} />
+                    </div>
+                    {/* Points badge — only next to text, write-lines below span full width */}
+                    {showPoints && q.points && (isLead ? !hasSubs : true) && (
+                      <div style={{ flexShrink: 0, paddingTop: 1 }}>
+                        <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
+                      </div>
                     )}
-                    <QuestionText q={q} />
                   </div>
+                  {/* Body (write-lines etc.) — always full width */}
                   <QuestionBody q={q} design={design} accent={accent} showAnswers={showAnswers} />
                   {/* Inline group subs */}
                   {isLead && q.type === "group" && (() => {
@@ -1790,11 +1802,12 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
                         {gsubs.map((sub, si) => (
                           <div key={si}>
+                            {/* Sub text row with points badge */}
                             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 3 }}>
                               <span style={{ fontWeight: 600, color: "#777", minWidth: 20, fontSize: bodySize }}>{SUB_LETTERS[si]})</span>
-                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D" }} dangerouslySetInnerHTML={{ __html: sub.text }} />
+                              <span style={{ fontSize: bodySize, lineHeight: 1.55, color: "#14110D", flex: 1 }} dangerouslySetInnerHTML={{ __html: sub.text }} />
                               {showPoints && sub.points && (
-                                <span style={{ marginLeft: "auto" }}>
+                                <span style={{ flexShrink: 0 }}>
                                   <PointsDisplay points={sub.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
                                 </span>
                               )}
@@ -1814,12 +1827,6 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                   {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
                   {showAnswers && <AssessmentBlock q={q} accent={accent} />}
                 </div>
-                {/* Points on the right */}
-                {showPoints && q.points && (isLead ? !hasSubs : true) && (
-                  <div style={{ flexShrink: 0, marginTop: 2 }}>
-                    <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
-                  </div>
-                )}
               </div>
             </div>
           );
