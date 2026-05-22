@@ -3,7 +3,7 @@
  * Opened from preview/answer mode by clicking a question.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Trash2, X, Minus, Upload, ImageOff } from "lucide-react";
 import type { Question, QuestionType, MatchingPair, WordSearchEntry } from "@/lib/test-types";
 import { generateWordSearch } from "@/lib/wordsearch-gen";
@@ -1890,6 +1890,17 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
       sum + bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0), 0);
     patchQ({ np_questions: updated, points: String(totalPts) });
   };
+
+  // Auto-repair stale q.points when the NP-variant tab renders (handles questions
+  // saved before the sum-vs-max fix was deployed)
+  useEffect(() => {
+    const correctTotal = npQuestions.reduce((sum, bq) =>
+      sum + bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0), 0);
+    if (String(correctTotal) !== String(q.points ?? 0)) {
+      patchQ({ points: String(correctTotal) });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.id]);
 
   // Helper: render one criteria table editor
   const renderCriteriaEditor = (bqIdx: number, criteria: Array<{ label: string; points: number }>) => {

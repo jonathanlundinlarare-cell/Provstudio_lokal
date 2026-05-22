@@ -1794,11 +1794,18 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                       <QuestionText q={q} />
                     </div>
                     {/* Points badge — only next to text, write-lines below span full width */}
-                    {showPoints && q.points && (isLead ? !hasSubs : true) && (
-                      <div style={{ flexShrink: 0, paddingTop: 1 }}>
-                        <PointsDisplay points={q.points} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
-                      </div>
-                    )}
+                    {showPoints && (isLead ? !hasSubs : true) && (() => {
+                      // For NP-variant, compute total from np_questions in case stored q.points is stale
+                      const effectivePts = q.assessment_mode === 'np_variant' && q.np_questions && q.np_questions.length > 0
+                        ? String(q.np_questions.reduce((sum: number, bq: { criteria: Array<{ points: number }> }) =>
+                            sum + bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0), 0))
+                        : q.points;
+                      return effectivePts ? (
+                        <div style={{ flexShrink: 0, paddingTop: 1 }}>
+                          <PointsDisplay points={effectivePts} style={pStyle} accent={accent} format={pFormat} gradePoints={q.grade_points} />
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   {/* Body (write-lines etc.) — always full width */}
                   <QuestionBody q={q} design={design} accent={accent} showAnswers={showAnswers} />
