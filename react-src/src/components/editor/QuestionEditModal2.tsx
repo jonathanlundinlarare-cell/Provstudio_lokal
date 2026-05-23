@@ -1894,13 +1894,14 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
   // Auto-repair stale q.points when the NP-variant tab renders (handles questions
   // saved before the sum-vs-max fix was deployed)
   useEffect(() => {
+    if (q.assessment_mode !== 'np_variant') return;
     const correctTotal = npQuestions.reduce((sum, bq) =>
       sum + bq.criteria.reduce((mc, r) => Math.max(mc, r.points), 0), 0);
     if (String(correctTotal) !== String(q.points ?? 0)) {
       patchQ({ points: String(correctTotal) });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.id]);
+  }, [q.id, q.assessment_mode]);
 
   // Helper: render one criteria table editor
   const renderCriteriaEditor = (bqIdx: number, criteria: Array<{ label: string; points: number }>) => {
@@ -2033,9 +2034,9 @@ function BedömningTab({ q, patchQ }: { q: Question; patchQ: (f: Partial<Questio
 
 export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
   const text = (q.content as { text?: string })?.text ?? "";
-  const [tab, setTab] = useState<"content" | "rubric">("content");
+  const [tab, setTab] = useState<"content" | "rubric" | "meta">("content");
 
-  const handleTabSwitch = (newTab: "content" | "rubric") => {
+  const handleTabSwitch = (newTab: "content" | "rubric" | "meta") => {
     setTab(newTab);
   };
 
@@ -2166,6 +2167,9 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
           <button style={tabStyle(tab === "rubric")} onClick={() => handleTabSwitch("rubric")}>
             Bedömning
           </button>
+          <button style={tabStyle(tab === "meta")} onClick={() => handleTabSwitch("meta")}>
+            Metadata
+          </button>
         </div>
 
         {/* Tab: Frågeinnehåll */}
@@ -2183,14 +2187,6 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px 4px" }}>
               <TypeSpecificFields q={q} patchContent={patchContent} patchQ={patchQ} />
             </div>
-
-            {/* Metadata (ämne, kategori, svårighet, status, författare) */}
-            <div style={{ padding: "8px 16px 20px", borderTop: "1px solid var(--ps-rule)", marginTop: 4 }}>
-              <div style={{ fontSize: 11, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Metadata
-              </div>
-              <MetadataFields q={q} patchQ={patchQ} />
-            </div>
           </>
         )}
 
@@ -2198,6 +2194,13 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
         {tab === "rubric" && (
           <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
             <BedömningTab q={q} patchQ={patchQ} />
+          </div>
+        )}
+
+        {/* Tab: Metadata */}
+        {tab === "meta" && (
+          <div style={{ padding: "16px 16px 20px" }}>
+            <MetadataFields q={q} patchQ={patchQ} />
           </div>
         )}
       </div>

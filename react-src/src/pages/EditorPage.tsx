@@ -172,14 +172,9 @@ const HIGHLIGHT_PALETTE = [
 
 /* ── Paper styles ────────────────────────────────────────────────────────── */
 const PAPER_STYLE_NAMES: Record<string, string> = {
-  white:  "Vit",
-  cream:  "Gräddvit",
-  warm:   "Varm",
-  linen:  "Lin",
-  dot:    "Prickar",
-  grid:   "Rutnät",
-  ruled:  "Linjerat",
-  graph:  "Millimeter",
+  white: "Vit",
+  cream: "Gräddvit",
+  warm:  "Varm",
 };
 
 /* ── Card style names ────────────────────────────────────────────────────── */
@@ -1740,30 +1735,6 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
             options={[{ v: "400", label: "Reg" }, { v: "500", label: "Med" }, { v: "600", label: "SB" }, { v: "700", label: "Bold" }]}
           />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Versaler</span>
-          <Segmented
-            value={design.titleTransform ?? "uppercase"}
-            onChange={v => setD({ titleTransform: v as DesignSettings["titleTransform"] })}
-            options={[{ v: "uppercase", label: "VERSALER" }, { v: "smallcaps", label: "Kapitäler" }, { v: "none", label: "Normal" }]}
-          />
-        </label>
-        <PsSlider
-          label="Spaltning"
-          value={typeof design.titleTracking === "number" ? design.titleTracking : 0}
-          min={-30} max={120} step={1} suffix=" ‰"
-          onChange={v => setD({ titleTracking: v })}
-        />
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Färg</span>
-          <Segmented
-            value={design.titleColor ?? "ink"}
-            onChange={v => setD({ titleColor: v as "ink" | "accent" })}
-            options={[{ v: "ink", label: "Bläck" }, { v: "accent", label: "Accent" }]}
-          />
-        </label>
-        <PsToggle label="Kursiv rubrik" on={design.titleItalic ?? false} onChange={v => setD({ titleItalic: v })} />
-        <PsToggle label="Kursiva sektioner" on={design.sectionItalic ?? false} onChange={v => setD({ sectionItalic: v })} />
       </PsGroup>
 
       {/* 10. Numrering */}
@@ -1827,25 +1798,6 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
         <PsToggle label="Visa poäng vid fråga" on={design.showPoints !== false} onChange={v => setD({ showPoints: v })} />
       </PsGroup>
 
-      {/* 14. Dekoration */}
-      <PsGroup title="Dekoration">
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Anfang</span>
-          <Segmented
-            value={design.dropCap ?? "off"}
-            onChange={v => setD({ dropCap: v as DesignSettings["dropCap"] })}
-            options={[{ v: "off", label: "Av" }, { v: "filled", label: "Fylld" }, { v: "outline", label: "Outline" }, { v: "box", label: "Ruta" }]}
-          />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Sektionsavskiljare</span>
-          <Segmented
-            value={design.sectionDivider ?? "none"}
-            onChange={v => setD({ sectionDivider: v as DesignSettings["sectionDivider"] })}
-            options={[{ v: "none", label: "Av" }, { v: "rule", label: "—" }, { v: "dotted", label: "···" }, { v: "ornament", label: "✦" }, { v: "hairline", label: "╌" }, { v: "editorial-rule", label: "𝐈 ⎯" }]}
-          />
-        </label>
-      </PsGroup>
 
       {/* 15. Rytm & täthet */}
       <PsGroup title="Rytm & täthet">
@@ -1877,14 +1829,6 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
         />
       </PsGroup>
 
-      {/* 17. Sidoinställningar — kvarvarande togglar som inte hör till cover */}
-      <PsGroup title="Sidoinställningar">
-        <PsToggle label="Innehållsförteckning" on={design.showToc ?? false} onChange={v => setD({ showToc: v })} />
-        <PsToggle label="Sidnummer" on={design.showPageNumbers !== false} onChange={v => setD({ showPageNumbers: v })} />
-        <PsToggle label="Meta-info vid fråga" on={design.showMeta ?? false} onChange={v => setD({ showMeta: v })} />
-        <PsToggle label="Datum-fält" on={design.showDate !== false} onChange={v => setD({ showDate: v })} />
-        <PsToggle label="Lärare-fält" on={design.showTeacher !== false} onChange={v => setD({ showTeacher: v })} />
-      </PsGroup>
 
       {/* 19. Bild på cover (endast Bildmotiv-mallen) */}
       {design.coverTemplate === "imagery" && (

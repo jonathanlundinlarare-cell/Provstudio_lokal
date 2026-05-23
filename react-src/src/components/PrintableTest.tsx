@@ -574,7 +574,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         margin: "14px -8mm 18px",
         padding: "4mm 8mm",
         fontFamily: headingFont,
-        fontWeight: 800, fontSize: 22,
+        fontWeight: "var(--doc-title-weight, 800)" as React.CSSProperties["fontWeight"], fontSize: 22,
         textTransform: "uppercase",
         fontStyle,
         display: "flex", alignItems: "center", gap: 12,
@@ -596,7 +596,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         </span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, paddingTop: 14 }}>
           <div style={{ flex: 1, height: 1, background: "#DDD" }} />
-          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", fontStyle }}>{label}</span>
+          <span style={{ fontSize: 13, fontWeight: "var(--doc-title-weight, 700)" as React.CSSProperties["fontWeight"], textTransform: "uppercase", letterSpacing: "0.04em", fontStyle }}>{label}</span>
         </div>
       </div>
     );
@@ -609,7 +609,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
           <span style={{ fontSize: 10.5, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase" }}>Del {index}</span>
           <div style={{ flex: 1, height: 1, background: "#DDD" }} />
         </div>
-        <div style={{ fontSize: 18, fontWeight: 600, fontFamily: headingFont, fontStyle }}>{label}</div>
+        <div style={{ fontSize: 18, fontWeight: "var(--doc-title-weight, 600)" as React.CSSProperties["fontWeight"], fontFamily: headingFont, fontStyle }}>{label}</div>
       </div>
     );
   }
@@ -630,7 +630,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         }}>
           {index}
         </div>
-        <span style={{ fontSize: 15, fontWeight: 600, fontStyle }}>{label}</span>
+        <span style={{ fontSize: 15, fontWeight: "var(--doc-title-weight, 600)" as React.CSSProperties["fontWeight"], fontStyle }}>{label}</span>
       </div>
     );
   }
@@ -647,7 +647,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
           fontFamily: headingFont,
           fontStyle: "italic",
           fontSize: 22,
-          fontWeight: 400,
+          fontWeight: "var(--doc-title-weight, 400)" as React.CSSProperties["fontWeight"],
           color: "#14110D",
           letterSpacing: "-0.005em",
           flexShrink: 0,
