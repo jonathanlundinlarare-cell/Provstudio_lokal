@@ -1605,7 +1605,8 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
 
 /* ─── Assessment block (facit mode) ─────────────────────────────────── */
 
-function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
+function AssessmentBlock({ q, accent, bodyFont: bfProp }: { q: Question; accent: string; bodyFont?: string }) {
+  const resolvedBodyFont = bfProp ?? "system-ui, sans-serif";
   const mode = q.assessment_mode ?? "standard";
 
   // Standard mode: show rubric (E/C/A texts) if any exist
@@ -1699,7 +1700,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
     const dividerClr = `${accent}22`;
 
     const bodyFs = "var(--body-size, 11pt)";
-    const bodyFont = "var(--doc-body-font, system-ui, sans-serif)";
+    const bodyFont = resolvedBodyFont;
 
     return (
       <div style={{ marginTop: "4mm", display: "flex", flexDirection: "column", gap: "4mm", fontFamily: bodyFont }}>
@@ -1838,6 +1839,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
   const all          = hasSubs ? [block.lead, ...block.subs] : [block.lead];
   const dropCapStyle = design.dropCap ?? "off";
   const headingFont  = resolveFont(design.headingFont, '"Newsreader", Georgia, serif');
+  const bodyFont     = resolveFont(design.bodyFont, headingFont);
   const sectionItalic = design.sectionItalic ?? false;
   const density      = design.density ?? "comfortable";
   const titleWeight  = typeof design.titleWeight === "number" ? design.titleWeight
@@ -1942,7 +1944,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                     ) : null;
                   })()}
                   {showAnswers && <AnswerKeyBox q={q} accent={accent} />}
-                  {showAnswers && <AssessmentBlock q={q} accent={accent} />}
+                  {showAnswers && <AssessmentBlock q={q} accent={accent} bodyFont={bodyFont} />}
                 </div>
               </div>
             </div>
