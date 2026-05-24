@@ -1698,18 +1698,22 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
     const borderClr = `${accent}44`;
     const dividerClr = `${accent}22`;
 
+    const bodyFs = "var(--body-size, 11pt)";
+    const bodyFont = "var(--doc-body-font, system-ui, sans-serif)";
+
     return (
-      <div style={{ marginTop: "4mm", display: "flex", flexDirection: "column", gap: "4mm" }}>
+      <div style={{ marginTop: "4mm", display: "flex", flexDirection: "column", gap: "4mm", fontFamily: bodyFont }}>
 
         {/* Header */}
         <div style={{
-          fontSize: 9.5,
+          fontSize: "9.5pt",
           fontWeight: 700,
           color: accent,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
           paddingBottom: "2mm",
           borderBottom: `0.5mm solid ${borderClr}`,
+          fontFamily: bodyFont,
         }}>
           Bedömningsfrågor och exempelsvar
         </div>
@@ -1718,7 +1722,7 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
         {npQs.map((bq, bqIdx) => {
           const crit = bq.criteria.length > 0 ? bq.criteria : DEFAULT_CRITERIA;
           return (
-            <div key={bqIdx} style={{ border: `0.5mm solid ${borderClr}`, borderRadius: "2mm", overflow: "hidden" }}>
+            <div key={bqIdx} style={{ border: `0.5mm solid ${borderClr}`, borderRadius: "2mm", overflow: "hidden", fontFamily: bodyFont }}>
               {/* Question header */}
               <div style={{
                 padding: "2.5mm 4mm",
@@ -1728,35 +1732,44 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
                 alignItems: "center",
                 gap: "4mm",
               }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: accent }}>
+                <span style={{ fontSize: bodyFs, fontWeight: 700, color: accent, fontFamily: bodyFont }}>
                   Bedömningsfråga {bqIdx + 1}
                 </span>
                 {bq.question && (
-                  <span style={{ fontSize: 10, color: "#333" }} dangerouslySetInnerHTML={{ __html: bq.question }} />
+                  <span style={{ fontSize: bodyFs, color: "#333", fontFamily: bodyFont }} dangerouslySetInnerHTML={{ __html: bq.question }} />
                 )}
               </div>
               {/* Column headers */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 80px 1fr",
+                gridTemplateColumns: "1fr 70px 1fr",
                 background: `${accent}08`,
                 borderBottom: `0.4mm solid ${dividerClr}`,
               }}>
-                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", borderRight: `0.3mm solid ${dividerClr}` }}>Nivå</div>
-                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", borderRight: `0.3mm solid ${dividerClr}` }}>Poäng</div>
-                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em" }}>Anteckningar</div>
+                {(["Nivå", "Poäng", "Anteckningar"] as const).map((h, hi) => (
+                  <div key={h} style={{
+                    padding: "1.5mm 4mm",
+                    fontSize: "8pt",
+                    fontWeight: 700,
+                    color: "#666",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    fontFamily: bodyFont,
+                    borderRight: hi < 2 ? `0.3mm solid ${dividerClr}` : "none",
+                  }}>{h}</div>
+                ))}
               </div>
               {/* Criteria rows */}
               {crit.map((row, rIdx) => (
                 <div key={rIdx} style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 80px 1fr",
+                  gridTemplateColumns: "1fr 70px 1fr",
                   borderBottom: rIdx < crit.length - 1 ? `0.3mm solid ${dividerClr}` : "none",
                 }}>
-                  <div style={{ padding: "2.5mm 4mm", fontSize: 10.5, fontWeight: 600, color: "#1a1613", borderRight: `0.3mm solid ${dividerClr}` }}>
+                  <div style={{ padding: "2.5mm 4mm", fontSize: bodyFs, fontWeight: 600, color: "#1a1613", fontFamily: bodyFont, borderRight: `0.3mm solid ${dividerClr}` }}>
                     {row.label}
                   </div>
-                  <div style={{ padding: "2.5mm 4mm", fontSize: 10.5, fontWeight: 700, color: accent, borderRight: `0.3mm solid ${dividerClr}` }}>
+                  <div style={{ padding: "2.5mm 4mm", fontSize: bodyFs, fontWeight: 700, color: accent, fontFamily: bodyFont, borderRight: `0.3mm solid ${dividerClr}` }}>
                     {row.points} p
                   </div>
                   <div style={{ padding: "2.5mm 4mm", background: `${accent}04` }}>
@@ -1779,17 +1792,19 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
               padding: "2mm 4mm",
               background: "#F5F2EC",
               borderBottom: "0.3mm solid #E0D8C8",
-              fontSize: 9,
+              fontSize: "9.5pt",
               fontWeight: 700,
               color: "#555",
+              fontFamily: bodyFont,
             }}>
               {c.label}:
             </div>
             <div style={{
               padding: "3mm 4mm",
-              fontSize: 10,
+              fontSize: bodyFs,
               color: "#333",
               lineHeight: 1.6,
+              fontFamily: bodyFont,
             }}
               dangerouslySetInnerHTML={{ __html: c.text }}
             />
@@ -2063,19 +2078,20 @@ export function PrintableTest({
   let globalSectionIndex = 0;
 
   const renderPage = (pageContent: React.ReactNode, pageNumber: number, absoluteOverlay?: React.ReactNode) => {
+    // In facit/answer mode on screen: let pages grow freely so long NP tables
+    // and rubrics are never clipped. In print/normal mode: lock to A4 height.
+    const facitScreen = showAnswers && !printMode;
     return (
       <div
         className="paper-page"
         style={{
           width: 794,
-          // I print: lås exakt A4 (297mm) så printToPDF mappar 1:1 utan spill.
-          // På skärm: fast A4-höjd med overflow:hidden — pappret växer inte utanför A4.
-          height: "297mm",
+          height: facitScreen ? undefined : "297mm",
           minHeight: "297mm",
           ...(printMode ? { maxHeight: "297mm" } : {}),
           position: "relative",
           background: paperInfo.bg,
-          overflow: "hidden",
+          overflow: facitScreen ? "visible" : "hidden",
           padding: marginStr,
           boxSizing: "border-box",
           ...(printMode ? { pageBreakAfter: "always" as const, breakAfter: "page" as const } : {}),
