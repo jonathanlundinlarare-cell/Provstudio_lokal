@@ -251,18 +251,16 @@ const iconBtn: React.CSSProperties = {
   cursor: "pointer", color: "var(--ps-ink-3)",
 };
 
-/* ── TypeFields — per-block-type content fields ───────────────────────────── */
+/* ── Stable helper components (defined OUTSIDE TypeFields to prevent remount) ─ */
 
-function TypeFields({
-  block,
-  patchContent,
+function RichField({
+  label, valueKey, placeholder, c, patchContent,
 }: {
-  block: ContentBlockRef;
+  label: string; valueKey: string; placeholder?: string;
+  c: Record<string, unknown>;
   patchContent: (fields: Record<string, unknown>) => void;
 }) {
-  const c = block.content as Record<string, unknown>;
-
-  const RichField = ({ label, valueKey, placeholder }: { label: string; valueKey: string; placeholder?: string }) => (
+  return (
     <div>
       <div style={labelStyle}>{label}</div>
       <RichTextEditor
@@ -273,8 +271,16 @@ function TypeFields({
       />
     </div>
   );
+}
 
-  const TextField = ({ label, valueKey, type = "text" }: { label: string; valueKey: string; type?: "text" | "number" }) => (
+function TextField({
+  label, valueKey, type = "text", c, patchContent,
+}: {
+  label: string; valueKey: string; type?: "text" | "number";
+  c: Record<string, unknown>;
+  patchContent: (fields: Record<string, unknown>) => void;
+}) {
+  return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span style={labelStyle}>{label}</span>
       <input
@@ -287,71 +293,83 @@ function TypeFields({
       />
     </label>
   );
+}
+
+/* ── TypeFields — per-block-type content fields ───────────────────────────── */
+
+function TypeFields({
+  block,
+  patchContent,
+}: {
+  block: ContentBlockRef;
+  patchContent: (fields: Record<string, unknown>) => void;
+}) {
+  const c = block.content as Record<string, unknown>;
 
   switch (block.block_type) {
     case "heading":
       return (
         <>
-          <TextField label="Rubrik"    valueKey="text" />
-          <TextField label="Undertitel" valueKey="subtitle" />
-          <TextField label="Kapitel"   valueKey="chapter" />
+          <TextField label="Rubrik"    valueKey="text"     c={c} patchContent={patchContent} />
+          <TextField label="Undertitel" valueKey="subtitle" c={c} patchContent={patchContent} />
+          <TextField label="Kapitel"   valueKey="chapter"  c={c} patchContent={patchContent} />
         </>
       );
     case "intro":
     case "instruction":
     case "marginNote":
-      return <RichField label="Text" valueKey="text" placeholder="Skriv text här…" />;
+      return <RichField label="Text" valueKey="text" placeholder="Skriv text här…" c={c} patchContent={patchContent} />;
     case "source":
       return (
         <>
-          <TextField label="Källtitel" valueKey="title" />
-          <RichField label="Källtext"  valueKey="text" />
-          <TextField label="Attribution" valueKey="attribution" />
-          <RichField label="Lärarnot (valfri)" valueKey="note" />
+          <TextField label="Källtitel"           valueKey="title"         c={c} patchContent={patchContent} />
+          <RichField label="Källtext"             valueKey="text"          c={c} patchContent={patchContent} />
+          <TextField label="Attribution"          valueKey="attribution"   c={c} patchContent={patchContent} />
+          <RichField label="Lärarnot (valfri)"    valueKey="note"          c={c} patchContent={patchContent} />
         </>
       );
     case "vocab":
       return (
         <>
-          <TextField label="Begrepp"   valueKey="word" />
-          <RichField label="Definition" valueKey="definition" />
+          <TextField label="Begrepp"    valueKey="word"       c={c} patchContent={patchContent} />
+          <RichField label="Definition" valueKey="definition" c={c} patchContent={patchContent} />
         </>
       );
     case "exercise":
       return (
         <>
-          <RichField label="Övningstext" valueKey="text" />
-          <TextField label="Skrivlinjer" valueKey="lines" type="number" />
-          <RichField label="Marginalnot (lärare)" valueKey="marginNote" />
+          <RichField label="Övningstext"          valueKey="text"       c={c} patchContent={patchContent} />
+          <TextField label="Skrivlinjer"          valueKey="lines"      type="number" c={c} patchContent={patchContent} />
+          <RichField label="Marginalnot (lärare)" valueKey="marginNote" c={c} patchContent={patchContent} />
         </>
       );
     case "quote":
       return (
         <>
-          <RichField label="Citat" valueKey="text" />
-          <TextField label="Attribution" valueKey="attribution" />
+          <RichField label="Citat"       valueKey="text"         c={c} patchContent={patchContent} />
+          <TextField label="Attribution" valueKey="attribution"  c={c} patchContent={patchContent} />
         </>
       );
     case "callout":
       return (
         <>
-          <RichField label="Text" valueKey="text" />
-          <TextField label="Färg (CSS)" valueKey="color" />
+          <RichField label="Text"       valueKey="text"  c={c} patchContent={patchContent} />
+          <TextField label="Färg (CSS)" valueKey="color" c={c} patchContent={patchContent} />
         </>
       );
     case "image":
       return (
         <>
-          <TextField label="Bild-URL" valueKey="imageUrl" />
-          <TextField label="Bildtext" valueKey="caption" />
-          <TextField label="Alt-text" valueKey="altText" />
+          <TextField label="Bild-URL" valueKey="imageUrl" c={c} patchContent={patchContent} />
+          <TextField label="Bildtext" valueKey="caption"  c={c} patchContent={patchContent} />
+          <TextField label="Alt-text" valueKey="altText"  c={c} patchContent={patchContent} />
         </>
       );
     case "checklist": {
       const items = (c.items as string[]) ?? [];
       return (
         <>
-          <TextField label="Titel" valueKey="title" />
+          <TextField label="Titel" valueKey="title" c={c} patchContent={patchContent} />
           <div>
             <div style={labelStyle}>Punkter</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -392,8 +410,8 @@ function TypeFields({
     case "wb_open":
       return (
         <>
-          <RichField label="Frågetext" valueKey="text" placeholder="Skriv din fråga…" />
-          <TextField label="Antal skrivlinjer" valueKey="lines" type="number" />
+          <RichField label="Frågetext" valueKey="text" placeholder="Skriv din fråga…" c={c} patchContent={patchContent} />
+          <TextField label="Antal skrivlinjer" valueKey="lines" type="number" c={c} patchContent={patchContent} />
         </>
       );
 
@@ -401,7 +419,7 @@ function TypeFields({
       const opts = (c.options as string[]) ?? [];
       return (
         <>
-          <RichField label="Frågetext" valueKey="text" placeholder="Skriv din fråga…" />
+          <RichField label="Frågetext" valueKey="text" placeholder="Skriv din fråga…" c={c} patchContent={patchContent} />
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--ps-ink-2)" }}>
             <input
               type="checkbox"
@@ -446,14 +464,14 @@ function TypeFields({
 
     case "wb_truefalse":
       return (
-        <RichField label="Påstående" valueKey="text" placeholder="Skriv ett påstående som eleven ska bedöma…" />
+        <RichField label="Påstående" valueKey="text" placeholder="Skriv ett påstående som eleven ska bedöma…" c={c} patchContent={patchContent} />
       );
 
     case "wb_matching": {
       const pairs = (c.pairs as { left: string; right: string }[]) ?? [];
       return (
         <>
-          <RichField label="Instruktion (valfri)" valueKey="text" placeholder="Para ihop…" />
+          <RichField label="Instruktion (valfri)" valueKey="text" placeholder="Para ihop…" c={c} patchContent={patchContent} />
           <div>
             <div style={labelStyle}>Par att koppla ihop</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

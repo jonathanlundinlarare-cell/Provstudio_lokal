@@ -2,7 +2,7 @@
  * WorkbookPage — editor for workbook (häfte) documents
  * Uses a two-page spread layout.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAutosave } from "@/hooks/useAutosave";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -522,6 +522,38 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
   const fontFamily = fontStack(design.font);
   const accent = design.accent;
   const totalBlocks = blocks.filter(b => b.block_type !== "pageBreak" && b.block_type !== "divider").length;
+
+  /* ── Free-form: initialize block positions when entering freeform mode ── */
+  const freeFormInitRef = useRef(false);
+  useEffect(() => {
+    if (!freeForm) { freeFormInitRef.current = false; return; }
+    if (freeFormInitRef.current) return;
+    freeFormInitRef.current = true;
+
+    setBlocks(bb => {
+      // Compute pages to assign y per page (avoids cross-page overflow)
+      const pages: ContentBlockRef[][] = [[]];
+      for (const b of bb) {
+        if (b.block_type === "pageBreak") pages.push([]);
+        else pages[pages.length - 1].push(b);
+      }
+      const layoutMap = new Map<string, { x: number; y: number; w: number; h: number }>();
+      for (const page of pages) {
+        let y = 28;
+        for (const b of page) {
+          const hasPos = b.layout && (b.layout.x !== 0 || b.layout.y !== 0);
+          if (!hasPos) {
+            layoutMap.set(b.block_id, { x: 32, y, w: 416, h: 60 });
+            y += 68;
+          } else {
+            y = Math.max(y, b.layout!.y + b.layout!.h + 8);
+          }
+        }
+      }
+      if (layoutMap.size === 0) return bb;
+      return bb.map(b => layoutMap.has(b.block_id) ? { ...b, layout: layoutMap.get(b.block_id)! } : b);
+    });
+  }, [freeForm]);
 
   /* ── Free-form drag handler ── */
   const startDrag = (blockId: string, e: React.MouseEvent) => {
@@ -1093,22 +1125,24 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
             return (
               <div key={spreadIdx} style={{ display: "flex", gap: 4, background: "rgba(20,17,13,0.06)", padding: 4, borderRadius: 6, marginBottom: 48 }}>
                 {/* left page */}
-                <div style={{ width: 480, minHeight: 678, background: "white",
+                <div style={{ width: 480, minHeight: freeForm ? undefined : 678, height: freeForm ? 678 : undefined,
+                  background: "white",
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
-                  padding: "28px 32px", fontFamily, color: "#14110D",
-                  display: "flex", flexDirection: "column", boxSizing: "border-box",
-                  position: "relative" }}>
+                  padding: freeForm ? 0 : "28px 32px", fontFamily, color: "#14110D",
+                  display: freeForm ? "block" : "flex", flexDirection: "column", boxSizing: "border-box",
+                  position: "relative", overflow: freeForm ? "hidden" : undefined }}>
                   {renderPageBlocks(left, leftExStart)}
-                  <PageFooter pageNum={spreadIdx * 2 + 1} course={design.course ?? ""} chapter={design.chapter ?? ""} side="left" />
+                  {!freeForm && <PageFooter pageNum={spreadIdx * 2 + 1} course={design.course ?? ""} chapter={design.chapter ?? ""} side="left" />}
                 </div>
                 {/* right page */}
-                <div style={{ width: 480, minHeight: 678, background: "white",
+                <div style={{ width: 480, minHeight: freeForm ? undefined : 678, height: freeForm ? 678 : undefined,
+                  background: "white",
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
-                  padding: "28px 32px", fontFamily, color: "#14110D",
-                  display: "flex", flexDirection: "column", boxSizing: "border-box",
-                  position: "relative" }}>
+                  padding: freeForm ? 0 : "28px 32px", fontFamily, color: "#14110D",
+                  display: freeForm ? "block" : "flex", flexDirection: "column", boxSizing: "border-box",
+                  position: "relative", overflow: freeForm ? "hidden" : undefined }}>
                   {renderPageBlocks(right, rightExStart)}
-                  <PageFooter pageNum={spreadIdx * 2 + 2} course={design.course ?? ""} chapter={design.chapter ?? ""} side="right" />
+                  {!freeForm && <PageFooter pageNum={spreadIdx * 2 + 2} course={design.course ?? ""} chapter={design.chapter ?? ""} side="right" />}
                 </div>
               </div>
             );
