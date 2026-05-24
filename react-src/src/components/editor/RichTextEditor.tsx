@@ -72,9 +72,14 @@ interface RichTextEditorProps {
    * som svarsalternativ, matchningspar etc.). Normalt (false) visas verktygsfältet alltid.
    */
   compact?: boolean;
+  /**
+   * showClozeBtn=true: visar en "___"-knapp i verktygsfältet för att markera text och omvandla
+   * den till en lucka (för lucktext-frågor).
+   */
+  showClozeBtn?: boolean;
 }
 
-export function RichTextEditor({ value, onChange, placeholder = "Skriv din frågetext här …", minHeight = 90, compact = false }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder = "Skriv din frågetext här …", minHeight = 90, compact = false, showClozeBtn = false }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false, underline: false, strikeThrough: false });
   const skipNextSync = useRef(false);
@@ -175,6 +180,24 @@ export function RichTextEditor({ value, onChange, placeholder = "Skriv din fråg
 
         <ToolBtn title="Ångra (Ctrl+Z)"  onClick={() => exec("undo")}>  ↩ </ToolBtn>
         <ToolBtn title="Gör om (Ctrl+Y)" onClick={() => exec("redo")}>  ↪ </ToolBtn>
+
+        {showClozeBtn && (
+          <>
+            <Sep />
+            <ToolBtn
+              title="Gör markerad text till lucka (___)"
+              onClick={() => {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                  document.execCommand("insertText", false, "___");
+                  emitChange();
+                }
+              }}
+            >
+              <span style={{ fontSize: 11, fontFamily: "monospace", letterSpacing: "-0.05em" }}>___</span>
+            </ToolBtn>
+          </>
+        )}
 
         <Sep />
 

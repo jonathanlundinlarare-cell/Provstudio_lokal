@@ -187,7 +187,7 @@ const ModalField = ({
   hint?: string;
   children: React.ReactNode;
 }) => (
-  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
     <span
       style={{
         fontSize: 11.5,
@@ -204,7 +204,7 @@ const ModalField = ({
         {hint}
       </span>
     )}
-  </label>
+  </div>
 );
 
 const RowBox = ({ children }: { children: React.ReactNode }) => (
@@ -2181,6 +2181,7 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
               onChange={(html) => patchContent({ text: html })}
               placeholder="Skriv din uppgift här …"
               minHeight={140}
+              showClozeBtn={q.type === "cloze"}
             />
 
             {/* Type-specific fields */}

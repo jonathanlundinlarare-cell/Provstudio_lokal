@@ -1572,7 +1572,7 @@ function LayoutPanel({ design, setD, title }: { design: DesignSettings; setD: (p
   const coverImageDefault = { enabled: false, kind: "painting", height: 130, fadeY: 22, fadeX: 12, opacity: 0.95, src: null };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingBottom: 32 }}>
 
       {/* 1. Förinställning */}
       <PsGroup title="Förinställning">

@@ -557,15 +557,17 @@ function MetaBlock({ metaStyle, accent, showDate = true, showTeacher = true }: {
 
 /* ─── SectionHeader variants ─────────────────────────────────────────── */
 
-function SectionHeader({ label, index, layout, accent, headingFont, sectionItalic }: {
+function SectionHeader({ label, index, layout, accent, headingFont, sectionItalic, titleWeight }: {
   label: string;
   index: number;
   layout: string;
   accent: string;
   headingFont: string;
   sectionItalic: boolean;
+  titleWeight?: number;
 }) {
   const fontStyle = sectionItalic ? "italic" : "normal";
+  const tw = titleWeight ?? 800;
 
   if (layout === "band" || layout === "classic") {
     return (
@@ -574,7 +576,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         margin: "14px -8mm 18px",
         padding: "4mm 8mm",
         fontFamily: headingFont,
-        fontWeight: "var(--doc-title-weight, 800)" as React.CSSProperties["fontWeight"], fontSize: 22,
+        fontWeight: tw, fontSize: 22,
         textTransform: "uppercase",
         fontStyle,
         display: "flex", alignItems: "center", gap: 12,
@@ -596,7 +598,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         </span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, paddingTop: 14 }}>
           <div style={{ flex: 1, height: 1, background: "#DDD" }} />
-          <span style={{ fontSize: 13, fontWeight: "var(--doc-title-weight, 700)" as React.CSSProperties["fontWeight"], textTransform: "uppercase", letterSpacing: "0.04em", fontStyle }}>{label}</span>
+          <span style={{ fontSize: 13, fontWeight: tw, textTransform: "uppercase", letterSpacing: "0.04em", fontStyle }}>{label}</span>
         </div>
       </div>
     );
@@ -609,7 +611,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
           <span style={{ fontSize: 10.5, color: "#555", letterSpacing: "0.12em", textTransform: "uppercase" }}>Del {index}</span>
           <div style={{ flex: 1, height: 1, background: "#DDD" }} />
         </div>
-        <div style={{ fontSize: 18, fontWeight: "var(--doc-title-weight, 600)" as React.CSSProperties["fontWeight"], fontFamily: headingFont, fontStyle }}>{label}</div>
+        <div style={{ fontSize: 18, fontWeight: tw, fontFamily: headingFont, fontStyle }}>{label}</div>
       </div>
     );
   }
@@ -630,7 +632,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
         }}>
           {index}
         </div>
-        <span style={{ fontSize: 15, fontWeight: "var(--doc-title-weight, 600)" as React.CSSProperties["fontWeight"], fontStyle }}>{label}</span>
+        <span style={{ fontSize: 15, fontWeight: tw, fontStyle }}>{label}</span>
       </div>
     );
   }
@@ -647,7 +649,7 @@ function SectionHeader({ label, index, layout, accent, headingFont, sectionItali
           fontFamily: headingFont,
           fontStyle: "italic",
           fontSize: 22,
-          fontWeight: "var(--doc-title-weight, 400)" as React.CSSProperties["fontWeight"],
+          fontWeight: tw,
           color: "#14110D",
           letterSpacing: "-0.005em",
           flexShrink: 0,
@@ -976,18 +978,54 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
 
   if (q.type === "matching") {
     const c = q.content as MatchingContent;
+    const pairs = c.pairs ?? [];
+    const n = pairs.length;
+    if (n === 0) return null;
+
+    // Deterministic shuffle: offset right column by ceil(n/2) positions
+    const offset = n <= 2 ? 1 : Math.ceil(n / 2);
+
+    if (showAnswers) {
+      // Facit: show "1→B, 2→C..." mapping
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "2mm 8mm", marginTop: "2mm", fontSize: "var(--body-size, 11pt)" }}>
+          {pairs.map((_, i) => {
+            const letter = String.fromCharCode(65 + (i - offset + n) % n);
+            return (
+              <span key={i} style={{ fontWeight: 600 }}>{i + 1}{" → "}{letter}</span>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Student version: left in original order, right shuffled with letter labels
+    const shuffledRight = pairs.map((_, i) => ({
+      pair: pairs[(i + offset) % n],
+      letter: String.fromCharCode(65 + i),
+    }));
+
     return (
-      <table className="match-table">
-        <tbody>
-          {(c.pairs ?? []).map((p, i) => (
-            <tr key={i}>
-              <td className="match-left" dangerouslySetInnerHTML={{ __html: p.left }} />
-              <td className="match-blank"><span className="match-line" /></td>
-              <td className="match-right" dangerouslySetInnerHTML={{ __html: p.right }} />
-            </tr>
+      <div style={{ display: "flex", gap: "10mm", marginTop: "3mm" }}>
+        {/* Left column — numbered */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2mm" }}>
+          {pairs.map((p, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "2mm", fontSize: "var(--body-size, 11pt)" }}>
+              <span style={{ fontWeight: 700, minWidth: "5mm", flexShrink: 0 }}>{i + 1}.</span>
+              <span dangerouslySetInnerHTML={{ __html: p.left }} />
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+        {/* Right column — shuffled with letter labels */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2mm" }}>
+          {shuffledRight.map(({ pair, letter }, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "2mm", fontSize: "var(--body-size, 11pt)" }}>
+              <span style={{ fontWeight: 700, minWidth: "5mm", flexShrink: 0 }}>{letter}.</span>
+              <span dangerouslySetInnerHTML={{ __html: pair.right }} />
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 
@@ -1031,9 +1069,15 @@ function QuestionBody({ q, design, accent, showAnswers }: { q: Question; design:
 
   if (q.type === "ranking") {
     const c = q.content as RankingContent;
+    const items = c.items ?? [];
+    if (items.length === 0) return null;
+    // Shuffle items for student: offset by ceil(n/2) so answer order is non-trivial
+    const n = items.length;
+    const offset = n <= 2 ? 1 : Math.ceil(n / 2);
+    const shuffled = items.map((_, i) => items[(i + offset) % n]);
     return (
       <ul className="rank-list">
-        {c.items.map((item, i) => (
+        {shuffled.map((item, i) => (
           <li key={i}>
             <span className="rank-box" style={{ borderColor: accent }} />
             <span dangerouslySetInnerHTML={{ __html: item }} />
@@ -1474,14 +1518,8 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
     if (val === null || val === undefined) return null;
     answerNode = <span>{val === 0 ? "Sant" : "Falskt"}</span>;
   } else if (q.type === "matching") {
-    const mc = q.content as MatchingContent;
-    const pairs = mc.pairs ?? [];
-    if (pairs.length === 0) return null;
-    answerNode = (
-      <span>
-        {pairs.map((p, i) => `${p.left} → ${p.right}`).join(" · ")}
-      </span>
-    );
+    // Matching answers are shown inline by QuestionBody when showAnswers=true
+    return null;
   } else if (q.type === "definition") {
     const dc = q.content as DefinitionContent;
     if (dc.terms && dc.terms.length > 0) {
@@ -1743,6 +1781,8 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
   const headingFont  = resolveFont(design.headingFont, '"Newsreader", Georgia, serif');
   const sectionItalic = design.sectionItalic ?? false;
   const density      = design.density ?? "comfortable";
+  const titleWeight  = typeof design.titleWeight === "number" ? design.titleWeight
+                     : parseInt(String(design.titleWeight ?? "700"), 10) || 700;
 
   const pFormat = design.pointsFormat;
 
@@ -1757,6 +1797,7 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
             accent={accent}
             headingFont={headingFont}
             sectionItalic={sectionItalic}
+            titleWeight={titleWeight}
           />
           <SectionDivider variant={design.sectionDivider} accent={accent} />
         </>
