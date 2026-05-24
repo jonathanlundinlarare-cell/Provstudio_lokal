@@ -1602,130 +1602,6 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
   );
 }
 
-/* ─── Facit short-answer extractor ───────────────────────────────────── */
-
-function extractShortAnswer(q: Question): string {
-  const c = q.content as Record<string, unknown>;
-  if (q.type === "multiple_choice") {
-    const mc = q.content as MultipleChoiceContent;
-    const idxs = Array.isArray(mc.correctIndex) ? mc.correctIndex
-                 : mc.correctIndex != null ? [mc.correctIndex as number] : [];
-    return idxs.map((i: number) => String.fromCharCode(65 + i)).join(", ");
-  }
-  if (q.type === "true_false") {
-    const val = c.correct as number | null | undefined;
-    return val === 0 ? "Sant" : val === 1 ? "Falskt" : "";
-  }
-  if (q.type === "short_answer" || q.type === "numeric") {
-    return String(c.answer ?? c.model ?? "");
-  }
-  if (q.type === "cloze") {
-    const answers = (c.answers as string[] | undefined) ?? (c.model as string[] | undefined);
-    return answers?.join(", ") ?? "";
-  }
-  if (q.type === "matching") {
-    const mc = q.content as MatchingContent;
-    const pairs = mc.pairs ?? [];
-    const n = pairs.length;
-    if (n === 0) return "";
-    const offset = n <= 2 ? 1 : Math.ceil(n / 2);
-    return pairs.map((_, i) => `${i + 1}→${String.fromCharCode(65 + (i - offset + n) % n)}`).join("  ");
-  }
-  if (q.type === "definition") {
-    const dc = q.content as DefinitionContent;
-    if (dc.terms && dc.terms.length > 0) {
-      return dc.terms.filter(t => t.def).map(t => `${t.term}: ${t.def}`).join(" · ");
-    }
-  }
-  return "";
-}
-
-/* ─── Facit summary box (first question page) ────────────────────────── */
-
-function FacitSummaryBox({ items, accent, headingFont }: { items: PrintableItem[]; accent: string; headingFont: string }) {
-  const rows: { num: number; answer: string; hasDetail: boolean }[] = [];
-  let qNum = 0;
-  for (const it of items) {
-    if ("kind" in it && it.kind === "block") continue;
-    const qi = it as PrintableQuestionItem;
-    if (qi.group) continue; // sub-questions: skip in summary
-    qNum++;
-    const q = qi.question;
-    const answer = extractShortAnswer(q);
-    const hasDetail =
-      !!(q.rubric && (q.rubric.E || q.rubric.C || q.rubric.A)) ||
-      q.assessment_mode === "np_variant" ||
-      !!(q.assessment_text);
-    rows.push({ num: qNum, answer, hasDetail });
-  }
-
-  if (rows.length === 0) return null;
-
-  return (
-    <div style={{
-      marginBottom: "7mm",
-      border: `1.5px solid ${accent}`,
-      borderRadius: 5,
-      overflow: "hidden",
-      breakInside: "avoid",
-      pageBreakInside: "avoid",
-    }}>
-      {/* Header strip */}
-      <div style={{
-        background: accent,
-        color: "white",
-        padding: "3.5mm 5mm",
-        display: "flex",
-        alignItems: "center",
-        gap: "4mm",
-      }}>
-        <span style={{
-          fontSize: 12,
-          fontWeight: 800,
-          fontFamily: headingFont,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-        }}>
-          Facit
-        </span>
-        <span style={{ fontSize: 8.5, opacity: 0.75, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          · Lärarexemplar
-        </span>
-      </div>
-
-      {/* Answer grid */}
-      <div style={{ padding: "4mm 5mm", background: `${accent}07` }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(42mm, 1fr))",
-          gap: "2.5mm 5mm",
-        }}>
-          {rows.map(r => (
-            <div key={r.num} style={{ display: "flex", gap: "2mm", alignItems: "baseline" }}>
-              <span style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: accent,
-                minWidth: "7mm",
-                flexShrink: 0,
-              }}>
-                {r.num}.
-              </span>
-              <span style={{ fontSize: 9, color: "#1a1613", lineHeight: 1.4 }}>
-                {r.answer
-                  ? r.answer
-                  : r.hasDetail
-                    ? <em style={{ color: "#888", fontStyle: "normal" }}>se bedömning</em>
-                    : <span style={{ color: "#bbb" }}>—</span>
-                }
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Assessment block (facit mode) ─────────────────────────────────── */
 
@@ -1823,17 +1699,17 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
     const dividerClr = `${accent}22`;
 
     return (
-      <div style={{ marginTop: "3mm", display: "flex", flexDirection: "column", gap: "3mm" }}>
+      <div style={{ marginTop: "4mm", display: "flex", flexDirection: "column", gap: "4mm" }}>
 
         {/* Header */}
         <div style={{
-          fontSize: 8,
+          fontSize: 9.5,
           fontWeight: 700,
           color: accent,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
-          paddingBottom: "1.5mm",
-          borderBottom: `0.4mm solid ${borderClr}`,
+          paddingBottom: "2mm",
+          borderBottom: `0.5mm solid ${borderClr}`,
         }}>
           Bedömningsfrågor och exempelsvar
         </div>
@@ -1842,38 +1718,52 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
         {npQs.map((bq, bqIdx) => {
           const crit = bq.criteria.length > 0 ? bq.criteria : DEFAULT_CRITERIA;
           return (
-            <div key={bqIdx} style={{ border: `0.4mm solid ${borderClr}`, borderRadius: "1mm", overflow: "hidden" }}>
+            <div key={bqIdx} style={{ border: `0.5mm solid ${borderClr}`, borderRadius: "2mm", overflow: "hidden" }}>
               {/* Question header */}
               <div style={{
-                padding: "1.5mm 3mm",
-                background: accent + "0e",
-                borderBottom: `0.4mm solid ${borderClr}`,
+                padding: "2.5mm 4mm",
+                background: accent + "14",
+                borderBottom: `0.5mm solid ${borderClr}`,
+                display: "flex",
+                alignItems: "center",
+                gap: "4mm",
               }}>
-                <span style={{ fontSize: 8.5, fontWeight: 700, color: accent }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: accent }}>
                   Bedömningsfråga {bqIdx + 1}
                 </span>
                 {bq.question && (
-                  <span style={{ fontSize: 8.5, color: "#333", marginLeft: "3mm" }} dangerouslySetInnerHTML={{ __html: bq.question }} />
+                  <span style={{ fontSize: 10, color: "#333" }} dangerouslySetInnerHTML={{ __html: bq.question }} />
                 )}
               </div>
-              {/* Criteria table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
-                <tbody>
-                  {crit.map((row, rIdx) => (
-                    <tr key={rIdx} style={{ borderBottom: rIdx < crit.length - 1 ? `0.3mm solid ${dividerClr}` : "none" }}>
-                      <td style={{ padding: "1.8mm 3mm", fontWeight: 600, color: "#1a1613", width: "30%", borderRight: `0.3mm solid ${dividerClr}` }}>
-                        {row.label}
-                      </td>
-                      <td style={{ padding: "1.8mm 3mm", color: "#555", width: "22%", borderRight: `0.3mm solid ${dividerClr}` }}>
-                        {row.points} poäng
-                      </td>
-                      <td style={{ padding: "1.8mm 3mm", width: "48%", background: accent + "05" }}>
-                        &nbsp;
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* Column headers */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 80px 1fr",
+                background: `${accent}08`,
+                borderBottom: `0.4mm solid ${dividerClr}`,
+              }}>
+                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", borderRight: `0.3mm solid ${dividerClr}` }}>Nivå</div>
+                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em", borderRight: `0.3mm solid ${dividerClr}` }}>Poäng</div>
+                <div style={{ padding: "1.5mm 4mm", fontSize: 8.5, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em" }}>Anteckningar</div>
+              </div>
+              {/* Criteria rows */}
+              {crit.map((row, rIdx) => (
+                <div key={rIdx} style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 80px 1fr",
+                  borderBottom: rIdx < crit.length - 1 ? `0.3mm solid ${dividerClr}` : "none",
+                }}>
+                  <div style={{ padding: "2.5mm 4mm", fontSize: 10.5, fontWeight: 600, color: "#1a1613", borderRight: `0.3mm solid ${dividerClr}` }}>
+                    {row.label}
+                  </div>
+                  <div style={{ padding: "2.5mm 4mm", fontSize: 10.5, fontWeight: 700, color: accent, borderRight: `0.3mm solid ${dividerClr}` }}>
+                    {row.points} p
+                  </div>
+                  <div style={{ padding: "2.5mm 4mm", background: `${accent}04` }}>
+                    &nbsp;
+                  </div>
+                </div>
+              ))}
             </div>
           );
         })}
@@ -1881,25 +1771,25 @@ function AssessmentBlock({ q, accent }: { q: Question; accent: string }) {
         {/* Three comment sections */}
         {comments.map((c, idx) => (
           <div key={idx} style={{
-            border: "0.3mm solid #E0D8C8",
-            borderRadius: "1mm",
+            border: "0.4mm solid #E0D8C8",
+            borderRadius: "2mm",
             overflow: "hidden",
           }}>
             <div style={{
-              padding: "1.5mm 3mm",
+              padding: "2mm 4mm",
               background: "#F5F2EC",
               borderBottom: "0.3mm solid #E0D8C8",
-              fontSize: 8,
+              fontSize: 9,
               fontWeight: 700,
               color: "#555",
             }}>
               {c.label}:
             </div>
             <div style={{
-              padding: "2mm 3mm",
-              fontSize: 8.5,
+              padding: "3mm 4mm",
+              fontSize: 10,
               color: "#333",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
             }}
               dangerouslySetInnerHTML={{ __html: c.text }}
             />
@@ -2329,6 +2219,35 @@ export function PrintableTest({
             }}>
               <CoverComp doc={coverDoc} accent={accent} onChange={handleCoverChange} onSelectionChange={handleSelectionChange} />
             </div>
+
+            {/* FACIT stamp — shown on top of cover in answer-key mode */}
+            {showAnswers && (
+              <div style={{
+                position: "absolute",
+                top: 0, left: 0, right: 0,
+                background: accent,
+                color: "white",
+                padding: "10px 24px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                zIndex: 20,
+                pointerEvents: "none",
+              }}>
+                <span style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  fontFamily: headingFont,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}>
+                  Facit
+                </span>
+                <span style={{ fontSize: 10, opacity: 0.75, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  · Lärarexemplar
+                </span>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -2371,12 +2290,33 @@ export function PrintableTest({
           <React.Fragment key={ci}>
             {renderPage(
               <>
-                {ci === 0 && showAnswers && (
-                  <FacitSummaryBox
-                    items={items}
-                    accent={accent}
-                    headingFont={headingFont}
-                  />
+                {/* When no cover page, show FACIT strip at top of first question page */}
+                {ci === 0 && showAnswers && !showCover && (
+                  <div style={{
+                    marginBottom: "5mm",
+                    marginTop: "-4mm",
+                    marginLeft: `calc(-${marginStr})`,
+                    marginRight: `calc(-${marginStr})`,
+                    background: accent,
+                    color: "white",
+                    padding: "8px 24px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      fontFamily: headingFont,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}>
+                      Facit
+                    </span>
+                    <span style={{ fontSize: 9.5, opacity: 0.8, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      · Lärarexemplar
+                    </span>
+                  </div>
                 )}
                 {content}
               </>,
