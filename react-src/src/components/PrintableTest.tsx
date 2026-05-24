@@ -1516,7 +1516,7 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
   } else if (q.type === "true_false") {
     const val = c.correct as number | null | undefined;
     if (val === null || val === undefined) return null;
-    answerNode = <span>{val === 0 ? "Sant" : "Falskt"}</span>;
+    answerNode = <span style={{ fontWeight: 600 }}>{val === 0 ? "Sant" : "Falskt"}</span>;
   } else if (q.type === "matching") {
     // Matching answers are shown inline by QuestionBody when showAnswers=true
     return null;
@@ -1526,9 +1526,15 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
       const hasDefs = dc.terms.some(t => t.def);
       if (!hasDefs) return null;
       answerNode = (
-        <span>
-          {dc.terms.filter(t => t.def).map(t => `${t.term}: ${t.def}`).join(" · ")}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1mm", marginTop: "1mm" }}>
+          {dc.terms.filter(t => t.def).map((t, i) => (
+            <div key={i} style={{ display: "flex", gap: "2mm" }}>
+              <span style={{ fontWeight: 700, minWidth: "24mm", flexShrink: 0 }}
+                dangerouslySetInnerHTML={{ __html: t.term }} />
+              <span dangerouslySetInnerHTML={{ __html: t.def }} />
+            </div>
+          ))}
+        </div>
       );
     } else {
       return null;
@@ -1536,18 +1542,40 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
   } else if (q.type === "short_answer" || q.type === "numeric") {
     const answer = (c.answer as string | undefined) ?? (c.model as string | undefined);
     if (!answer) return null;
-    answerNode = <span>{answer}</span>;
+    answerNode = <span style={{ fontWeight: 500 }} dangerouslySetInnerHTML={{ __html: answer }} />;
   } else if (q.type === "cloze") {
-    // Extract blanks from the cloze text (___+)
     const text = (c.text as string) ?? "";
     const blanks = text.match(/_{3,}/g);
     const answers = (c.answers as string[] | undefined) ?? (c.model as string[] | undefined);
     if (!answers || answers.length === 0) {
       if (!blanks) return null;
-      answerNode = <span>{blanks.length} luckor</span>;
+      answerNode = <span style={{ color: "#777" }}>{blanks.length} luckor</span>;
     } else {
-      answerNode = <span>{answers.join(", ")}</span>;
+      answerNode = (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1mm 5mm" }}>
+          {answers.map((a, i) => (
+            <span key={i}>
+              <span style={{ fontWeight: 700, color: accent, fontSize: 9 }}>{i + 1}.</span>{" "}
+              <span style={{ fontWeight: 500 }}>{a}</span>
+            </span>
+          ))}
+        </div>
+      );
     }
+  } else if (q.type === "ranking") {
+    const rc = q.content as RankingContent;
+    const items = rc.items ?? [];
+    if (items.length === 0) return null;
+    answerNode = (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1mm 5mm" }}>
+        {items.map((item, i) => (
+          <span key={i}>
+            <span style={{ fontWeight: 700, color: accent, fontSize: 9 }}>{i + 1}.</span>{" "}
+            <span style={{ fontWeight: 500 }} dangerouslySetInnerHTML={{ __html: item }} />
+          </span>
+        ))}
+      </div>
+    );
   } else {
     return null;
   }
@@ -1556,19 +1584,145 @@ function AnswerKeyBox({ q, accent }: { q: Question; accent: string }) {
 
   return (
     <div style={{
-      marginTop: "3mm",
-      padding: "2mm 4mm",
-      background: accent + "12",
-      borderLeft: `2px solid ${accent}`,
-      borderRadius: "0 3px 3px 0",
-      fontSize: 9.5,
-      color: "#333",
-      lineHeight: 1.4,
+      marginTop: "3.5mm",
+      padding: "2.5mm 5mm",
+      background: accent + "10",
+      border: `1.2px solid ${accent}40`,
+      borderLeft: `3px solid ${accent}`,
+      borderRadius: "0 4px 4px 0",
+      fontSize: 10,
+      color: "#222",
+      lineHeight: 1.5,
     }}>
-      <span style={{ fontWeight: 700, color: accent, marginRight: "4px", letterSpacing: "0.05em" }}>
-        SVAR:
-      </span>
+      <div style={{ fontWeight: 700, color: accent, fontSize: 8.5, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "1.5mm" }}>
+        Svar
+      </div>
       {answerNode}
+    </div>
+  );
+}
+
+/* ─── Facit short-answer extractor ───────────────────────────────────── */
+
+function extractShortAnswer(q: Question): string {
+  const c = q.content as Record<string, unknown>;
+  if (q.type === "multiple_choice") {
+    const mc = q.content as MultipleChoiceContent;
+    const idxs = Array.isArray(mc.correctIndex) ? mc.correctIndex
+                 : mc.correctIndex != null ? [mc.correctIndex as number] : [];
+    return idxs.map((i: number) => String.fromCharCode(65 + i)).join(", ");
+  }
+  if (q.type === "true_false") {
+    const val = c.correct as number | null | undefined;
+    return val === 0 ? "Sant" : val === 1 ? "Falskt" : "";
+  }
+  if (q.type === "short_answer" || q.type === "numeric") {
+    return String(c.answer ?? c.model ?? "");
+  }
+  if (q.type === "cloze") {
+    const answers = (c.answers as string[] | undefined) ?? (c.model as string[] | undefined);
+    return answers?.join(", ") ?? "";
+  }
+  if (q.type === "matching") {
+    const mc = q.content as MatchingContent;
+    const pairs = mc.pairs ?? [];
+    const n = pairs.length;
+    if (n === 0) return "";
+    const offset = n <= 2 ? 1 : Math.ceil(n / 2);
+    return pairs.map((_, i) => `${i + 1}→${String.fromCharCode(65 + (i - offset + n) % n)}`).join("  ");
+  }
+  if (q.type === "definition") {
+    const dc = q.content as DefinitionContent;
+    if (dc.terms && dc.terms.length > 0) {
+      return dc.terms.filter(t => t.def).map(t => `${t.term}: ${t.def}`).join(" · ");
+    }
+  }
+  return "";
+}
+
+/* ─── Facit summary box (first question page) ────────────────────────── */
+
+function FacitSummaryBox({ items, accent, headingFont }: { items: PrintableItem[]; accent: string; headingFont: string }) {
+  const rows: { num: number; answer: string; hasDetail: boolean }[] = [];
+  let qNum = 0;
+  for (const it of items) {
+    if ("kind" in it && it.kind === "block") continue;
+    const qi = it as PrintableQuestionItem;
+    if (qi.group) continue; // sub-questions: skip in summary
+    qNum++;
+    const q = qi.question;
+    const answer = extractShortAnswer(q);
+    const hasDetail =
+      !!(q.rubric && (q.rubric.E || q.rubric.C || q.rubric.A)) ||
+      q.assessment_mode === "np_variant" ||
+      !!(q.assessment_text);
+    rows.push({ num: qNum, answer, hasDetail });
+  }
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div style={{
+      marginBottom: "7mm",
+      border: `1.5px solid ${accent}`,
+      borderRadius: 5,
+      overflow: "hidden",
+      breakInside: "avoid",
+      pageBreakInside: "avoid",
+    }}>
+      {/* Header strip */}
+      <div style={{
+        background: accent,
+        color: "white",
+        padding: "3.5mm 5mm",
+        display: "flex",
+        alignItems: "center",
+        gap: "4mm",
+      }}>
+        <span style={{
+          fontSize: 12,
+          fontWeight: 800,
+          fontFamily: headingFont,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}>
+          Facit
+        </span>
+        <span style={{ fontSize: 8.5, opacity: 0.75, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          · Lärarexemplar
+        </span>
+      </div>
+
+      {/* Answer grid */}
+      <div style={{ padding: "4mm 5mm", background: `${accent}07` }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(42mm, 1fr))",
+          gap: "2.5mm 5mm",
+        }}>
+          {rows.map(r => (
+            <div key={r.num} style={{ display: "flex", gap: "2mm", alignItems: "baseline" }}>
+              <span style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: accent,
+                minWidth: "7mm",
+                flexShrink: 0,
+              }}>
+                {r.num}.
+              </span>
+              <span style={{ fontSize: 9, color: "#1a1613", lineHeight: 1.4 }}>
+                {r.answer
+                  ? r.answer
+                  : r.hasDetail
+                    ? <em style={{ color: "#888", fontStyle: "normal" }}>se bedömning</em>
+                    : <span style={{ color: "#bbb" }}>—</span>
+                }
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -2215,7 +2369,19 @@ export function PrintableTest({
         });
         return (
           <React.Fragment key={ci}>
-            {renderPage(content, ci + startPageNumber)}
+            {renderPage(
+              <>
+                {ci === 0 && showAnswers && (
+                  <FacitSummaryBox
+                    items={items}
+                    accent={accent}
+                    headingFont={headingFont}
+                  />
+                )}
+                {content}
+              </>,
+              ci + startPageNumber
+            )}
           </React.Fragment>
         );
       })}
