@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#21706D"/>
+      <stop offset="100%" stop-color="#164E4B"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D4A020"/>
+      <stop offset="100%" stop-color="#B07018"/>
+    </linearGradient>
+    <filter id="ps" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="rgba(0,0,0,0.22)"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle top-left highlight -->
+  <ellipse cx="140" cy="90" rx="180" ry="100" fill="white" opacity="0.05"/>
+
+  <!-- Back sheet (rotated, faded) -->
+  <g transform="rotate(7 256 320)">
+    <rect x="118" y="82" width="276" height="356" rx="16" fill="#FEFCF8" opacity="0.30"/>
+  </g>
+
+  <!-- Front sheet -->
+  <rect x="106" y="70" width="280" height="360" rx="16" fill="#FEFCF8" filter="url(#ps)"/>
+
+  <!-- Header band (teal, top of page) -->
+  <clipPath id="pageClip">
+    <rect x="106" y="70" width="280" height="360" rx="16"/>
+  </clipPath>
+  <rect x="106" y="70" width="280" height="86" rx="16" fill="#1A5956" clip-path="url(#pageClip)"/>
+  <!-- Flatten bottom of header band -->
+  <rect x="106" y="130" width="280" height="26" fill="#1A5956"/>
+
+  <!-- Header: "PROVSTUDIO" suggestion — two title lines -->
+  <rect x="138" y="98" width="100" height="11" rx="5.5" fill="white" opacity="0.92"/>
+  <rect x="138" y="118" width="66" height="9" rx="4.5" fill="white" opacity="0.45"/>
+
+  <!-- Three-dot row (decorative, top-right of header) -->
+  <circle cx="326" cy="108" r="7" fill="white" opacity="0.55"/>
+  <circle cx="346" cy="108" r="7" fill="white" opacity="0.30"/>
+  <circle cx="366" cy="108" r="7" fill="white" opacity="0.15"/>
+
+  <!-- Writing lines — block 1 -->
+  <rect x="138" y="180" width="236" height="11" rx="5.5" fill="#DDD8CE"/>
+  <rect x="138" y="206" width="236" height="11" rx="5.5" fill="#DDD8CE"/>
+  <rect x="138" y="232" width="172" height="11" rx="5.5" fill="#DDD8CE"/>
+
+  <!-- Writing lines — block 2 -->
+  <rect x="138" y="272" width="236" height="11" rx="5.5" fill="#DDD8CE"/>
+  <rect x="138" y="298" width="200" height="11" rx="5.5" fill="#DDD8CE"/>
+  <rect x="138" y="324" width="130" height="11" rx="5.5" fill="#DDD8CE"/>
+
+  <!-- Gold assessment badge — overlaps bottom-right corner of sheet -->
+  <circle cx="348" cy="392" r="62" fill="url(#badge)" filter="url(#ps)"/>
+
+  <!-- White checkmark inside badge -->
+  <polyline
+    points="316,392 336,414 382,366"
+    stroke="white"
+    stroke-width="18"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+</svg>
