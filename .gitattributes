@@ -1,0 +1,5 @@
+# Generated single-file bundles — treat as binary so Git never applies EOL or
+# encoding normalization. These must stay valid UTF-8; a stray UTF-16/CRLF
+# rewrite corrupts the served bundle and boots the app to a blank screen.
+electron/index.html -text
+releases/index.html -text

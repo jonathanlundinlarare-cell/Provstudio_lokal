@@ -47,7 +47,15 @@ jobs:
         run: |
           # Vite outputs the bundled single-file HTML to electron/index.html
           # (see react-src/vite.config.ts → build.outDir = '../electron')
-          cp electron/index.html releases/index.html
+          #
+          # Force UTF-8 (no BOM) output. A plain `cp` preserves whatever encoding
+          # the source file has — if electron/index.html ever ends up UTF-16 (e.g.
+          # written by a Windows tool/PowerShell redirect), the browser decodes the
+          # served bundle as garbage and the app boots to a blank white screen with
+          # "Uncaught SyntaxError: Invalid or unexpected token". Re-encoding here
+          # guarantees the published bundle is always valid UTF-8 regardless of the
+          # source encoding.
+          node -e "const fs=require('fs');const b=fs.readFileSync('electron/index.html');let html;if(b[0]===0xFF&&b[1]===0xFE){html=b.toString('utf16le');if(html.charCodeAt(0)===0xFEFF)html=html.slice(1);}else if(b[0]===0xEF&&b[1]===0xBB&&b[2]===0xBF){html=b.slice(3).toString('utf8');}else{html=b.toString('utf8');}fs.writeFileSync('releases/index.html',html,{encoding:'utf8'});console.log('Wrote releases/index.html as UTF-8, '+Buffer.byteLength(html)+' bytes');"
           echo "{\"version\":\"${{ steps.version.outputs.version }}\"}" > releases/latest.json
           echo "Updated releases/ with version ${{ steps.version.outputs.version }}"
 
