@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { documents, questionBank, taxonomy } from "../lib/local-db";
-import { isQuestionRef } from "@/lib/test-types";
+import { isQuestionRef, DIFFICULTY_LABELS } from "@/lib/test-types";
 import { SO_TAXONOMY, SO_SUBJECTS } from "@/lib/so-taxonomy";
+import { getLgr22ForSubject, getLgr22Label } from "@/lib/lgr22-so";
 import type { Question, QuestionType, Difficulty, OpenContent, MultipleChoiceContent, MatchingContent, ImageContent, TableContent, RankingContent, DrawingContent, QuestionStatus } from "@/lib/test-types";
 import {
   Plus, Upload, Edit2, List, CheckSquare, Type,
@@ -42,6 +43,15 @@ const STATUS: Record<QuestionStatus, { label: string; short: string; color: stri
   draft:    { label: "Utkast",    short: "U", color: "#6B6459", bg: "var(--ps-bg-soft)" },
   archived: { label: "Arkiverad", short: "−", color: "#9A9286", bg: "var(--ps-bg-soft)" },
 };
+
+const DIFF_STYLE: Record<Difficulty, { color: string; bg: string }> = {
+  easy:   { color: "#2D7A4F", bg: "rgba(45,122,79,0.10)" },
+  medium: { color: "#B7791F", bg: "rgba(183,121,31,0.10)" },
+  hard:   { color: "#B23A48", bg: "rgba(178,58,72,0.10)" },
+};
+
+type SortKey = "updated" | "difficulty" | "used";
+const DIFF_ORDER: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
 
 // SO_TAXONOMY and SO_SUBJECTS are now imported from @/lib/so-taxonomy
 
@@ -381,7 +391,27 @@ function QuestionCard({ q, expanded, onToggle, onEdit, onDelete, onAddToDoc, use
             {q.updated && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={11} /> {q.updated}</span>}
             {q.used_in !== undefined && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Copy size={11} /> använd i {q.used_in} prov</span>}
             <span className="ps-chip" style={{ fontSize: 10.5 }}>{TYPE_LABELS[q.type] ?? q.type}</span>
+            {q.difficulty && (
+              <span style={{
+                fontSize: 10, padding: "1px 8px", borderRadius: 10, fontWeight: 600, fontFamily: "var(--ps-ui)",
+                color: DIFF_STYLE[q.difficulty].color, background: DIFF_STYLE[q.difficulty].bg,
+              }}>{DIFFICULTY_LABELS[q.difficulty]}</span>
+            )}
           </div>
+
+          {/* Lgr22-taggar */}
+          {q.lgr22 && q.lgr22.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              {q.lgr22.map(code => (
+                <span key={code} title={getLgr22Label(code)} style={{
+                  fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                  background: "var(--ps-accent)12", color: "var(--ps-accent)",
+                  fontWeight: 500, fontFamily: "var(--ps-ui)",
+                  maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>{getLgr22Label(code)}</span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right: curriculum panel */}
@@ -436,6 +466,10 @@ export default function BankPage({ onBack, onAddQuestion }: {
   const [expanded, setExpanded]   = useState<string | null>(null);
   const [search, setSearch]       = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("Alla");
+  const [diffFilter, setDiffFilter] = useState<Difficulty | "Alla">("Alla");
+  const [statusFilter, setStatusFilter] = useState<QuestionStatus | "Alla">("Alla");
+  const [lgr22Filter, setLgr22Filter] = useState<string>("Alla");
+  const [sortBy, setSortBy]       = useState<SortKey>("updated");
   const [creatingType, setCreatingType] = useState<QuestionType | null>(null);
   const [editingQ, setEditingQ]   = useState<Question | null>(null);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -468,8 +502,14 @@ export default function BankPage({ onBack, onAddQuestion }: {
     return next;
   });
 
+  // The subject the active tree node belongs to (drives the Lgr22 filter options)
+  const activeSubject = activeId.startsWith("subj::")
+    ? activeId.slice(6)
+    : (activeId.includes("::") ? activeId.split("::")[0] : "");
+  const lgr22Options = activeSubject ? getLgr22ForSubject(activeSubject) : [];
+
   // Filter logic
-  const visible = questions.filter(q => {
+  const filtered = questions.filter(q => {
     if (activeId !== "__all__") {
       if (activeId.startsWith("subj::")) {
         const subj = activeId.slice(6);
@@ -481,6 +521,9 @@ export default function BankPage({ onBack, onAddQuestion }: {
       }
     }
     if (typeFilter !== "Alla" && q.type !== typeFilter) return false;
+    if (diffFilter !== "Alla" && q.difficulty !== diffFilter) return false;
+    if (statusFilter !== "Alla" && (q.status ?? "draft") !== statusFilter) return false;
+    if (lgr22Filter !== "Alla" && !(q.lgr22 ?? []).includes(lgr22Filter)) return false;
     if (search) {
       const c = q.content as Record<string, unknown>;
       const text = ((c?.text as string) ?? (c?.term as string) ?? (c?.title as string) ?? "").toLowerCase();
@@ -488,6 +531,25 @@ export default function BankPage({ onBack, onAddQuestion }: {
     }
     return true;
   });
+
+  // Sorting
+  const visible = [...filtered].sort((a, b) => {
+    if (sortBy === "difficulty") {
+      const da = a.difficulty ? DIFF_ORDER[a.difficulty] : 99;
+      const db = b.difficulty ? DIFF_ORDER[b.difficulty] : 99;
+      return da - db;
+    }
+    if (sortBy === "used") {
+      return (usedInMap.get(b.id) ?? 0) - (usedInMap.get(a.id) ?? 0);
+    }
+    return 0; // "updated" — behåll insättningsordning (senast skapade sist i listan)
+  });
+
+  const activeFilterCount =
+    (typeFilter !== "Alla" ? 1 : 0) +
+    (diffFilter !== "Alla" ? 1 : 0) +
+    (statusFilter !== "Alla" ? 1 : 0) +
+    (lgr22Filter !== "Alla" ? 1 : 0);
 
   // Active node label for breadcrumb
   const findNode = (nodes: TreeNode[], id: string): TreeNode | null => {
@@ -604,6 +666,67 @@ export default function BankPage({ onBack, onAddQuestion }: {
                 <option key={t} value={t}>{TYPE_LABELS[t] ?? t}</option>
               ))}
             </select>
+          </div>
+
+          {/* Filter & sort bar */}
+          <div className="ps-card" style={{ padding: "12px 18px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+            {/* Difficulty chips */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Svårighet</span>
+              {(["easy", "medium", "hard"] as const).map(d => {
+                const active = diffFilter === d;
+                return (
+                  <button key={d} onClick={() => setDiffFilter(active ? "Alla" : d)} style={{
+                    padding: "4px 10px", borderRadius: 20, cursor: "pointer", fontSize: 11.5, fontFamily: "var(--ps-ui)",
+                    border: `1px solid ${active ? DIFF_STYLE[d].color : "var(--ps-rule-2)"}`,
+                    background: active ? DIFF_STYLE[d].bg : "transparent",
+                    color: active ? DIFF_STYLE[d].color : "var(--ps-ink-3)",
+                    fontWeight: active ? 600 : 400,
+                  }}>{DIFFICULTY_LABELS[d]}</button>
+                );
+              })}
+            </div>
+
+            {/* Status filter */}
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as QuestionStatus | "Alla")}
+              className="ps-input" style={{ height: 32, fontSize: 12, flexShrink: 0 }}>
+              <option value="Alla">Alla statusar</option>
+              <option value="draft">Utkast</option>
+              <option value="review">Granska</option>
+              <option value="approved">Godkänd</option>
+              <option value="archived">Arkiverad</option>
+            </select>
+
+            {/* Lgr22 filter — visas när det aktiva ämnet har centralt innehåll */}
+            {lgr22Options.length > 0 && (
+              <select value={lgr22Filter} onChange={e => setLgr22Filter(e.target.value)}
+                className="ps-input" style={{ height: 32, fontSize: 12, flexShrink: 0, maxWidth: 240 }}>
+                <option value="Alla">Allt centralt innehåll</option>
+                {lgr22Options.map(e => (
+                  <option key={e.code} value={e.code}>{e.category} · {e.label}</option>
+                ))}
+              </select>
+            )}
+
+            <div style={{ flex: 1 }} />
+
+            {activeFilterCount > 0 && (
+              <button className="ps-btn ps-btn-ghost ps-btn-sm" style={{ color: "var(--ps-ink-3)" }}
+                onClick={() => { setTypeFilter("Alla"); setDiffFilter("Alla"); setStatusFilter("Alla"); setLgr22Filter("Alla"); }}>
+                <X size={12} /> Rensa filter ({activeFilterCount})
+              </button>
+            )}
+
+            {/* Sort */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10.5, color: "var(--ps-ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Sortera</span>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)}
+                className="ps-input" style={{ height: 32, fontSize: 12, flexShrink: 0 }}>
+                <option value="updated">Senast tillagd</option>
+                <option value="difficulty">Svårighet</option>
+                <option value="used">Mest använd</option>
+              </select>
+            </div>
           </div>
 
           {/* Question cards */}
@@ -851,9 +974,13 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
   const [gpC, setGpC]         = useState<number>(question?.grade_points?.C ?? 0);
   const [gpA, setGpA]         = useState<number>(question?.grade_points?.A ?? 0);
   const [author, setAuthor]   = useState(question?.author || "");
+  const [lgr22, setLgr22]     = useState<string[]>(question?.lgr22 ?? []);
   const [saving, setSaving]   = useState(false);
   const [tab, setTab]         = useState<"content" | "rubric">("content");
   const imgRef = useRef<HTMLInputElement>(null);
+
+  // Lgr22-koder för valt ämne (centralt innehåll). Tomt = ämnet saknar mappning.
+  const lgr22Entries = getLgr22ForSubject(subject);
 
   const ensureCols = (n: number) => {
     setHeaders(h => { const nx = [...h]; while (nx.length < n) nx.push(""); while (nx.length > n) nx.pop(); return nx; });
@@ -893,6 +1020,7 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
       rubric,
       grade_points,
       author: author || undefined,
+      lgr22: lgr22.length ? lgr22 : null,
       updated: "just nu",
     };
     if (mode === "create") {
@@ -1175,6 +1303,34 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
                 <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Namn" className="ps-input" style={{ width: "100%", marginTop: 4 }} />
               </div>
             </div>
+
+            {/* Lgr22 — centralt innehåll (visas för SO-ämnen) */}
+            {lgr22Entries.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ps-ink-3)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 6 }}>
+                  Kursplanskoppling · {subject} ({lgr22.length} valda)
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 200, overflowY: "auto", paddingRight: 2, border: "1px solid var(--ps-rule)", borderRadius: 8, padding: "8px 10px" }}>
+                  {lgr22Entries.map(e => {
+                    const checked = lgr22.includes(e.code);
+                    return (
+                      <label key={e.code} style={{ display: "flex", alignItems: "flex-start", gap: 7, fontSize: 11.5, cursor: "pointer", padding: "2px 0" }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setLgr22(checked ? lgr22.filter(c => c !== e.code) : [...lgr22, e.code])}
+                          style={{ marginTop: 2, flexShrink: 0, accentColor: "var(--ps-accent)" }}
+                        />
+                        <span>
+                          <span style={{ color: "var(--ps-ink-4)", fontSize: 10.5 }}>{e.category} · </span>
+                          <span style={{ color: "var(--ps-ink-2)" }}>{e.label}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

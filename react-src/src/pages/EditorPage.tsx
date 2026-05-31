@@ -68,6 +68,7 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { QuestionEditModal2 } from "@/components/editor/QuestionEditModal2";
 import { BankPickerModal } from "@/components/BankPickerModal";
 import { LayoutPanel, SektionerPanel, DocPanel, VersionsPanel } from "./editor/DesignPanel";
+import { KursplanPanel } from "@/components/editor/KursplanPanel";
 
 /* ─── Route ────────────────────────────────────────────────────────────── */
 
@@ -132,7 +133,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
   const [docType, setDocType]     = useState<DocumentType>("test");
   const [loading, setLoading]     = useState(true);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
-  const [rightTab, setRightTab]       = useState<"layout"|"sections"|"doc"|"versions">("layout");
+  const [rightTab, setRightTab]       = useState<"layout"|"sections"|"doc"|"kursplan"|"versions">("layout");
   const [centerMode, setCenterMode]   = useState<"preview"|"answer">("preview");
   const [editingQ, setEditingQ]       = useState<Question | null>(null);
   const [addMode, setAddMode]         = useState<"questions"|"blocks">("questions");
@@ -507,6 +508,7 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
             { id: "layout"   as const, label: "Layout" },
             { id: "sections" as const, label: "Sektioner" },
             { id: "doc"      as const, label: "Dokument" },
+            { id: "kursplan" as const, label: "Kursplan" },
             { id: "versions" as const, label: "Versioner" },
           ]).map(t => (
             <button key={t.id} onClick={() => setRightTab(t.id)} style={{
@@ -534,6 +536,15 @@ export default function EditorPage({ documentId, onBack }: { documentId: string;
             />
           )}
           {rightTab === "doc" && <DocPanel design={design} setD={setD} title={title} setTitle={setTitle} bank={bank} questionOrder={order} />}
+          {rightTab === "kursplan" && (
+            <KursplanPanel
+              subject={docSubject}
+              order={order}
+              bank={bank}
+              accent={design.primaryColor ?? "#1E5F5C"}
+              onOpenBankPicker={() => setBankPickerOpen(true)}
+            />
+          )}
           {rightTab === "versions" && (
             <VersionsPanel documentId={documentId} />
           )}
