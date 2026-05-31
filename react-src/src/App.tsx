@@ -65,6 +65,8 @@ export default function App() {
   }, [newDocDialog]);
 
   useEffect(() => {
+    let periodicCheck: ReturnType<typeof setInterval> | null = null;
+
     initStore().then(async () => {
       setReady(true);
       // Hantera ?print=docId — öppnat av Electron för utskrift/PDF-export.
@@ -92,9 +94,13 @@ export default function App() {
           }
         }, 4000);
         // Periodic silent check every 30 minutes
-        setInterval(() => silentCheck(), 30 * 60 * 1000);
+        periodicCheck = setInterval(() => silentCheck(), 30 * 60 * 1000);
       }
     });
+
+    return () => {
+      if (periodicCheck) clearInterval(periodicCheck);
+    };
   }, []);
 
   async function silentCheck() {

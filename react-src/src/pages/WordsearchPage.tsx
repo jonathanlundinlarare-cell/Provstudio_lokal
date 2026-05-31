@@ -308,13 +308,19 @@ export default function WordsearchPage({ documentId, onBack, printMode = false }
       toast.error("Lägg till minst ett ord (minst 2 bokstäver) innan du genererar rutnätet.");
       return;
     }
-    const { grid, solution } = generateWordSearch(
+    const { grid, solution, skipped } = generateWordSearch(
       valid.map(e => ({ word: e.word.toUpperCase().trim(), clue: e.clue })),
       content.gridSize ?? 16,
     );
     setContent(c => ({ ...c, grid, solution }));
     setGenerated(true);
-    toast.success(`Rutnät genererat med ${valid.length} ord!`);
+    if (skipped.length > 0) {
+      toast.warning(
+        `${skipped.length} ord fick inte plats och saknas i pusslet: ${skipped.join(", ")}. Prova ett större rutnät.`
+      );
+    } else {
+      toast.success(`Rutnät genererat med ${valid.length} ord!`);
+    }
   }, [content.entries, content.gridSize]);
 
   /* ── PDF export ── */

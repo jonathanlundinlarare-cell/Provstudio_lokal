@@ -11,17 +11,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { taxonomy, questionBank } from "@/lib/local-db";
 import { SO_TAXONOMY } from "@/lib/so-taxonomy";
 import { getLgr22ForSubject } from "@/lib/lgr22-so";
-import katex from "katex";
-
-/* ── KaTeX helper ────────────────────────────────────────────────────────── */
-function renderKatex(src: string): string {
-  if (!src.trim()) return "";
-  try {
-    return katex.renderToString(src, { throwOnError: false, displayMode: true });
-  } catch {
-    return `<code style="font-family:monospace">${src}</code>`;
-  }
-}
+import { renderKatex } from "@/lib/katex-utils";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -1483,8 +1473,13 @@ function TypeSpecificFields({
       function handleGenerate() {
         const valid = entries.filter(e => e.word.trim().length > 0);
         if (valid.length === 0) return;
-        const { grid, solution } = generateWordSearch(valid, gridSize);
+        const { grid, solution, skipped } = generateWordSearch(valid, gridSize);
         patchContent({ grid, solution, entries: valid });
+        if (skipped.length > 0) {
+          alert(
+            `${skipped.length} ord fick inte plats och saknas i pusslet:\n${skipped.join(", ")}\n\nProva ett större rutnät.`
+          );
+        }
       }
 
       return (

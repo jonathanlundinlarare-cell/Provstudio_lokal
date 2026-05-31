@@ -541,9 +541,13 @@ export type TitleAccent = {
 export type FontFamily = "serif" | "humanist" | "geometrisk" | "system" | "sans" | "rounded" | "mono";
 
 export type DesignSettings = {
+  /** @deprecated Använd `margin` istället. Kvar enbart för bakåtkompatibilitet med sparade filer. */
   marginTop: number;
+  /** @deprecated Använd `margin` istället. */
   marginRight: number;
+  /** @deprecated Använd `margin` istället. */
   marginBottom: number;
+  /** @deprecated Använd `margin` istället. */
   marginLeft: number;
   primaryColor: string;
   defaultLines: number;
@@ -562,7 +566,7 @@ export type DesignSettings = {
   logoUrl?: string;
   /** Försättsbild under titeln (URL). */
   coverImageUrl?: string;
-  /** Storlek på frågetext (pt). */
+  /** @deprecated Använd `bodySize` istället. Kvar enbart för bakåtkompatibilitet med sparade filer. */
   fontSizeBody?: number;
   /** Storlek på siffran i frågeblockets banner (pt). */
   fontSizeBlockNumber?: number;
@@ -702,6 +706,8 @@ export type DesignSettings = {
 };
 
 export const DEFAULT_DESIGN: DesignSettings = {
+  // v1 legacy margin fields — kept so the type stays valid for saved data.
+  // New code should read `design.margin ?? design.marginLeft`.
   marginTop: 20,
   marginRight: 20,
   marginBottom: 20,
@@ -717,7 +723,7 @@ export const DEFAULT_DESIGN: DesignSettings = {
   footerText: "",
   logoUrl: "",
   coverImageUrl: "",
-  fontSizeBody: 11,
+  // fontSizeBody intentionally omitted — canonical field is `bodySize` below.
   fontSizeBlockNumber: 24,
   blockNumberPaddingY: 4,
   fontSizeTitle: 56,
@@ -791,22 +797,6 @@ export const COLOR_THEMES: ColorTheme[] = [
   { name: "Senap", primary: "#a87f1a" },
   { name: "Plommon", primary: "#5c2a5c" },
 ];
-
-// ---------------------------------------------------------------------------
-// TestRecord (utökat i v2 med doc_type)
-// ---------------------------------------------------------------------------
-
-export type TestRecord = {
-  id: string;
-  user_id: string;
-  title: string;
-  subtitle: string | null;
-  design_settings: DesignSettings;
-  /** v1: TestQuestionRef[]. v2: QuestionOrderItem[] (bakåtkompatibel union). */
-  question_order: QuestionOrderItem[];
-  /** v2: Dokumenttyp. DEFAULT 'test' — befintliga rader oförändrade. */
-  doc_type?: DocumentType;
-};
 
 // ---------------------------------------------------------------------------
 // TestQuestionRef (oförändrad från v1)

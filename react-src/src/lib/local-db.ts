@@ -122,8 +122,39 @@ export async function initStore(): Promise<void> {
       customTaxonomy: r.customTaxonomy as Record<string, string[]> ?? undefined,
     } as LocalStore;
   } else {
-    // schema mismatch or missing — start fresh but log it
-    console.warn("[local-db] Unrecognised schema, starting fresh", raw);
+    // Schema mismatch or missing schemaVersion — attempt best-effort recovery
+    // rather than silently wiping all user data. Apply the same validation as
+    // the normal path and load whatever is recoverable.
+    console.warn("[local-db] Unrecognised or missing schemaVersion — attempting best-effort recovery", raw);
+    if (raw && typeof raw === "object") {
+      const r = raw as Record<string, unknown>;
+      const rawQuestions = Array.isArray(r.questions) ? r.questions : [];
+      const recoveredQuestions = rawQuestions.filter(
+        (q): q is Question =>
+          q !== null && typeof q === "object" &&
+          typeof (q as Record<string, unknown>).id === "string" &&
+          typeof (q as Record<string, unknown>).type === "string"
+      );
+      const rawDocuments = Array.isArray(r.documents) ? r.documents : [];
+      const recoveredDocuments = rawDocuments.filter(
+        (d): d is LocalDocument =>
+          d !== null && typeof d === "object" &&
+          typeof (d as Record<string, unknown>).id === "string" &&
+          typeof (d as Record<string, unknown>).title === "string"
+      );
+      if (recoveredQuestions.length > 0 || recoveredDocuments.length > 0) {
+        store = {
+          schemaVersion: 1,
+          questions: recoveredQuestions,
+          documents: recoveredDocuments,
+          customTaxonomy: r.customTaxonomy as Record<string, string[]> ?? undefined,
+        } as LocalStore;
+        console.warn(
+          `[local-db] Recovered ${recoveredQuestions.length} question(s) and ${recoveredDocuments.length} document(s) from unknown schema`
+        );
+      }
+      // If nothing is recoverable, store remains the empty default — start fresh
+    }
   }
 }
 

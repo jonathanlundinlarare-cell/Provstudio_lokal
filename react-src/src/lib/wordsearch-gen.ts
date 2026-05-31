@@ -18,7 +18,7 @@ const DIRS: [number, number][] = [
   [-1, 1],  // 7: NE
 ];
 
-const FILL_CHARS = 'ABCDEFGHIJKLMNOPRSTUVXY';
+const FILL_CHARS = 'ABCDEFGHIJKLMNOPRSTUVWXYÅÄÖ';
 
 function randomInt(max: number): number {
   return Math.floor(Math.random() * max);
@@ -57,12 +57,13 @@ function placeWord(
 export function generateWordSearch(
   entries: WordSearchEntry[],
   gridSize = 16,
-): { grid: string[][]; solution: WordSearchSolution[] } {
+): { grid: string[][]; solution: WordSearchSolution[]; skipped: string[] } {
   const N = gridSize;
   const grid: (string | null)[][] = Array.from({ length: N }, () =>
     Array(N).fill(null),
   );
   const solution: WordSearchSolution[] = [];
+  const skipped: string[] = [];
 
   // Sort longest first (hardest to place)
   const sorted = [...entries].sort((a, b) => b.word.length - a.word.length);
@@ -82,7 +83,10 @@ export function generateWordSearch(
         placed = true;
       }
     }
-    // If a word can't be placed, skip it silently
+    if (!placed) {
+      // Word could not fit — record it so callers can warn the user
+      skipped.push(entry.word);
+    }
   }
 
   // Fill remaining cells
@@ -92,5 +96,5 @@ export function generateWordSearch(
     ),
   );
 
-  return { grid: filled, solution };
+  return { grid: filled, solution, skipped };
 }
