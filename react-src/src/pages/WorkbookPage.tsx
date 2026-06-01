@@ -555,20 +555,36 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
     });
   }, [freeForm]);
 
-  /* ── Free-form drag handler ── */
+  /* ── Free-form drag handler ──
+   * Logiska sidkoordinater (480×678) kan renderas nedskalade om en
+   * transform finns i förfäderkedjan. Vi mäter därför den faktiska skalan
+   * från elementet (getBoundingClientRect vs offsetWidth) och räknar om
+   * muspekarens skärm-delta till logiska enheter, och klampar till sidans
+   * yta så att block aldrig kan dras utanför sidan och klippas bort. */
+  const PAGE_W = 480;
+  const PAGE_H = 678;
   const startDrag = (blockId: string, e: React.MouseEvent) => {
     if (!freeForm) return;
     e.preventDefault();
     e.stopPropagation();
     const block = blocks.find(b => b.block_id === blockId);
+    const el = e.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    // Faktisk renderskala (1 om ingen transform). Skyddar mot div/0.
+    const scale = el.offsetWidth > 0 ? (rect.width / el.offsetWidth) : 1;
+    const blockW = el.offsetWidth;   // logiska enheter
+    const blockH = el.offsetHeight;
     const startX = e.clientX;
     const startY = e.clientY;
-    const startLayout = block?.layout ?? { x: 0, y: 0, w: 0, h: 0 };
+    const startLayout = block?.layout ?? { x: 0, y: 0, w: blockW, h: blockH };
     const onMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      // Skärm-delta → logiska enheter
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      const nx = Math.max(0, Math.min(PAGE_W - blockW, startLayout.x + dx));
+      const ny = Math.max(0, Math.min(PAGE_H - blockH, startLayout.y + dy));
       setBlocks(bb => bb.map(r => r.block_id === blockId
-        ? { ...r, layout: { x: startLayout.x + dx, y: startLayout.y + dy, w: startLayout.w, h: startLayout.h } }
+        ? { ...r, layout: { x: nx, y: ny, w: startLayout.w, h: startLayout.h } }
         : r));
     };
     const onUp = () => {
@@ -1081,7 +1097,10 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
               let localEx = startExNum;
               return pageBlocks.map(b => {
                 if (b.block_type === "exercise") localEx++;
-                const hasFreePos = !!b.layout && (b.layout.x !== 0 || b.layout.y !== 0);
+                // Absolut positionering gäller ENDAST i free-form-läge. I låst
+                // läge radomflödar blocken linjärt även om de har en sparad
+                // layout (positionerna återanvänds nästa gång free-form slås på).
+                const hasFreePos = freeForm && !!b.layout && (b.layout.x !== 0 || b.layout.y !== 0);
                 const onBlockClick = () => {
                   if (freeForm) return;  // In free-form, click is drag-start only
                   setSelectedId(b.block_id);
@@ -1130,6 +1149,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
                   padding: freeForm ? 0 : "28px 32px", fontFamily, color: "#14110D",
                   display: freeForm ? "block" : "flex", flexDirection: "column", boxSizing: "border-box",
+                  userSelect: freeForm ? "none" : undefined,
                   position: "relative", overflow: freeForm ? "hidden" : undefined }}>
                   {renderPageBlocks(left, leftExStart)}
                   {!freeForm && <PageFooter pageNum={spreadIdx * 2 + 1} course={design.course ?? ""} chapter={design.chapter ?? ""} side="left" />}
@@ -1140,6 +1160,7 @@ export default function WorkbookPage({ documentId, onBack }: { documentId: strin
                   boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 16px 50px -28px rgba(20,17,13,0.2)",
                   padding: freeForm ? 0 : "28px 32px", fontFamily, color: "#14110D",
                   display: freeForm ? "block" : "flex", flexDirection: "column", boxSizing: "border-box",
+                  userSelect: freeForm ? "none" : undefined,
                   position: "relative", overflow: freeForm ? "hidden" : undefined }}>
                   {renderPageBlocks(right, rightExStart)}
                   {!freeForm && <PageFooter pageNum={spreadIdx * 2 + 2} course={design.course ?? ""} chapter={design.chapter ?? ""} side="right" />}
