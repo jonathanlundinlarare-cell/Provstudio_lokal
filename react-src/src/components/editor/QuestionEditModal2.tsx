@@ -317,6 +317,102 @@ const psInput: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+/* ── AttachedImageEditor ────────────────────────────────────────────────── */
+/* Universell bild-bilaga som kan läggas på alla frågetyper (utom bild/diagram
+   som redan har en egen bild). Lokal bild via filväljaren eller URL, med
+   bredd-, justerings- och placeringskontroller. */
+
+const attachSegStyle = (active: boolean): React.CSSProperties => ({
+  height: 28, borderRadius: 6, border: "1px solid",
+  borderColor: active ? "var(--ps-accent)" : "var(--ps-rule-2)",
+  background: active ? "var(--ps-accent)" : "transparent",
+  color: active ? "#fff" : "var(--ps-ink-2)",
+  fontFamily: "var(--ps-ui)", fontSize: 12, cursor: "pointer",
+});
+
+type AttachedImg = NonNullable<Question["attachedImage"]>;
+
+function AttachedImageEditor({ q, patchQ }: { q: Question; patchQ: (f: Partial<Question>) => void }) {
+  const img = q.attachedImage ?? null;
+  const setImg = (patch: Partial<AttachedImg>) => {
+    const base: AttachedImg = img ?? { src: "", widthPct: 60, align: "center", position: "above" };
+    patchQ({ attachedImage: { ...base, ...patch } });
+  };
+  const clear = () => patchQ({ attachedImage: null });
+
+  return (
+    <Collapser title="Bild på frågan" defaultOpen={!!img?.src}>
+      {img?.src ? (
+        <>
+          <div style={{ marginBottom: 8, borderRadius: 6, overflow: "hidden", border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)", position: "relative" }}>
+            <img
+              src={img.src}
+              alt=""
+              style={{ display: "block", maxWidth: "100%", maxHeight: 160, objectFit: "contain", margin: "0 auto" }}
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
+            <button
+              type="button"
+              onClick={clear}
+              title="Ta bort bild"
+              style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 4, cursor: "pointer", color: "#fff", padding: "2px 5px", display: "flex", alignItems: "center" }}
+            >
+              <ImageOff size={12} />
+            </button>
+          </div>
+
+          <ModalField label={`Bredd: ${img.widthPct}%`}>
+            <input
+              type="range" min={20} max={100} step={5} value={img.widthPct}
+              onChange={(e) => setImg({ widthPct: parseInt(e.target.value) || 60 })}
+              style={{ width: "100%", accentColor: "var(--ps-accent)" }}
+            />
+          </ModalField>
+
+          <ModalField label="Justering">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+              {([["left", "Vänster"], ["center", "Center"], ["right", "Höger"]] as const).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setImg({ align: v })} style={attachSegStyle(img.align === v)}>{l}</button>
+              ))}
+            </div>
+          </ModalField>
+
+          <ModalField label="Placering">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+              {([["above", "Ovanför frågan"], ["below", "Under frågan"]] as const).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setImg({ position: v })} style={attachSegStyle((img.position ?? "above") === v)}>{l}</button>
+              ))}
+            </div>
+          </ModalField>
+        </>
+      ) : (
+        <>
+          {window.localAPI?.pickImage && (
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await window.localAPI!.pickImage!();
+                if (res) setImg({ src: res.dataUrl });
+              }}
+              style={{ width: "100%", marginBottom: 8, padding: "6px 0", border: "1px dashed var(--ps-rule-2)", borderRadius: 5, background: "none", cursor: "pointer", color: "var(--ps-ink-2)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            >
+              <Upload size={13} /> Välj bild från disk
+            </button>
+          )}
+          <ModalField label="Eller ange URL">
+            <input
+              value=""
+              onChange={(e) => { if (e.target.value) setImg({ src: e.target.value }); }}
+              placeholder="https://..."
+              style={psInput}
+            />
+          </ModalField>
+        </>
+      )}
+    </Collapser>
+  );
+}
+
 /* ── TypeSpecificFields ─────────────────────────────────────────────────── */
 
 function TypeSpecificFields({
@@ -2182,6 +2278,10 @@ export function QuestionEditModal2({ q, onEdit, onDelete, onClose }: Props) {
             {/* Type-specific fields */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px 4px" }}>
               <TypeSpecificFields q={q} patchContent={patchContent} patchQ={patchQ} />
+              {/* Universell bild-bilaga (bild/diagram har redan egen bild) */}
+              {q.type !== "image" && q.type !== "diagram_label" && (
+                <AttachedImageEditor q={q} patchQ={patchQ} />
+              )}
             </div>
           </>
         )}

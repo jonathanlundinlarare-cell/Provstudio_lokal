@@ -1496,6 +1496,23 @@ function ContentBlockPrint({ item, accent }: { item: PrintableBlockItem; accent:
   }
 }
 
+/* ─── Attached question image ────────────────────────────────────────── */
+
+function AttachedImage({ img }: { img: NonNullable<Question["attachedImage"]> }) {
+  if (!img || !img.src) return null;
+  const justify = img.align === "left" ? "flex-start" : img.align === "right" ? "flex-end" : "center";
+  const widthPct = Math.max(10, Math.min(100, img.widthPct || 60));
+  return (
+    <div style={{ display: "flex", justifyContent: justify, margin: "2mm 0" }}>
+      <img
+        src={img.src}
+        alt=""
+        style={{ width: `${widthPct}%`, maxWidth: "100%", height: "auto", objectFit: "contain", display: "block" }}
+      />
+    </div>
+  );
+}
+
 /* ─── QBlock render ──────────────────────────────────────────────────── */
 
 function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers }: {
@@ -1565,6 +1582,10 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                 </div>
                 {/* Question text + body — points sits beside the TEXT, not beside write-lines */}
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Bifogad bild ovanför frågan */}
+                  {q.attachedImage?.src && q.attachedImage.position === "above" && (
+                    <AttachedImage img={q.attachedImage} />
+                  )}
                   {/* Text row: question text + points badge side-by-side */}
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
                     <div style={{ flex: 1, fontSize: bodySize + "pt", lineHeight: 1.55, color: "#14110D" }}>
@@ -1589,6 +1610,10 @@ function QBlockRender({ block, number, design, accent, sectionIndex, showAnswers
                   </div>
                   {/* Body (write-lines etc.) — always full width */}
                   <QuestionBody q={q} design={design} accent={accent} showAnswers={showAnswers} />
+                  {/* Bifogad bild under frågan */}
+                  {q.attachedImage?.src && (q.attachedImage.position ?? "below") === "below" && (
+                    <AttachedImage img={q.attachedImage} />
+                  )}
                   {/* Inline group subs */}
                   {isLead && q.type === "group" && (() => {
                     const gc = q.content as { subs?: Array<{ text: string; lines?: number; points?: string }> };

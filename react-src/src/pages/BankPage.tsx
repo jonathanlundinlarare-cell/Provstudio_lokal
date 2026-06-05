@@ -975,9 +975,13 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
   const [gpA, setGpA]         = useState<number>(question?.grade_points?.A ?? 0);
   const [author, setAuthor]   = useState(question?.author || "");
   const [lgr22, setLgr22]     = useState<string[]>(question?.lgr22 ?? []);
+  const [attachedImage, setAttachedImage] = useState<Question["attachedImage"]>(question?.attachedImage ?? null);
   const [saving, setSaving]   = useState(false);
   const [tab, setTab]         = useState<"content" | "rubric">("content");
   const imgRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<HTMLInputElement>(null);
+  const setAttach = (patch: Partial<NonNullable<Question["attachedImage"]>>) =>
+    setAttachedImage(prev => ({ ...(prev ?? { src: "", widthPct: 60, align: "center", position: "above" }), ...patch }));
 
   // Lgr22-koder för valt ämne (centralt innehåll). Tomt = ämnet saknar mappning.
   const lgr22Entries = getLgr22ForSubject(subject);
@@ -1021,6 +1025,7 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
       grade_points,
       author: author || undefined,
       lgr22: lgr22.length ? lgr22 : null,
+      attachedImage: attachedImage?.src ? attachedImage : null,
       updated: "just nu",
     };
     if (mode === "create") {
@@ -1329,6 +1334,51 @@ function QuestionModal({ mode, type, question, defaultSubject, defaultCat, custo
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Bild på frågan — universell bild-bilaga (utom bild/diagram) */}
+            {qType !== "image" && qType !== "diagram_label" && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ps-ink-3)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 6 }}>
+                  Bild på frågan
+                </div>
+                {attachedImage?.src ? (
+                  <div style={{ border: "1px solid var(--ps-rule)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ position: "relative", borderRadius: 6, overflow: "hidden", border: "1px solid var(--ps-rule-2)", background: "var(--ps-bg-soft)" }}>
+                      <img src={attachedImage.src} alt="" style={{ display: "block", maxWidth: "100%", maxHeight: 150, objectFit: "contain", margin: "0 auto" }} onError={e => (e.currentTarget.style.display = "none")} />
+                      <button type="button" onClick={() => setAttachedImage(null)} title="Ta bort bild" style={{ position: "absolute", top: 5, right: 5, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 4, cursor: "pointer", color: "#fff", padding: "3px 6px", display: "flex" }}><X size={12} /></button>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Bredd: {attachedImage.widthPct}%</label>
+                      <input type="range" min={20} max={100} step={5} value={attachedImage.widthPct} onChange={e => setAttach({ widthPct: parseInt(e.target.value) || 60 })} style={{ width: "100%", marginTop: 4, accentColor: "var(--ps-accent)" }} />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Justering</label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, marginTop: 4 }}>
+                          {(["left", "center", "right"] as const).map(v => (
+                            <button key={v} type="button" onClick={() => setAttach({ align: v })} style={{ height: 28, borderRadius: 6, border: "1px solid", borderColor: attachedImage.align === v ? "var(--ps-accent)" : "var(--ps-rule-2)", background: attachedImage.align === v ? "var(--ps-accent)" : "transparent", color: attachedImage.align === v ? "#fff" : "var(--ps-ink-2)", fontSize: 11, cursor: "pointer" }}>{v === "left" ? "Vä" : v === "center" ? "Mi" : "Hö"}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "var(--ps-ink-3)" }}>Placering</label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginTop: 4 }}>
+                          {(["above", "below"] as const).map(v => (
+                            <button key={v} type="button" onClick={() => setAttach({ position: v })} style={{ height: 28, borderRadius: 6, border: "1px solid", borderColor: (attachedImage.position ?? "above") === v ? "var(--ps-accent)" : "var(--ps-rule-2)", background: (attachedImage.position ?? "above") === v ? "var(--ps-accent)" : "transparent", color: (attachedImage.position ?? "above") === v ? "#fff" : "var(--ps-ink-2)", fontSize: 11, cursor: "pointer" }}>{v === "above" ? "Ovanför" : "Under"}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input ref={attachRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = ev => setAttach({ src: ev.target?.result as string }); r.readAsDataURL(f); } e.target.value = ""; }} />
+                    <button type="button" onClick={() => attachRef.current?.click()} style={{ width: "100%", padding: "8px 0", border: "1px dashed var(--ps-rule-2)", borderRadius: 6, background: "none", cursor: "pointer", color: "var(--ps-ink-2)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Upload size={13} /> Välj bild från disk</button>
+                    <input value="" onChange={e => { if (e.target.value) setAttach({ src: e.target.value }); }} placeholder="Eller ange URL: https://…" className="ps-input" style={{ width: "100%", fontSize: 12 }} />
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -306,6 +306,19 @@ export type Question = {
   updated?: string;
   /** Lgr22 centralt innehåll — koder från lgr22-so.ts (t.ex. ["hi-3", "sh-1"]) */
   lgr22?: string[] | null;
+  /**
+   * Valfri bifogad bild som visas tillsammans med frågan, oberoende av frågetyp.
+   * `src` är en dataURL (lokal bild) eller URL. Storlek anges som bredd i procent
+   * av textkolumnen; placering styr justering och om bilden ligger ovanför eller
+   * under frågan.
+   */
+  attachedImage?: {
+    src: string;
+    /** Bredd i procent av textkolumnen (20–100). */
+    widthPct: number;
+    align: "left" | "center" | "right";
+    position: "above" | "below";
+  } | null;
 };
 
 // ---------------------------------------------------------------------------
